@@ -1,0 +1,22 @@
+{
+  "name": "ocel-console",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^7"
+  },
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "packages/*"
+    ],
+    "catalog": {
+      "next": "16.2.10",
+      "react": "19.2.8",
+      "react-dom": "19.2.8"
+    }
+  }
+}
