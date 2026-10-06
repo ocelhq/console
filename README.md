@@ -32,7 +32,6 @@ bun install
 docker compose up -d                            # Postgres 17 on localhost:5432
 cp apps/web/.env.example apps/web/.env.local    # then set BETTER_AUTH_SECRET
 cd apps/web
-bun run db:push                                 # apply the schema
 bun run dev                                     # http://localhost:3000
 ```
 
@@ -49,8 +48,9 @@ Sign-in methods come from the env: `CONSOLE_EMAIL_AUTH=true` enables email and p
 is `http://localhost:3000/api/auth/callback/github`. The console refuses to start with neither.
 `CONSOLE_SIGNUP` is `invite` unless set to `open`.
 
-Until the first release there are no migrations: `bun run db:push` applies the schema in
-`packages/db/src/schema` directly.
+The app applies the migrations in `packages/db/drizzle` when it starts. After changing the schema
+in `packages/db/src/schema`, run `bun run db:generate`. A database made by the old `db:push` has
+no migration record: recreate it (`docker compose down -v`).
 
 ## Checks
 
@@ -65,8 +65,7 @@ bun run gen         # regenerate packages/connectors/src/gen
 ```
 
 Tests read `TEST_DATABASE_URL`, which defaults to
-`postgres://postgres:postgres@localhost:5432/ocelhq_test`, and push the schema there
-themselves.
+`postgres://postgres:postgres@localhost:5432/ocelhq_test`, and migrate it themselves.
 
 ## License
 

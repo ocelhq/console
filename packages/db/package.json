@@ -6,11 +6,13 @@
   "type": "module",
   "exports": {
     ".": "./src/client.ts",
+    "./migrate": "./src/migrate.ts",
     "./schema": "./src/schema/index.ts"
   },
   "scripts": {
-    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate && node scripts/embed-migrations.mjs",
     "db:studio": "drizzle-kit studio",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
@@ -21,6 +23,7 @@
   "devDependencies": {
     "@types/pg": "^8.20.0",
     "drizzle-kit": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "^4.1.9"
   }
 }
