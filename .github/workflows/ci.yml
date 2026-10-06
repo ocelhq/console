@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  # A next build evaluates the postgres("main") binding and better-auth's config, so it needs
+  # both set; nothing connects to this database. Tests set their own binding in vitest.config.ts.
+  OCEL_RESOURCE_POSTGRES_main: '{"name":"main","postgres":{"host":"127.0.0.1","port":5432,"database":"build","username":"build","password":"build","url":"postgres://build:build@127.0.0.1:5432/build"}}'
+  BETTER_AUTH_SECRET: ci-build-placeholder-secret-not-a-real-one
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          build: "false"
+      # TODO: run `bun run lint` (biome ci: formatter, assists and every rule) once the
+      # repo-wide `bun run format` commit and the a11y fixes in apps/web and packages/variables
+      # land. Until then this runs the linter alone, without the three a11y rules existing code
+      # still breaks.
+      - name: Biome
+        run: >-
+          bunx biome lint .
+          --skip=a11y/noLabelWithoutControl
+          --skip=a11y/useSemanticElements
+          --skip=a11y/useKeyWithClickEvents
+
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: bun run typecheck
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/ocelhq_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: bun run test
+
+  generated:
+    name: generated
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install buf
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(sed -n 's/^buf = "\(.*\)"$/\1/p' mise.toml)"
+          if [ -z "$version" ]; then
+            echo "::error::mise.toml pins no buf version"
+            exit 1
+          fi
+          dir="$RUNNER_TEMP/buf"
+          mkdir -p "$dir"
+          gh release download "v$version" --repo bufbuild/buf --dir "$dir" \
+            --pattern buf-Linux-x86_64 --pattern sha256.txt
+          (cd "$dir" && grep -E "  buf-Linux-x86_64$" sha256.txt | sha256sum --check --strict)
+          install -m 0755 "$dir/buf-Linux-x86_64" "$dir/buf"
+          echo "$dir" >> "$GITHUB_PATH"
+      - run: buf generate
+      - name: Generated code matches buf generate
+        run: |
+          git add --intent-to-add --all
+          git diff --exit-code
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: next build
+        run: bun run --filter @console/web build
+      - name: Storybook
+        run: |
+          if jq -e '.scripts["build-storybook"]' package.json > /dev/null; then
+            bun run build-storybook
+          fi
