@@ -10,10 +10,12 @@
     "test": "bun run --filter '*' test",
     "build": "bun run --filter '@ocelhq/*' build",
     "storybook": "bun run --filter @console/storybook storybook",
-    "build-storybook": "bun run --filter @console/storybook build-storybook"
+    "build-storybook": "bun run --filter @console/storybook build-storybook",
+    "changeset": "changeset"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.15"
+    "@biomejs/biome": "2.5.15",
+    "@changesets/cli": "^3.0.3"
   },
   "workspaces": {
     "packages": [
