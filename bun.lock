@@ -106,6 +106,7 @@
       "dependencies": {
         "@better-auth/drizzle-adapter": "catalog:",
         "@console/db": "workspace:*",
+        "@console/infra": "workspace:*",
         "better-auth": "catalog:",
         "drizzle-orm": "catalog:",
       },
@@ -114,6 +115,7 @@
         "react": "catalog:",
         "react-dom": "catalog:",
         "typescript": "catalog:",
+        "vitest": "^4.1.9",
       },
     },
     "packages/connectors": {
@@ -149,6 +151,7 @@
       "version": "0.0.1",
       "dependencies": {
         "ocel": "latest",
+        "zod": "^4.4.3",
       },
       "devDependencies": {
         "typescript": "catalog:",

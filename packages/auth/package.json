@@ -10,11 +10,13 @@
   },
   "scripts": {
     "auth:generate": "bunx @better-auth/cli@latest generate --config ./src/auth.ts --output ../db/src/schema/auth-schema.ts",
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "catalog:",
     "@console/db": "workspace:*",
+    "@console/infra": "workspace:*",
     "better-auth": "catalog:",
     "drizzle-orm": "catalog:"
   },
@@ -22,6 +24,7 @@
     "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "^4.1.9"
   }
 }

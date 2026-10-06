@@ -44,9 +44,10 @@ tests. Set `POSTGRES_PORT` to publish it on another host port, and change the UR
 `postgres("main")` binding. `bun run dev:ocel` runs `next dev` under `ocel dev` instead, which
 supplies the binding itself.
 
-Sign-in works with email and password. GitHub sign-in needs `GITHUB_CLIENT_ID` and
-`GITHUB_CLIENT_SECRET` from an OAuth app whose callback is
-`http://localhost:3000/api/auth/callback/github`.
+Sign-in methods come from the env: `CONSOLE_EMAIL_AUTH=true` enables email and password, and
+`GITHUB_CLIENT_ID` with `GITHUB_CLIENT_SECRET` enables GitHub, from an OAuth app whose callback
+is `http://localhost:3000/api/auth/callback/github`. The console refuses to start with neither.
+`CONSOLE_SIGNUP` is `invite` unless set to `open`.
 
 Until the first release there are no migrations: `bun run db:push` applies the schema in
 `packages/db/src/schema` directly.

@@ -18,7 +18,10 @@ export default defineConfig({
   test: {
     environment: "node",
     env: {
+      BETTER_AUTH_SECRET: "test-secret-at-least-32-characters-long",
       BETTER_AUTH_URL: "http://localhost:3000",
+      CONSOLE_EMAIL_AUTH: "true",
+      CONSOLE_SIGNUP: "open",
       DATABASE_URL:
         process.env.TEST_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/ocelhq_test",
       OCEL_RESOURCE_POSTGRES_main: postgresBinding(

@@ -1,3 +1,2 @@
-import { postgres } from "ocel/postgres";
-
-export const pg = postgres("main");
+export { env } from "./env";
+export { pg } from "./pg";
