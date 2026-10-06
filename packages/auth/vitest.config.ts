@@ -1,0 +1,27 @@
+import { defineConfig } from "vitest/config";
+
+const testDatabaseUrl =
+  process.env.TEST_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/ocelhq_test";
+
+function postgresBinding(name: string, url: string): string {
+  const parsed = new URL(url);
+  return JSON.stringify({
+    name,
+    postgres: {
+      host: parsed.hostname,
+      port: Number(parsed.port || 5432),
+      database: parsed.pathname.slice(1),
+      username: decodeURIComponent(parsed.username),
+      password: decodeURIComponent(parsed.password),
+    },
+  });
+}
+
+export default defineConfig({
+  test: {
+    environment: "node",
+    env: {
+      OCEL_RESOURCE_POSTGRES_main: postgresBinding("main", testDatabaseUrl),
+    },
+  },
+});
