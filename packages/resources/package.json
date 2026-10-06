@@ -11,6 +11,9 @@
     "ocel": "latest"
   },
   "devDependencies": {
-    "typescript": "^5"
+    "typescript": "catalog:"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
   }
 }

@@ -3,13 +3,14 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "gen": "buf generate"
+    "gen": "buf generate",
+    "lint": "biome ci .",
+    "format": "biome check --write .",
+    "typecheck": "bun run --filter '*' typecheck",
+    "test": "bun run --filter '*' test"
   },
   "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^7"
+    "@biomejs/biome": "2.5.15"
   },
   "workspaces": {
     "packages": [
@@ -23,7 +24,8 @@
       "drizzle-orm": "1.0.0-rc.4",
       "next": "16.2.10",
       "react": "19.2.8",
-      "react-dom": "19.2.8"
+      "react-dom": "19.2.8",
+      "typescript": "5.9.3"
     }
   }
 }

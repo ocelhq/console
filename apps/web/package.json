@@ -11,7 +11,8 @@
     "auth:generate": "bun run --filter @console/auth auth:generate",
     "db:push": "bun run --filter @console/db db:push",
     "db:studio": "bun run --filter @console/db db:studio",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -52,7 +53,7 @@
     "drizzle-orm": "catalog:",
     "pg": "^8.22.0",
     "tailwindcss": "^4",
-    "typescript": "^5",
+    "typescript": "catalog:",
     "vite": "^8.1.3",
     "vitest": "^4.1.9"
   }

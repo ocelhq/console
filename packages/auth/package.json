@@ -9,7 +9,8 @@
     "./next": "./src/next.ts"
   },
   "scripts": {
-    "auth:generate": "npx @better-auth/cli@latest generate --config ./src/auth.ts --output ../db/src/schema/auth-schema.ts"
+    "auth:generate": "bunx @better-auth/cli@latest generate --config ./src/auth.ts --output ../db/src/schema/auth-schema.ts",
+    "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "catalog:",
@@ -21,6 +22,6 @@
     "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "typescript": "^5"
+    "typescript": "catalog:"
   }
 }
