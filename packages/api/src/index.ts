@@ -3,6 +3,7 @@ export { connectorHeartbeat } from "./routes/connectors/[id]/heartbeat/route";
 export { deleteConnector, updateConnector } from "./routes/connectors/[id]/route";
 export { type Liveness, liveness } from "./routes/connectors/liveness";
 export { listConnectors, upsertConnector } from "./routes/connectors/route";
+export { health } from "./routes/health/route";
 export {
   createDeployment,
   getDeployment,
