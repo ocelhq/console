@@ -144,7 +144,7 @@ describe("createDeployment", () => {
             }),
           }),
         };
-      }) as typeof db.insert;
+      }) as unknown as typeof db.insert;
 
       const second = await createDeployment(postRequest(session.headers, record()), created.id);
       expect(second.status).toBe(409);
