@@ -18,6 +18,7 @@ export default defineConfig({
   test: {
     environment: "node",
     env: {
+      BETTER_AUTH_URL: "http://localhost:3000",
       DATABASE_URL:
         process.env.TEST_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/ocelhq_test",
       OCEL_RESOURCE_POSTGRES_main: postgresBinding(

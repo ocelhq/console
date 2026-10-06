@@ -101,7 +101,9 @@ function jsonType(value: unknown): string {
 
 function mismatches(path: string, want: Json, got: unknown, dynamic: Set<string>): string[] {
   if (jsonType(want) !== jsonType(got)) {
-    return [`${path} is ${JSON.stringify(got)}, want a ${jsonType(want)} like ${JSON.stringify(want)}`];
+    return [
+      `${path} is ${JSON.stringify(got)}, want a ${jsonType(want)} like ${JSON.stringify(want)}`,
+    ];
   }
   if (dynamic.has(path)) {
     return [];
@@ -166,7 +168,9 @@ async function send(
 async function sendOk(method: string, path: string, session: Session | null, body?: Json) {
   const response = await send(method, path, session, body);
   if (!response.ok) {
-    throw new Error(`setup ${method} ${path} answered ${response.status}: ${await response.text()}`);
+    throw new Error(
+      `setup ${method} ${path} answered ${response.status}: ${await response.text()}`,
+    );
   }
   return response.status === 204 ? null : response.json();
 }
@@ -267,7 +271,6 @@ const setups: Record<string, (session: Session) => Promise<Binding>> = {
 
 describe("the requests the ocel CLI and connector send", () => {
   beforeAll(async () => {
-    process.env.BETTER_AUTH_URL = origin;
     await setupTestDatabase();
   });
 
