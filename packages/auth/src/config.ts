@@ -3,11 +3,14 @@ import { db } from "@console/db";
 import * as schema from "@console/db/schema";
 import { env } from "@console/infra/env";
 import type { BetterAuthOptions } from "better-auth";
+import { APIError } from "better-auth/api";
 import { bearer, deviceAuthorization, jwt, organization } from "better-auth/plugins";
 import { asc, eq } from "drizzle-orm";
 import { OCEL_CLI_CLIENT_ID } from "./constants";
 import { consoleOrigin } from "./origin";
 import { readAuthSettings } from "./settings";
+import { maySignUp } from "./signup";
+import { databaseSignupStore } from "./signup-store";
 
 const building = process.env.NEXT_PHASE === "phase-production-build";
 const settings = readAuthSettings();
@@ -27,6 +30,17 @@ export const authConfig = {
     expiresIn: 60 * 60 * 24 * 30,
   },
   databaseHooks: {
+    user: {
+      create: {
+        before: async (created) => {
+          if (!(await maySignUp(created.email, settings.signup, databaseSignupStore))) {
+            throw new APIError("FORBIDDEN", {
+              message: "This console is invite-only. Ask an admin to invite your email address.",
+            });
+          }
+        },
+      },
+    },
     session: {
       create: {
         before: async (session) => {
