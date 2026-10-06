@@ -27,6 +27,7 @@ for manifest in "$root"/packages/*/package.json; do
     continue
   fi
 
+  cp "$root/LICENSE" "$dir/LICENSE"
   tarball="$(cd "$dir" && bun pm pack --destination "$out" --quiet | tail -n 1)"
   npm publish "$tarball" --provenance --access public
 done
