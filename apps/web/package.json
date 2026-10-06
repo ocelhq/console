@@ -8,10 +8,10 @@
     "dev:ocel": "ocel dev -- next dev",
     "build": "next build",
     "start": "next start",
-    "auth:generate": "pnpm --filter @console/auth auth:generate",
-    "db:generate": "pnpm --filter @console/db db:generate",
-    "db:push": "pnpm --filter @console/db db:push",
-    "db:studio": "pnpm --filter @console/db db:studio",
+    "auth:generate": "bun run --filter @console/auth auth:generate",
+    "db:generate": "bun run --filter @console/db db:generate",
+    "db:push": "bun run --filter @console/db db:push",
+    "db:studio": "bun run --filter @console/db db:studio",
     "test": "vitest run"
   },
   "dependencies": {
@@ -26,7 +26,7 @@
     "@ui/theme": "workspace:^",
     "@ui/variables": "workspace:^",
     "@xyflow/react": "^12.11.6",
-    "better-auth": "^1.6.23",
+    "better-auth": "catalog:",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cn": "^0.2.6",

@@ -20,6 +20,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/node": "^20",
     "@types/pg": "^8.20.0",
     "drizzle-kit": "^0.31.10",
     "ocel": "latest",

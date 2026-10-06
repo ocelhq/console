@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@console/db": "workspace:*",
-    "better-auth": "^1.6.23",
+    "better-auth": "catalog:",
     "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {

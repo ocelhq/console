@@ -23,7 +23,10 @@ async function signUpTestUser(suffix: string) {
   };
 }
 
-export async function createTestSessionWithRole(organizationId: string, role: string) {
+export async function createTestSessionWithRole(
+  organizationId: string,
+  role: "member" | "admin" | "owner",
+) {
   const joined = await signUpTestUser(crypto.randomUUID());
 
   await auth.api.addMember({
