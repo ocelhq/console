@@ -52,6 +52,51 @@ The app applies the migrations in `packages/db/drizzle` when it starts. After ch
 in `packages/db/src/schema`, run `bun run db:generate`. A database made by the old `db:push` has
 no migration record: recreate it (`docker compose down -v`).
 
+## Self-host
+
+The console deploys with `ocel` like any other app. Each target has a config at the root, and
+every command names one with `-c`:
+
+| Config               | Target                                                          |
+| -------------------- | --------------------------------------------------------------- |
+| `ocel.aws.config.ts` | AWS, with the database on Neon (`NEON_DATABASE_URL`)              |
+| `ocel.vps.config.ts` | A machine you reach over SSH (`CONSOLE_VPS_HOST`, `_USER`, `_PORT`) |
+| `ocel.gcp.config.ts` | Google Cloud (`GCP_PROJECT`, `GCP_REGION`); deploying it waits on Next.js and Cloud SQL support in ocel |
+
+`CONSOLE_DOMAIN` in your shell sets the production hostname. With AWS as the example:
+
+```sh
+git clone https://github.com/ocelhq/console && cd console && bun install
+export OCEL_CONFIG=ocel.aws.config.ts
+ocel bootstrap production
+ocel env set BETTER_AUTH_SECRET="$(openssl rand -base64 32)"
+ocel env set NEON_DATABASE_URL="postgres://…"
+ocel env set CONSOLE_EMAIL_AUTH=true
+CONSOLE_DOMAIN=console.example.com ocel deploy
+```
+
+The app applies its migrations when it starts.
+
+Sign-in is configured with these variables:
+
+| Variable                                     | Default  | Effect                                                     |
+| -------------------------------------------- | -------- | ---------------------------------------------------------- |
+| `CONSOLE_EMAIL_AUTH`                         | `false`  | Email and password sign-in                                 |
+| `GITHUB_CLIENT_ID` + `GITHUB_CLIENT_SECRET`  | unset    | GitHub sign-in                                             |
+| `CONSOLE_SIGNUP`                             | `invite` | `invite`: only the first user and invited emails sign up; `open`: anyone |
+| `BETTER_AUTH_URL`                            | unset    | The public origin, when it is not the hostname ocel serves |
+
+The console refuses to start with no sign-in method enabled. While sign-up is invite-only, the
+first account created owns the console, so create yours right after the first deploy. If
+someone else gets there first, delete their row from the `user` table.
+
+Then point the CLI at your console:
+`OCEL_CONSOLE_URL=https://console.example.com ocel login`,
+`ocel link`, `ocel connector add`.
+
+Known gaps: the console sends no email, so there is no password reset or email verification,
+and a VPS database has no backups.
+
 ## Checks
 
 From the repository root:
