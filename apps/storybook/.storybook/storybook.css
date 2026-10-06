@@ -1,0 +1,63 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@ocelhq/theme/tokens.css";
+@import "@ocelhq/theme/base.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@source "../../../packages/variables/src";
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("../node_modules/@ocelhq/theme/fonts/ibm-plex-sans/ibm-plex-sans-latin-100-700.woff2")
+    format("woff2");
+  font-weight: 100 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("../node_modules/@ocelhq/theme/fonts/space-grotesk/space-grotesk-latin-300-700.woff2")
+    format("woff2");
+  font-weight: 300 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("../node_modules/@ocelhq/theme/fonts/ibm-plex-mono/ibm-plex-mono-latin-400.woff2")
+    format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("../node_modules/@ocelhq/theme/fonts/ibm-plex-mono/ibm-plex-mono-latin-500.woff2")
+    format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("../node_modules/@ocelhq/theme/fonts/ibm-plex-mono/ibm-plex-mono-latin-600.woff2")
+    format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Archivo";
+  src: url("../node_modules/@ocelhq/theme/fonts/archivo/archivo-latin-800.woff2") format("woff2");
+  font-weight: 800;
+  font-display: swap;
+}
+
+:root {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-display: "Archivo", ui-sans-serif, system-ui, sans-serif;
+}

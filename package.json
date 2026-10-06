@@ -8,7 +8,9 @@
     "format": "biome check --write .",
     "typecheck": "bun run --filter '*' typecheck",
     "test": "bun run --filter '*' test",
-    "build": "bun run --filter '@ocelhq/*' build"
+    "build": "bun run --filter '@ocelhq/*' build",
+    "storybook": "bun run --filter @console/storybook storybook",
+    "build-storybook": "bun run --filter @console/storybook build-storybook"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15"
