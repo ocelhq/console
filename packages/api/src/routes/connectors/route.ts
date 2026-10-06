@@ -55,5 +55,5 @@ export async function upsertConnector(request: Request): Promise<Response> {
     })
     .returning();
 
-  return Response.json(saved, { status: 200 });
+  return Response.json({ ...saved, online: liveness(saved) === "online" }, { status: 200 });
 }

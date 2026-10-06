@@ -93,6 +93,25 @@ describe("PUT /api/connectors", () => {
     }
   });
 
+  it("says whether the row it saved is online, as the list does", async () => {
+    const session = await createTestSessionWithOrganization();
+
+    try {
+      const first = await (await upsertConnector(putRequest(dialled, session.headers))).json();
+      expect(first.online).toBe(false);
+
+      const now = new Date();
+      await db
+        .update(connector)
+        .set({ connectedAt: now, lastSeenAt: now })
+        .where(eq(connector.id, first.id));
+      const again = await (await upsertConnector(putRequest(dialled, session.headers))).json();
+      expect(again.online).toBe(true);
+    } finally {
+      await session.cleanup();
+    }
+  });
+
   it("lets two orgs register the same target", async () => {
     const one = await createTestSessionWithOrganization();
     const two = await createTestSessionWithOrganization();
@@ -297,6 +316,31 @@ describe("PATCH and DELETE /api/connectors/{id}", () => {
       expect(body.publicKey).toBe("aGk=");
       expect(body.tlsPin).toBe("sha256/xyz");
       expect(body.compute).toBe("serverless");
+    } finally {
+      await session.cleanup();
+    }
+  });
+
+  it("says whether the row it wrote back is online, as the list does", async () => {
+    const session = await createTestSessionWithOrganization();
+
+    try {
+      const upserted = await (await upsertConnector(putRequest(dialled, session.headers))).json();
+      const address = { url: "https://box.example/.ocel/connector" };
+      const never = await (
+        await updateConnector(patchRequest(address, session.headers), upserted.id)
+      ).json();
+      expect(never.online).toBe(false);
+
+      const now = new Date();
+      await db
+        .update(connector)
+        .set({ connectedAt: now, lastSeenAt: now })
+        .where(eq(connector.id, upserted.id));
+      const fresh = await (
+        await updateConnector(patchRequest(address, session.headers), upserted.id)
+      ).json();
+      expect(fresh.online).toBe(true);
     } finally {
       await session.cleanup();
     }

@@ -2,6 +2,7 @@ import { db } from "@console/db";
 import { connector } from "@console/db/schema";
 import { eq } from "drizzle-orm";
 import { readBody } from "../../../body";
+import { liveness } from "../liveness";
 import { patchConnectorSchema } from "../validation";
 import { findOwnedConnector } from "./owned";
 
@@ -22,7 +23,7 @@ export async function updateConnector(request: Request, id: string): Promise<Res
     .where(eq(connector.id, owned.connectorId))
     .returning();
 
-  return Response.json(updated, { status: 200 });
+  return Response.json({ ...updated, online: liveness(updated) === "online" }, { status: 200 });
 }
 
 export async function deleteConnector(request: Request, id: string): Promise<Response> {
