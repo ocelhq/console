@@ -9,7 +9,7 @@
     "build": "next build",
     "start": "next start",
     "auth:generate": "bun run --filter @console/auth auth:generate",
-    "db:push": "bun run --filter @console/db db:push",
+    "db:generate": "bun run --filter @console/db db:generate",
     "db:studio": "bun run --filter @console/db db:studio",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p ."
@@ -49,7 +49,6 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "babel-plugin-react-compiler": "1.0.0",
-    "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
     "pg": "^8.22.0",
     "tailwindcss": "^4",

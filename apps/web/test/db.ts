@@ -1,6 +1,4 @@
-import * as schema from "@console/db/schema";
-import { pushSchema } from "drizzle-kit/api-postgres";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { migrateDatabase } from "@console/db/migrate";
 import { Pool } from "pg";
 
 async function ensureDatabaseExists(connectionString: string) {
@@ -36,9 +34,7 @@ export function setupTestDatabase() {
 
       const pool = new Pool({ connectionString });
       try {
-        const pushDb = drizzle({ client: pool });
-        const { apply } = await pushSchema(schema, pushDb);
-        await apply();
+        await migrateDatabase(pool);
       } finally {
         await pool.end();
       }

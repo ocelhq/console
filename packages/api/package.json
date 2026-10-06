@@ -23,7 +23,6 @@
   "devDependencies": {
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
-    "drizzle-kit": "catalog:",
     "ocel": "latest",
     "typescript": "catalog:",
     "vite": "^8.1.3",

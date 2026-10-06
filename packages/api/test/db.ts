@@ -1,6 +1,4 @@
-import * as schema from "@console/db/schema";
-import { pushSchema } from "drizzle-kit/api-postgres";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { migrateDatabase } from "@console/db/migrate";
 import { Pool } from "pg";
 
 const DATABASE_EXISTS_CODES = new Set(["42P04", "23505"]);
@@ -22,8 +20,6 @@ async function ensureDatabaseExists(connectionString: string) {
   }
 }
 
-const SCHEMA_PUSH_LOCK = 815_213;
-
 let setupPromise: Promise<void> | undefined;
 
 export function setupTestDatabase() {
@@ -40,16 +36,7 @@ export function setupTestDatabase() {
 
       const pool = new Pool({ connectionString });
       try {
-        const client = await pool.connect();
-        try {
-          await client.query("SELECT pg_advisory_lock($1)", [SCHEMA_PUSH_LOCK]);
-          const pushDb = drizzle({ client: pool });
-          const { apply } = await pushSchema(schema, pushDb);
-          await apply();
-        } finally {
-          await client.query("SELECT pg_advisory_unlock($1)", [SCHEMA_PUSH_LOCK]);
-          client.release();
-        }
+        await migrateDatabase(pool);
       } finally {
         await pool.end();
       }
