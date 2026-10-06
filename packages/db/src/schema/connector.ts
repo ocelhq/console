@@ -1,4 +1,3 @@
-import { relations } from "drizzle-orm";
 import { jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { organization } from "./auth-schema";
 import { computeKind } from "./deployment";
@@ -36,10 +35,3 @@ export const connector = pgTable(
 );
 
 export type Connector = typeof connector.$inferSelect;
-
-export const connectorRelations = relations(connector, ({ one }) => ({
-  organization: one(organization, {
-    fields: [connector.organizationId],
-    references: [organization.id],
-  }),
-}));

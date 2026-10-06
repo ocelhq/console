@@ -1,4 +1,3 @@
-import { relations } from "drizzle-orm";
 import { pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { organization, user } from "./auth-schema";
 
@@ -47,14 +46,3 @@ export const project = pgTable(
   },
   (table) => [uniqueIndex("project_organizationId_slug_uidx").on(table.organizationId, table.slug)],
 );
-
-export const projectRelations = relations(project, ({ one }) => ({
-  organization: one(organization, {
-    fields: [project.organizationId],
-    references: [organization.id],
-  }),
-  createdByUser: one(user, {
-    fields: [project.createdBy],
-    references: [user.id],
-  }),
-}));

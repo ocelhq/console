@@ -12,9 +12,10 @@
     "auth:generate": "npx @better-auth/cli@latest generate --config ./src/auth.ts --output ../db/src/schema/auth-schema.ts"
   },
   "dependencies": {
+    "@better-auth/drizzle-adapter": "catalog:",
     "@console/db": "workspace:*",
     "better-auth": "catalog:",
-    "drizzle-orm": "^0.45.2"
+    "drizzle-orm": "catalog:"
   },
   "devDependencies": {
     "next": "catalog:",

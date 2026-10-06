@@ -1,7 +1,7 @@
 import { db } from "@console/db";
 import * as schema from "@console/db/schema";
 import type { BetterAuthOptions } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { drizzleAdapter } from "@better-auth/drizzle-adapter/relations-v2";
 import { bearer, deviceAuthorization, jwt, organization } from "better-auth/plugins";
 import { asc, eq } from "drizzle-orm";
 import { OCEL_CLI_CLIENT_ID } from "./constants";

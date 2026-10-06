@@ -13,7 +13,7 @@
   "dependencies": {
     "@console/auth": "workspace:*",
     "@console/db": "workspace:*",
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "catalog:",
     "jose": "^6.2.12",
     "pg": "^8.22.0",
     "uuidv7": "^1.2.1",
@@ -22,7 +22,7 @@
   "devDependencies": {
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
-    "drizzle-kit": "^0.31.10",
+    "drizzle-kit": "catalog:",
     "ocel": "latest",
     "typescript": "^5",
     "vite": "^8.1.3",
