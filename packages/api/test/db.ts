@@ -1,5 +1,5 @@
 import * as schema from "@console/db/schema";
-import { pushSchema } from "drizzle-kit/api";
+import { pushSchema } from "drizzle-kit/api-postgres";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
@@ -43,7 +43,7 @@ export function setupTestDatabase() {
         const client = await pool.connect();
         try {
           await client.query("SELECT pg_advisory_lock($1)", [SCHEMA_PUSH_LOCK]);
-          const pushDb = drizzle(pool);
+          const pushDb = drizzle({ client: pool });
           const { apply } = await pushSchema(schema, pushDb);
           await apply();
         } finally {

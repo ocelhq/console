@@ -1,4 +1,3 @@
-import { relations } from "drizzle-orm";
 import { index, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { type Framework, project } from "./project";
 
@@ -153,10 +152,3 @@ export const deployment = pgTable(
 );
 
 export type Deployment = typeof deployment.$inferSelect;
-
-export const deploymentRelations = relations(deployment, ({ one }) => ({
-  project: one(project, {
-    fields: [deployment.projectId],
-    references: [project.id],
-  }),
-}));
