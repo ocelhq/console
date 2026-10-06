@@ -6,7 +6,7 @@
     "gen": "buf generate",
     "lint": "biome ci .",
     "format": "biome check --write .",
-    "typecheck": "bun run --filter '*' typecheck",
+    "typecheck": "tsc --noEmit -p . && bun run --filter '*' typecheck",
     "test": "bun run --filter '*' test",
     "build": "bun run --filter '@ocelhq/*' build",
     "storybook": "bun run --filter @console/storybook storybook",
@@ -15,7 +15,10 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
-    "@changesets/cli": "^3.0.3"
+    "@changesets/cli": "^3.0.3",
+    "ocel": "latest",
+    "typescript": "catalog:",
+    "zod": "^4.4.3"
   },
   "workspaces": {
     "packages": [

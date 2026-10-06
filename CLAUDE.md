@@ -8,7 +8,7 @@ the commands; CONTRIBUTING.md is binding for every change.
 
 - Next.js 16 (App Router) in `apps/web`, running on Node.
 - Postgres through `pg` and drizzle-orm 1.0 (`packages/db`). The pool comes from the Ocel
-  resource `postgres("main")` in `packages/resources`; nothing reads `DATABASE_URL` at
+  resource `postgres("main")` in `packages/infra`; nothing reads `DATABASE_URL` at
   runtime except `scripts/dev-env.mjs`, which turns it into that binding.
 - better-auth 1.7 (`packages/auth`) with the drizzle adapter.
 - vitest for tests. Database tests run against a real Postgres at `TEST_DATABASE_URL`.

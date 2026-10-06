@@ -14,7 +14,7 @@ infrastructure, and using it is optional.
 | `packages/auth`       | better-auth config: sessions, organizations, JWT, the CLI's device flow     |
 | `packages/db`         | Drizzle schema, relations and client                                       |
 | `packages/connectors` | The connector client; `src/gen` is generated from `buf.build/ocelhq/ocel`  |
-| `packages/resources`  | The Ocel resources the console declares (`postgres("main")`)               |
+| `packages/infra`      | The Ocel resources the console declares (`postgres("main")`)               |
 | `packages/theme`      | The design tokens shared with the other Ocel surfaces                      |
 | `packages/variables`  | The variables table, rendered here and by the CLI's env UI                 |
 

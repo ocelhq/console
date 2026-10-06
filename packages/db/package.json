@@ -14,11 +14,11 @@
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
+    "@console/infra": "workspace:*",
     "drizzle-orm": "catalog:",
     "pg": "^8.22.0"
   },
   "devDependencies": {
-    "@console/resources": "workspace:*",
     "@types/pg": "^8.20.0",
     "drizzle-kit": "catalog:",
     "typescript": "catalog:"

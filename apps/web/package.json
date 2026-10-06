@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "node --env-file-if-exists=.env.local scripts/dev-env.mjs",
-    "dev:ocel": "ocel dev -- next dev",
+    "dev:ocel": "ocel dev -c ../../ocel.aws.config.ts -- next dev",
     "build": "next build",
     "start": "next start",
     "auth:generate": "bun run --filter @console/auth auth:generate",
@@ -20,7 +20,7 @@
     "@console/auth": "workspace:*",
     "@console/connectors": "workspace:*",
     "@console/db": "workspace:*",
-    "@console/resources": "workspace:*",
+    "@console/infra": "workspace:*",
     "@dagrejs/dagre": "^3.1.1",
     "@phosphor-icons/react": "^2.1.10",
     "@ocelhq/theme": "workspace:^",
