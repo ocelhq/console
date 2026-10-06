@@ -78,7 +78,6 @@ async function paired() {
 
 describe("POST /api/connectors/{id}/heartbeat", () => {
   beforeAll(async () => {
-    process.env.BETTER_AUTH_URL = origin;
     await setupTestDatabase();
   });
 
