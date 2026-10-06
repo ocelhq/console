@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
   console.error(
-    "DATABASE_URL is not set. Set it in console/web/.env.local (see .env.example) before running `pnpm dev`.",
+    "DATABASE_URL is not set. Set it in apps/web/.env.local (see .env.example) before running `bun run dev`.",
   );
   process.exit(1);
 }

@@ -9,7 +9,7 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit -p ."
   },
   "license": "Apache-2.0",
   "dependencies": {
@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "@types/node": "^20",
-    "typescript": "^5",
+    "typescript": "catalog:",
     "vitest": "^4.1.9"
   }
 }
