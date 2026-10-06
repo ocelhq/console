@@ -1,5 +1,5 @@
 import type { Scope } from "@console/connectors";
-import type { Ability } from "@ui/variables";
+import type { Ability } from "@ocelhq/variables-ui";
 
 const byRole: Record<string, readonly Scope[]> = {
   owner: ["variables.read", "variables.write", "variables.reveal"],

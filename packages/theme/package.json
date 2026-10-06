@@ -1,17 +1,37 @@
 {
-  "name": "@ui/theme",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@ocelhq/theme",
+  "version": "0.1.0",
   "type": "module",
   "description": "the tokens and register dials every ocel surface renders in",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ocelhq/console.git",
+    "directory": "packages/theme"
+  },
   "exports": {
     "./tokens.css": "./src/tokens.css",
-    "./base.css": "./src/base.css"
+    "./base.css": "./src/base.css",
+    "./fonts/*": "./fonts/*",
+    "./DESIGN.md": "./DESIGN.md",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src/tokens.css",
+    "src/base.css",
+    "fonts",
+    "DESIGN.md"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "scripts": {
     "test": "vitest run"
   },
-  "license": "Apache-2.0",
   "devDependencies": {
     "vitest": "^4.1.9"
   }
