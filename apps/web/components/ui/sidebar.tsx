@@ -350,6 +350,7 @@ function SidebarResizer({ className, ...props }: React.ComponentProps<"div">) {
   }
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: a focusable window splitter must be role="separator" on an element that takes focus, which <hr> cannot
     <div
       role="separator"
       aria-orientation="vertical"

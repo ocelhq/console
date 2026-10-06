@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
+    // biome-ignore lint/a11y/useSemanticElements: a fieldset would bring form-control semantics and disabled propagation an input group does not have
     <div
       data-slot="input-group"
       role="group"
@@ -47,6 +48,8 @@ function InputGroupAddon({
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
   return (
+    // biome-ignore lint/a11y/useSemanticElements: see InputGroup
+    // biome-ignore lint/a11y/useKeyWithClickEvents: clicking the addon focuses the input, which keyboard users reach directly
     <div
       role="group"
       data-slot="input-group-addon"

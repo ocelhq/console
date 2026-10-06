@@ -9,6 +9,7 @@
     "includes": [
       "**",
       "!**/packages/connectors/src/gen",
+      "!**/packages/api/test/contract",
       "!**/drizzle",
       "!**/.next",
       "!**/dist",
@@ -33,7 +34,15 @@
     }
   },
   "linter": {
-    "enabled": true
+    "enabled": true,
+    "rules": {
+      "a11y": {
+        "noLabelWithoutControl": {
+          "level": "error",
+          "options": { "inputComponents": ["Input", "Checkbox"] }
+        }
+      }
+    }
   },
   "assist": {
     "actions": {

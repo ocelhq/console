@@ -14,9 +14,18 @@ const heading = localFont({
 
 const mono = localFont({
   src: [
-    { path: "../node_modules/@ocelhq/theme/fonts/ibm-plex-mono/ibm-plex-mono-latin-400.woff2", weight: "400" },
-    { path: "../node_modules/@ocelhq/theme/fonts/ibm-plex-mono/ibm-plex-mono-latin-500.woff2", weight: "500" },
-    { path: "../node_modules/@ocelhq/theme/fonts/ibm-plex-mono/ibm-plex-mono-latin-600.woff2", weight: "600" },
+    {
+      path: "../node_modules/@ocelhq/theme/fonts/ibm-plex-mono/ibm-plex-mono-latin-400.woff2",
+      weight: "400",
+    },
+    {
+      path: "../node_modules/@ocelhq/theme/fonts/ibm-plex-mono/ibm-plex-mono-latin-500.woff2",
+      weight: "500",
+    },
+    {
+      path: "../node_modules/@ocelhq/theme/fonts/ibm-plex-mono/ibm-plex-mono-latin-600.woff2",
+      weight: "600",
+    },
   ],
   variable: "--font-mono",
 });
