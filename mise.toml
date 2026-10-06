@@ -1,3 +1,4 @@
 [tools]
 bun = "latest"
 node = "latest"
+buf = "1.72.0"

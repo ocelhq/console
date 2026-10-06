@@ -1,0 +1,14 @@
+version: v2
+clean: true
+inputs:
+  - module: buf.build/ocelhq/ocel:main
+    paths:
+      - provider/variablestore
+      - common/environment
+      - common/bindings
+plugins:
+  - remote: buf.build/bufbuild/es:v2.12.1
+    out: packages/connectors/src/gen
+    include_imports: true
+    opt:
+      - target=ts

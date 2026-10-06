@@ -2,6 +2,9 @@
   "name": "ocel-console",
   "type": "module",
   "private": true,
+  "scripts": {
+    "gen": "buf generate"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },

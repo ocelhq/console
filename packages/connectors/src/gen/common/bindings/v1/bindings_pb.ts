@@ -11,7 +11,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file common/bindings/v1/bindings.proto.
  */
 export const file_common_bindings_v1_bindings: GenFile = /*@__PURE__*/
-  fileDesc("CiFjb21tb24vYmluZGluZ3MvdjEvYmluZGluZ3MucHJvdG8SEmNvbW1vbi5iaW5kaW5ncy52MSL/AQoHQmluZGluZxIMCgRuYW1lGAEgASgJEjoKCHBvc3RncmVzGAIgASgLMiYuY29tbW9uLmJpbmRpbmdzLnYxLlBvc3RncmVzUHJvcGVydGllc0gAEjYKBmJ1Y2tldBgDIAEoCzIkLmNvbW1vbi5iaW5kaW5ncy52MS5CdWNrZXRQcm9wZXJ0aWVzSAASKQoGY3VzdG9tGAYgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdEgAEikKBmdyYW50cxgEIAMoCzIZLmNvbW1vbi5iaW5kaW5ncy52MS5HcmFudBIOCgZzb3VyY2UYBSABKAlCDAoKcHJvcGVydGllcyLEAQoSUG9zdGdyZXNQcm9wZXJ0aWVzEgwKBGhvc3QYASABKAkSDAoEcG9ydBgCIAEoBRIQCghkYXRhYmFzZRgDIAEoCRIQCgh1c2VybmFtZRgEIAEoCRIVCghwYXNzd29yZBgFIAEoCUIDgAEBEhAKA3VybBgGIAEoCUIDgAEBEjUKCHRsc19tb2RlGAcgASgOMiMuY29tbW9uLmJpbmRpbmdzLnYxLlBvc3RncmVzVGxzTW9kZRIOCgZ0bHNfY2EYCCABKAkiyAEKEEJ1Y2tldFByb3BlcnRpZXMSDgoGYnVja2V0GAEgASgJEhcKD3B1YmxpY19iYXNlX3VybBgCIAEoCRIOCgZwdWJsaWMYAyABKAgSEAoIZW5kcG9pbnQYBCABKAkSDgoGcmVnaW9uGAUgASgJEhIKCnBhdGhfc3R5bGUYBiABKAgSDgoGcHJlZml4GAcgASgJEhUKDWFjY2Vzc19rZXlfaWQYCCABKAkSHgoRc2VjcmV0X2FjY2Vzc19rZXkYCSABKAlCA4ABASJyCgVHcmFudBIPCgdhY3Rpb25zGAEgAygJEhEKCXJlc291cmNlcxgCIAMoCRINCgVsYWJlbBgDIAEoCRI2Cgpjb25kaXRpb25zGAQgAygLMiIuY29tbW9uLmJpbmRpbmdzLnYxLkdyYW50Q29uZGl0aW9uIj8KDkdyYW50Q29uZGl0aW9uEhAKCG9wZXJhdG9yGAEgASgJEgsKA2tleRgCIAEoCRIOCgZ2YWx1ZXMYAyADKAkqeAoLQmluZGluZ1R5cGUSHAoYQklORElOR19UWVBFX1VOU1BFQ0lGSUVEEAASGQoVQklORElOR19UWVBFX1BPU1RHUkVTEAESFwoTQklORElOR19UWVBFX0JVQ0tFVBACEhcKE0JJTkRJTkdfVFlQRV9DVVNUT00QAyp2Cg9Qb3N0Z3Jlc1Rsc01vZGUSIQodUE9TVEdSRVNfVExTX01PREVfVU5TUEVDSUZJRUQQABIdChlQT1NUR1JFU19UTFNfTU9ERV9SRVFVSVJFEAESIQodUE9TVEdSRVNfVExTX01PREVfVkVSSUZZX0ZVTEwQAkJAWj5naXRodWIuY29tL29jZWxocS9vY2VsL3BrZy9wcm90by9jb21tb24vYmluZGluZ3MvdjE7YmluZGluZ3N2MWIGcHJvdG8z", [file_google_protobuf_struct]);
+  fileDesc("CiFjb21tb24vYmluZGluZ3MvdjEvYmluZGluZ3MucHJvdG8SEmNvbW1vbi5iaW5kaW5ncy52MSLVAwoHQmluZGluZxIMCgRuYW1lGAEgASgJEjoKCHBvc3RncmVzGAIgASgLMiYuY29tbW9uLmJpbmRpbmdzLnYxLlBvc3RncmVzUHJvcGVydGllc0gAEjYKBmJ1Y2tldBgDIAEoCzIkLmNvbW1vbi5iaW5kaW5ncy52MS5CdWNrZXRQcm9wZXJ0aWVzSAASKQoGY3VzdG9tGAYgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdEgAEjQKBXRvcGljGAcgASgLMiMuY29tbW9uLmJpbmRpbmdzLnYxLlRvcGljUHJvcGVydGllc0gAEjIKBHRhc2sYCCABKAsyIi5jb21tb24uYmluZGluZ3MudjEuVGFza1Byb3BlcnRpZXNIABIuCgJrdhgJIAEoCzIgLmNvbW1vbi5iaW5kaW5ncy52MS5LdlByb3BlcnRpZXNIABI6CghyZWFsdGltZRgKIAEoCzImLmNvbW1vbi5iaW5kaW5ncy52MS5SZWFsdGltZVByb3BlcnRpZXNIABIpCgZncmFudHMYBCADKAsyGS5jb21tb24uYmluZGluZ3MudjEuR3JhbnQSDgoGc291cmNlGAUgASgJQgwKCnByb3BlcnRpZXMixAEKElBvc3RncmVzUHJvcGVydGllcxIMCgRob3N0GAEgASgJEgwKBHBvcnQYAiABKAUSEAoIZGF0YWJhc2UYAyABKAkSEAoIdXNlcm5hbWUYBCABKAkSFQoIcGFzc3dvcmQYBSABKAlCA4ABARIQCgN1cmwYBiABKAlCA4ABARI1Cgh0bHNfbW9kZRgHIAEoDjIjLmNvbW1vbi5iaW5kaW5ncy52MS5Qb3N0Z3Jlc1Rsc01vZGUSDgoGdGxzX2NhGAggASgJIsgBChBCdWNrZXRQcm9wZXJ0aWVzEg4KBmJ1Y2tldBgBIAEoCRIXCg9wdWJsaWNfYmFzZV91cmwYAiABKAkSDgoGcHVibGljGAMgASgIEhAKCGVuZHBvaW50GAQgASgJEg4KBnJlZ2lvbhgFIAEoCRISCgpwYXRoX3N0eWxlGAYgASgIEg4KBnByZWZpeBgHIAEoCRIVCg1hY2Nlc3Nfa2V5X2lkGAggASgJEh4KEXNlY3JldF9hY2Nlc3Nfa2V5GAkgASgJQgOAAQEiEQoPVG9waWNQcm9wZXJ0aWVzIhAKDlRhc2tQcm9wZXJ0aWVzInAKDEt2UHJvcGVydGllcxIMCgRob3N0GAEgASgJEgwKBHBvcnQYAiABKAUSEAoIdXNlcm5hbWUYAyABKAkSFQoIcGFzc3dvcmQYBCABKAlCA4ABARILCgN0bHMYBSABKAgSDgoGY2FfcGVtGAYgASgJIpcBChJSZWFsdGltZVByb3BlcnRpZXMSOAoJdHJhbnNwb3J0GAEgASgOMiUuY29tbW9uLmJpbmRpbmdzLnYxLlJlYWx0aW1lVHJhbnNwb3J0EgsKA3VybBgCIAEoCRIMCgRob3N0GAMgASgJEhgKC3NpZ25pbmdfa2V5GAQgASgMQgOAAQESEgoKdmVyaWZ5X2tleRgFIAEoDCJyCgVHcmFudBIPCgdhY3Rpb25zGAEgAygJEhEKCXJlc291cmNlcxgCIAMoCRINCgVsYWJlbBgDIAEoCRI2Cgpjb25kaXRpb25zGAQgAygLMiIuY29tbW9uLmJpbmRpbmdzLnYxLkdyYW50Q29uZGl0aW9uIj8KDkdyYW50Q29uZGl0aW9uEhAKCG9wZXJhdG9yGAEgASgJEgsKA2tleRgCIAEoCRIOCgZ2YWx1ZXMYAyADKAkq1wEKC0JpbmRpbmdUeXBlEhwKGEJJTkRJTkdfVFlQRV9VTlNQRUNJRklFRBAAEhkKFUJJTkRJTkdfVFlQRV9QT1NUR1JFUxABEhcKE0JJTkRJTkdfVFlQRV9CVUNLRVQQAhIXChNCSU5ESU5HX1RZUEVfQ1VTVE9NEAMSFgoSQklORElOR19UWVBFX1RPUElDEAQSFQoRQklORElOR19UWVBFX1RBU0sQBRITCg9CSU5ESU5HX1RZUEVfS1YQBhIZChVCSU5ESU5HX1RZUEVfUkVBTFRJTUUQByp2Cg9Qb3N0Z3Jlc1Rsc01vZGUSIQodUE9TVEdSRVNfVExTX01PREVfVU5TUEVDSUZJRUQQABIdChlQT1NUR1JFU19UTFNfTU9ERV9SRVFVSVJFEAESIQodUE9TVEdSRVNfVExTX01PREVfVkVSSUZZX0ZVTEwQAiqDAQoRUmVhbHRpbWVUcmFuc3BvcnQSIgoeUkVBTFRJTUVfVFJBTlNQT1JUX1VOU1BFQ0lGSUVEEAASJQohUkVBTFRJTUVfVFJBTlNQT1JUX0FQUFNZTkNfRVZFTlRTEAESIwofUkVBTFRJTUVfVFJBTlNQT1JUX09DRUxfR0FURVdBWRACQkBaPmdpdGh1Yi5jb20vb2NlbGhxL29jZWwvcGtnL3Byb3RvL2NvbW1vbi9iaW5kaW5ncy92MTtiaW5kaW5nc3YxYgZwcm90bzM", [file_google_protobuf_struct]);
 
 /**
  * @generated from message common.bindings.v1.Binding
@@ -43,6 +43,30 @@ export type Binding = Message<"common.bindings.v1.Binding"> & {
      */
     value: JsonObject;
     case: "custom";
+  } | {
+    /**
+     * @generated from field: common.bindings.v1.TopicProperties topic = 7;
+     */
+    value: TopicProperties;
+    case: "topic";
+  } | {
+    /**
+     * @generated from field: common.bindings.v1.TaskProperties task = 8;
+     */
+    value: TaskProperties;
+    case: "task";
+  } | {
+    /**
+     * @generated from field: common.bindings.v1.KvProperties kv = 9;
+     */
+    value: KvProperties;
+    case: "kv";
+  } | {
+    /**
+     * @generated from field: common.bindings.v1.RealtimeProperties realtime = 10;
+     */
+    value: RealtimeProperties;
+    case: "realtime";
   } | { case: undefined; value?: undefined };
 
   /**
@@ -173,6 +197,111 @@ export const BucketPropertiesSchema: GenMessage<BucketProperties> = /*@__PURE__*
   messageDesc(file_common_bindings_v1_bindings, 2);
 
 /**
+ * @generated from message common.bindings.v1.TopicProperties
+ */
+export type TopicProperties = Message<"common.bindings.v1.TopicProperties"> & {
+};
+
+/**
+ * Describes the message common.bindings.v1.TopicProperties.
+ * Use `create(TopicPropertiesSchema)` to create a new message.
+ */
+export const TopicPropertiesSchema: GenMessage<TopicProperties> = /*@__PURE__*/
+  messageDesc(file_common_bindings_v1_bindings, 3);
+
+/**
+ * @generated from message common.bindings.v1.TaskProperties
+ */
+export type TaskProperties = Message<"common.bindings.v1.TaskProperties"> & {
+};
+
+/**
+ * Describes the message common.bindings.v1.TaskProperties.
+ * Use `create(TaskPropertiesSchema)` to create a new message.
+ */
+export const TaskPropertiesSchema: GenMessage<TaskProperties> = /*@__PURE__*/
+  messageDesc(file_common_bindings_v1_bindings, 4);
+
+/**
+ * @generated from message common.bindings.v1.KvProperties
+ */
+export type KvProperties = Message<"common.bindings.v1.KvProperties"> & {
+  /**
+   * @generated from field: string host = 1;
+   */
+  host: string;
+
+  /**
+   * @generated from field: int32 port = 2;
+   */
+  port: number;
+
+  /**
+   * @generated from field: string username = 3;
+   */
+  username: string;
+
+  /**
+   * @generated from field: string password = 4;
+   */
+  password: string;
+
+  /**
+   * @generated from field: bool tls = 5;
+   */
+  tls: boolean;
+
+  /**
+   * @generated from field: string ca_pem = 6;
+   */
+  caPem: string;
+};
+
+/**
+ * Describes the message common.bindings.v1.KvProperties.
+ * Use `create(KvPropertiesSchema)` to create a new message.
+ */
+export const KvPropertiesSchema: GenMessage<KvProperties> = /*@__PURE__*/
+  messageDesc(file_common_bindings_v1_bindings, 5);
+
+/**
+ * @generated from message common.bindings.v1.RealtimeProperties
+ */
+export type RealtimeProperties = Message<"common.bindings.v1.RealtimeProperties"> & {
+  /**
+   * @generated from field: common.bindings.v1.RealtimeTransport transport = 1;
+   */
+  transport: RealtimeTransport;
+
+  /**
+   * @generated from field: string url = 2;
+   */
+  url: string;
+
+  /**
+   * @generated from field: string host = 3;
+   */
+  host: string;
+
+  /**
+   * @generated from field: bytes signing_key = 4;
+   */
+  signingKey: Uint8Array;
+
+  /**
+   * @generated from field: bytes verify_key = 5;
+   */
+  verifyKey: Uint8Array;
+};
+
+/**
+ * Describes the message common.bindings.v1.RealtimeProperties.
+ * Use `create(RealtimePropertiesSchema)` to create a new message.
+ */
+export const RealtimePropertiesSchema: GenMessage<RealtimeProperties> = /*@__PURE__*/
+  messageDesc(file_common_bindings_v1_bindings, 6);
+
+/**
  * @generated from message common.bindings.v1.Grant
  */
 export type Grant = Message<"common.bindings.v1.Grant"> & {
@@ -202,7 +331,7 @@ export type Grant = Message<"common.bindings.v1.Grant"> & {
  * Use `create(GrantSchema)` to create a new message.
  */
 export const GrantSchema: GenMessage<Grant> = /*@__PURE__*/
-  messageDesc(file_common_bindings_v1_bindings, 3);
+  messageDesc(file_common_bindings_v1_bindings, 7);
 
 /**
  * @generated from message common.bindings.v1.GrantCondition
@@ -229,7 +358,7 @@ export type GrantCondition = Message<"common.bindings.v1.GrantCondition"> & {
  * Use `create(GrantConditionSchema)` to create a new message.
  */
 export const GrantConditionSchema: GenMessage<GrantCondition> = /*@__PURE__*/
-  messageDesc(file_common_bindings_v1_bindings, 4);
+  messageDesc(file_common_bindings_v1_bindings, 8);
 
 /**
  * @generated from enum common.bindings.v1.BindingType
@@ -254,6 +383,26 @@ export enum BindingType {
    * @generated from enum value: BINDING_TYPE_CUSTOM = 3;
    */
   CUSTOM = 3,
+
+  /**
+   * @generated from enum value: BINDING_TYPE_TOPIC = 4;
+   */
+  TOPIC = 4,
+
+  /**
+   * @generated from enum value: BINDING_TYPE_TASK = 5;
+   */
+  TASK = 5,
+
+  /**
+   * @generated from enum value: BINDING_TYPE_KV = 6;
+   */
+  KV = 6,
+
+  /**
+   * @generated from enum value: BINDING_TYPE_REALTIME = 7;
+   */
+  REALTIME = 7,
 }
 
 /**
@@ -287,4 +436,30 @@ export enum PostgresTlsMode {
  */
 export const PostgresTlsModeSchema: GenEnum<PostgresTlsMode> = /*@__PURE__*/
   enumDesc(file_common_bindings_v1_bindings, 1);
+
+/**
+ * @generated from enum common.bindings.v1.RealtimeTransport
+ */
+export enum RealtimeTransport {
+  /**
+   * @generated from enum value: REALTIME_TRANSPORT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: REALTIME_TRANSPORT_APPSYNC_EVENTS = 1;
+   */
+  APPSYNC_EVENTS = 1,
+
+  /**
+   * @generated from enum value: REALTIME_TRANSPORT_OCEL_GATEWAY = 2;
+   */
+  OCEL_GATEWAY = 2,
+}
+
+/**
+ * Describes the enum common.bindings.v1.RealtimeTransport.
+ */
+export const RealtimeTransportSchema: GenEnum<RealtimeTransport> = /*@__PURE__*/
+  enumDesc(file_common_bindings_v1_bindings, 2);
 
