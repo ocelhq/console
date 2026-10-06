@@ -9,7 +9,7 @@ import {
 } from "@console/connectors";
 import { db } from "@console/db";
 import { type EnvironmentClass, project } from "@console/db/schema";
-import type { Coordinate, OtherValue, State, Version } from "@ui/variables";
+import type { Coordinate, OtherValue, State, Version } from "@ocelhq/variables-ui";
 import { and, eq } from "drizzle-orm";
 import { requireOrganization } from "@/lib/access";
 import { abilityFor, connectorFor, dial, noteDenial } from "@/lib/connectors";

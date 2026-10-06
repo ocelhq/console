@@ -1,12 +1,12 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@ui/theme/tokens.css";
-@import "@ui/theme/base.css";
+@import "@ocelhq/theme/tokens.css";
+@import "@ocelhq/theme/base.css";
 
 @custom-variant dark (&:is(.dark *));
 
-@source "../../../packages/variables/src";
+@source "../node_modules/@ocelhq/variables-ui/dist";
 
 @theme inline {
   --animate-wiggle: ocel-wiggle 650ms ease-out;

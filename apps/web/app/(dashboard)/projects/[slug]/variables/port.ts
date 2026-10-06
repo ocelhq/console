@@ -1,5 +1,5 @@
-import type { VariablesPort } from "@ui/variables";
-import { VariablesError } from "@ui/variables";
+import type { VariablesPort } from "@ocelhq/variables-ui";
+import { VariablesError } from "@ocelhq/variables-ui";
 
 import {
   type Answer,

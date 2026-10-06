@@ -48,7 +48,9 @@ export function install(port: VariablesPort, attending?: SessionPort): void {
 }
 
 export function port(): VariablesPort {
-  if (installed === null) throw new Error("@ui/variables: install(port) before reading anything");
+  if (installed === null) {
+    throw new Error("@ocelhq/variables-ui: install(port) before reading anything");
+  }
   return installed;
 }
 

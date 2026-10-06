@@ -12,7 +12,7 @@ import {
   store,
   Table,
   useValue,
-} from "@ui/variables";
+} from "@ocelhq/variables-ui";
 import { useEffect, useState } from "react";
 
 import { consolePort } from "./port";

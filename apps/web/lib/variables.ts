@@ -17,8 +17,8 @@ import type {
   State,
   UndeclaredCell,
   VariableGroup,
-} from "@ui/variables";
-import { envSourceGroup } from "@ui/variables/model";
+} from "@ocelhq/variables-ui";
+import { envSourceGroup } from "@ocelhq/variables-ui/model";
 
 type Declared = DeploymentVariable & { folders: Set<string>; scopes: Set<string> };
 
