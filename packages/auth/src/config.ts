@@ -1,25 +1,28 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter/relations-v2";
 import { db } from "@console/db";
 import * as schema from "@console/db/schema";
+import { env } from "@console/infra/env";
 import type { BetterAuthOptions } from "better-auth";
 import { bearer, deviceAuthorization, jwt, organization } from "better-auth/plugins";
 import { asc, eq } from "drizzle-orm";
 import { OCEL_CLI_CLIENT_ID } from "./constants";
+import { consoleOrigin } from "./origin";
+import { readAuthSettings } from "./settings";
+
+const building = process.env.NEXT_PHASE === "phase-production-build";
+const settings = readAuthSettings();
 
 export const authConfig = {
+  secret: building ? undefined : env.BETTER_AUTH_SECRET,
+  baseURL: building ? undefined : consoleOrigin(),
   database: drizzleAdapter(db, {
     provider: "pg",
     schema,
   }),
   emailAndPassword: {
-    enabled: true,
+    enabled: settings.email,
   },
-  socialProviders: {
-    github: {
-      clientId: process.env.GITHUB_CLIENT_ID as string,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
-    },
-  },
+  socialProviders: settings.github ? { github: settings.github } : {},
   session: {
     expiresIn: 60 * 60 * 24 * 30,
   },

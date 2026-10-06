@@ -5,10 +5,12 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./env": "./src/env.ts"
   },
   "dependencies": {
-    "ocel": "latest"
+    "ocel": "latest",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "typescript": "catalog:"

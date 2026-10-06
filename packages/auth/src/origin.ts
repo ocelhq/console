@@ -1,7 +1,6 @@
+import { env } from "@console/infra/env";
+import { deployment } from "ocel/env";
+
 export function consoleOrigin(): string {
-  const named = process.env.BETTER_AUTH_URL;
-  if (!named) {
-    throw new Error("BETTER_AUTH_URL is unset, so nothing names this console to a connector");
-  }
-  return new URL(named).origin;
+  return new URL(env.BETTER_AUTH_URL ?? deployment.url).origin;
 }
