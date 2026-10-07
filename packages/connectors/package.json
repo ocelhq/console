@@ -5,7 +5,8 @@
   "type": "module",
   "description": "what the console asks a connector in the customer's account, and how an answer comes back",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./gen/*": "./src/gen/*.ts"
   },
   "scripts": {
     "test": "vitest run",

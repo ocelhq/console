@@ -25,7 +25,15 @@ export type TriggerKind = (typeof TRIGGER_KINDS)[number];
 export const VARIABLE_CLASSES = ["plain", "sensitive", "secret", "derived"] as const;
 export type VariableClass = (typeof VARIABLE_CLASSES)[number];
 
-export const RESOURCE_TYPES = ["postgres", "bucket", "container"] as const;
+export const RESOURCE_TYPES = [
+  "postgres",
+  "bucket",
+  "topic",
+  "task",
+  "kv",
+  "realtime",
+  "custom",
+] as const;
 export type ResourceType = (typeof RESOURCE_TYPES)[number];
 
 export const COMPUTE_KINDS = ["serverless", "container"] as const;
@@ -38,10 +46,12 @@ export type AppOutcome = (typeof APP_OUTCOMES)[number];
 export const STAGE_STATUSES = ["succeeded", "failed", "skipped"] as const;
 export type StageStatus = (typeof STAGE_STATUSES)[number];
 
+export type DeploymentCi = { provider: string; repo?: string; url?: string; pr?: number };
+
 export type DeploymentTrigger = {
   kind: TriggerKind;
   actor?: string;
-  ci?: { provider: string; runId?: string; url?: string };
+  ci?: DeploymentCi;
 };
 
 export type DeploymentGit = {
@@ -152,3 +162,27 @@ export const deployment = pgTable(
 );
 
 export type Deployment = typeof deployment.$inferSelect;
+
+export const ENVIRONMENT_EVENT_KINDS = ["preview-removed", "destroyed"] as const;
+export type EnvironmentEventKind = (typeof ENVIRONMENT_EVENT_KINDS)[number];
+export const environmentEventKind = pgEnum("environment_event_kind", ENVIRONMENT_EVENT_KINDS);
+
+export const environmentEvent = pgTable(
+  "environment_event",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    kind: environmentEventKind("kind").notNull(),
+    environmentClass: environmentClass("environment_class").notNull(),
+    environmentIdentity: text("environment_identity").notNull().default(""),
+    occurredAt: timestamp("occurred_at").notNull(),
+    git: jsonb("git").$type<DeploymentGit>(),
+    ci: jsonb("ci").$type<DeploymentCi>(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("environment_event_project_idx").on(table.projectId, table.occurredAt)],
+);
+
+export type EnvironmentEvent = typeof environmentEvent.$inferSelect;

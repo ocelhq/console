@@ -223,10 +223,12 @@ export default async function RunPage({
                     {run.git.branch}
                   </span>
                 )}
-                <span className="inline-flex items-center gap-1.5">
-                  <GitCommitIcon aria-hidden className="size-4 text-muted-foreground" />
-                  <span className="font-mono text-xs">{run.git.sha.slice(0, 7)}</span>
-                </span>
+                {run.git.sha && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <GitCommitIcon aria-hidden className="size-4 text-muted-foreground" />
+                    <span className="font-mono text-xs">{run.git.sha.slice(0, 7)}</span>
+                  </span>
+                )}
                 {run.git.dirty && (
                   <span className="text-xs text-muted-foreground">uncommitted changes</span>
                 )}

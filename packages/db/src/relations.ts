@@ -52,4 +52,11 @@ export const relations = defineRelations(schema, (r) => ({
   deployment: {
     project: r.one.project({ from: r.deployment.projectId, to: r.project.id, optional: false }),
   },
+  environmentEvent: {
+    project: r.one.project({
+      from: r.environmentEvent.projectId,
+      to: r.project.id,
+      optional: false,
+    }),
+  },
 }));
