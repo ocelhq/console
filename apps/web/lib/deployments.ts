@@ -1,6 +1,6 @@
 import { db } from "@console/db";
 import { type Deployment, deployment, environmentEvent } from "@console/db/schema";
-import { and, desc, eq, gt, inArray, lt } from "drizzle-orm";
+import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import type { Environment } from "@/lib/environment";
 
 export function environmentKey(row: Pick<Deployment, "environmentClass" | "environmentIdentity">) {
@@ -49,18 +49,23 @@ async function teardowns(projectIds: string[]): Promise<Map<string, Date>> {
   return new Map(rows.map((row) => [runKey(row), row.occurredAt]));
 }
 
+type Placed = Pick<
+  Deployment,
+  "projectId" | "environmentClass" | "environmentIdentity" | "deployedAt"
+>;
+
+function tornDownAfter(tornDown: Map<string, Date>, run: Placed): Date | null {
+  const at = tornDown.get(runKey(run));
+  return at && at > run.deployedAt ? at : null;
+}
+
 async function activeRuns(projectIds: string[]): Promise<Map<string, ActiveRun>> {
   if (projectIds.length === 0) {
     return new Map();
   }
   const [rows, tornDown] = await Promise.all([succeededRuns(projectIds), teardowns(projectIds)]);
   return new Map(
-    rows
-      .filter((row) => {
-        const at = tornDown.get(runKey(row));
-        return !at || at <= row.deployedAt;
-      })
-      .map((row) => [runKey(row), row]),
+    rows.filter((row) => !tornDownAfter(tornDown, row)).map((row) => [runKey(row), row]),
   );
 }
 
@@ -108,7 +113,7 @@ export async function latestDeployments(
   );
 
   try {
-    const [[latest], [lastPromoted]] = await Promise.all([
+    const [[latest], [lastPromoted], tornDown] = await Promise.all([
       db.select().from(deployment).where(scope).orderBy(desc(deployment.deployedAt)).limit(1),
       db
         .select()
@@ -116,29 +121,14 @@ export async function latestDeployments(
         .where(and(scope, eq(deployment.outcome, "succeeded")))
         .orderBy(desc(deployment.deployedAt))
         .limit(1),
+      teardowns([projectId]),
     ]);
-
-    const [teardown] = latest
-      ? await db
-          .select({ occurredAt: environmentEvent.occurredAt })
-          .from(environmentEvent)
-          .where(
-            and(
-              eq(environmentEvent.projectId, projectId),
-              eq(environmentEvent.environmentClass, environmentClass),
-              eq(environmentEvent.environmentIdentity, latest.environmentIdentity),
-              gt(environmentEvent.occurredAt, latest.deployedAt),
-            ),
-          )
-          .orderBy(desc(environmentEvent.occurredAt))
-          .limit(1)
-      : [];
 
     return {
       error: false,
       latest: latest ?? null,
       lastPromoted: lastPromoted ?? null,
-      tornDownAt: teardown?.occurredAt ?? null,
+      tornDownAt: latest ? tornDownAfter(tornDown, latest) : null,
     };
   } catch {
     return { error: true };
@@ -219,13 +209,33 @@ export async function findRun(projectId: string, id: string): Promise<RunLoad> {
 export type LatestRun = Pick<
   Deployment,
   "projectId" | "kind" | "outcome" | "deployedAt" | "providerName" | "providerRegion"
->;
+> & { tornDownAt: Date | null };
 
 export async function latestRuns(projectIds: string[]): Promise<Map<string, LatestRun>> {
   if (projectIds.length === 0) {
     return new Map();
   }
-  const rows = await db
+  const [rows, tornDown] = await Promise.all([
+    latestProductionRuns(projectIds),
+    teardowns(projectIds),
+  ]);
+  return new Map(
+    rows.map((row) => [
+      row.projectId,
+      {
+        ...row,
+        tornDownAt: tornDownAfter(tornDown, {
+          ...row,
+          environmentClass: "production",
+          environmentIdentity: "",
+        }),
+      },
+    ]),
+  );
+}
+
+async function latestProductionRuns(projectIds: string[]) {
+  return db
     .selectDistinctOn([deployment.projectId], {
       projectId: deployment.projectId,
       kind: deployment.kind,
@@ -239,6 +249,4 @@ export async function latestRuns(projectIds: string[]): Promise<Map<string, Late
       and(inArray(deployment.projectId, projectIds), eq(deployment.environmentClass, "production")),
     )
     .orderBy(deployment.projectId, desc(deployment.deployedAt));
-
-  return new Map(rows.map((row) => [row.projectId, row]));
 }
