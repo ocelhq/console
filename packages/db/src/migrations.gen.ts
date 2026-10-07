@@ -63,4 +63,16 @@ export const migrations: MigrationMeta[] = [
     hash: "fb1dc78f70e606ae079ae5a91141aa408d51fbfe074f06d891fa19cad406f6fc",
     name: "20261007213926_environment_event",
   },
+  {
+    sql: [
+      'ALTER TABLE "deployment" ALTER COLUMN "kind" SET DATA TYPE text;',
+      '\nDROP TYPE "deployment_kind";',
+      "\nCREATE TYPE \"deployment_kind\" AS ENUM('deploy', 'preview-up', 'rollback');",
+      '\nALTER TABLE "deployment" ALTER COLUMN "kind" SET DATA TYPE "deployment_kind" USING "kind"::"deployment_kind";',
+    ],
+    bps: true,
+    folderMillis: 1791409436000,
+    hash: "7252cd0832c101f5e04827157e405c94a924abde9c715473184bf89ff25e2096",
+    name: "20261007214356_deployment_kind_promotes_only",
+  },
 ];

@@ -1,5 +1,5 @@
 import type { LatestRun } from "@/lib/deployments";
-import { runStatus, tearsDown } from "@/lib/runs";
+import { runStatus } from "@/lib/runs";
 import { cn } from "@/lib/utils";
 import { Stamp } from "../stamp";
 
@@ -13,12 +13,7 @@ export function StatusLine({ run, now }: { run: LatestRun | undefined; now: stri
     );
   }
   const status = runStatus(run);
-  const word =
-    run.outcome === "failed"
-      ? tearsDown(run.kind)
-        ? "Teardown failed"
-        : "Deploy failed"
-      : status.word;
+  const word = run.outcome === "failed" ? "Deploy failed" : status.word;
   return (
     <span
       className={cn(
