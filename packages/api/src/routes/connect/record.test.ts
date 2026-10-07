@@ -18,4 +18,13 @@ describe("deploymentValues", () => {
     }
     expect(() => deploymentValues("project", "id", reported)).toThrow(/framework: elm/);
   });
+
+  it("refuses a resource type the console does not know", () => {
+    const reported = create(DeploymentSchema, deploymentRecord());
+    const [resource] = reported.resources;
+    if (resource) {
+      resource.type = "queue";
+    }
+    expect(() => deploymentValues("project", "id", reported)).toThrow(/resource type: queue/);
+  });
 });
