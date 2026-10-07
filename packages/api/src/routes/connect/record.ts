@@ -31,10 +31,10 @@ import type {
   DeploymentVariable,
   EnvironmentClass,
   EnvironmentEventKind as EnvironmentEventKindName,
-  Framework,
   TriggerKind as TriggerKindName,
   VariableClass as VariableClassName,
 } from "@console/db/schema";
+import { FRAMEWORKS } from "@console/db/schema";
 
 const deploymentKinds: Partial<Record<DeploymentKind, DeploymentKindName>> = {
   [DeploymentKind.DEPLOY]: "deploy",
@@ -82,18 +82,18 @@ const variableClasses: Partial<Record<VariableClass, VariableClassName>> = {
   [VariableClass.DERIVED]: "derived",
 };
 
-const frameworks: Record<string, Framework> = {
-  node: "node",
-  next: "nextjs",
-  go: "go",
-  python: "python",
-  rust: "rust",
-};
-
 function named<K extends number, V>(names: Partial<Record<K, V>>, key: K, what: string): V {
   const found = names[key];
   if (found === undefined) {
     throw new Error(`protovalidate let through an unnamed ${what}: ${key}`);
+  }
+  return found;
+}
+
+function oneOf<V extends string>(values: readonly V[], value: string, what: string): V {
+  const found = values.find((known) => known === value);
+  if (found === undefined) {
+    throw new Error(`protovalidate let through an unknown ${what}: ${value}`);
   }
   return found;
 }
@@ -150,7 +150,7 @@ function appsOf(deployment: Deployment): DeploymentApp[] {
     name: app.name,
     folder: present(app.folder),
     runtime: app.runtime && { name: app.runtime.name, arch: present(app.runtime.arch) },
-    framework: app.framework === "" ? undefined : frameworks[app.framework],
+    framework: app.framework === "" ? undefined : oneOf(FRAMEWORKS, app.framework, "framework"),
     compute: named(computeKinds, app.compute, "compute kind"),
     deploymentId: present(app.release),
     buildId: present(app.buildId),

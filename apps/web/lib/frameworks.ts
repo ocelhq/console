@@ -53,7 +53,7 @@ export type FrameworkLogo = { light: BrandMark; dark?: BrandMark };
 export type FrameworkEntry = { label: string; icon: SimpleIcon; logo?: FrameworkLogo };
 
 export const frameworkCatalog: Record<Framework, FrameworkEntry> = {
-  nextjs: { label: "Next.js", icon: siNextdotjs, logo: { light: NextjsIcon } },
+  next: { label: "Next.js", icon: siNextdotjs, logo: { light: NextjsIcon } },
   react: { label: "React", icon: siReact, logo: { light: ReactIcon, dark: ReactDarkIcon } },
   astro: { label: "Astro", icon: siAstro, logo: { light: AstroIcon, dark: AstroDarkIcon } },
   remix: { label: "Remix", icon: siRemix, logo: { light: RemixIcon, dark: RemixDarkIcon } },
