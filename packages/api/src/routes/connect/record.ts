@@ -245,6 +245,7 @@ export function environmentEventValues(projectId: string, id: string, event: Env
   return {
     id,
     projectId,
+    runId: event.id,
     kind: named(environmentEventKinds, event.kind, "environment event kind"),
     ...environmentOf(event.environment),
     occurredAt: event.at ? timestampDate(event.at) : new Date(),

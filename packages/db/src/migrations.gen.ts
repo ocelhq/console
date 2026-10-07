@@ -53,13 +53,14 @@ export const migrations: MigrationMeta[] = [
   {
     sql: [
       "CREATE TYPE \"environment_event_kind\" AS ENUM('preview-removed', 'destroyed');",
-      '\nCREATE TABLE "environment_event" (\n\t"id" text PRIMARY KEY,\n\t"project_id" text NOT NULL,\n\t"kind" "environment_event_kind" NOT NULL,\n\t"environment_class" "environment_class" NOT NULL,\n\t"environment_identity" text DEFAULT \'\' NOT NULL,\n\t"occurred_at" timestamp NOT NULL,\n\t"git" jsonb,\n\t"ci" jsonb,\n\t"created_at" timestamp DEFAULT now() NOT NULL\n);\n',
+      '\nCREATE TABLE "environment_event" (\n\t"id" text PRIMARY KEY,\n\t"project_id" text NOT NULL,\n\t"run_id" text NOT NULL,\n\t"kind" "environment_event_kind" NOT NULL,\n\t"environment_class" "environment_class" NOT NULL,\n\t"environment_identity" text DEFAULT \'\' NOT NULL,\n\t"occurred_at" timestamp NOT NULL,\n\t"git" jsonb,\n\t"ci" jsonb,\n\t"created_at" timestamp DEFAULT now() NOT NULL\n);\n',
+      '\nCREATE UNIQUE INDEX "environment_event_run_uidx" ON "environment_event" ("project_id","run_id");',
       '\nCREATE INDEX "environment_event_project_idx" ON "environment_event" ("project_id","occurred_at");',
       '\nALTER TABLE "environment_event" ADD CONSTRAINT "environment_event_project_id_project_id_fkey" FOREIGN KEY ("project_id") REFERENCES "project"("id") ON DELETE CASCADE;',
     ],
     bps: true,
-    folderMillis: 1791408283000,
-    hash: "911d4205dd619d78ff3a26517235b240b20aea6237a0d8c520f9be7de38a4051",
-    name: "20261007212443_fuzzy_genesis",
+    folderMillis: 1791409166000,
+    hash: "fb1dc78f70e606ae079ae5a91141aa408d51fbfe074f06d891fa19cad406f6fc",
+    name: "20261007213926_environment_event",
   },
 ];

@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "1e8c2076-6580-4c3f-9f09-3c6659aaba5c",
+  "id": "2fb50853-278c-496d-b7f1-e051e902eea4",
   "prevIds": [
     "6fdaae39-5d83-4ac0-becc-f7ba042c4855"
   ],
@@ -1594,6 +1594,19 @@
       "table": "environment_event"
     },
     {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "run_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "environment_event"
+    },
+    {
       "type": "environment_event_kind",
       "typeSchema": "public",
       "notNull": true,
@@ -2059,6 +2072,34 @@
       "entityType": "indexes",
       "schema": "public",
       "table": "deployment"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "project_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "run_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "environment_event_run_uidx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "environment_event"
     },
     {
       "nameExplicit": true,

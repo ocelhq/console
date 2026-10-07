@@ -43,7 +43,10 @@ export const deploymentService: ServiceImpl<typeof DeploymentService> = {
     }
     const projectId = await projectIdOf(context.values.get(organizationKey), request.projectId);
 
-    await db.insert(environmentEvent).values(environmentEventValues(projectId, uuidv7(), event));
+    await db
+      .insert(environmentEvent)
+      .values(environmentEventValues(projectId, uuidv7(), event))
+      .onConflictDoNothing();
     return {};
   },
 };
