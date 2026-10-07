@@ -34,7 +34,7 @@ import type {
   TriggerKind as TriggerKindName,
   VariableClass as VariableClassName,
 } from "@console/db/schema";
-import { FRAMEWORKS } from "@console/db/schema";
+import { FRAMEWORKS, RESOURCE_TYPES } from "@console/db/schema";
 
 const deploymentKinds: Partial<Record<DeploymentKind, DeploymentKindName>> = {
   [DeploymentKind.DEPLOY]: "deploy",
@@ -187,7 +187,7 @@ function resourcesOf(deployment: Deployment): DeploymentResource[] {
     );
     return {
       name: resource.name,
-      type: resource.type as DeploymentResource["type"],
+      type: oneOf(RESOURCE_TYPES, resource.type, "resource type"),
       binding: {
         name: resource.binding?.name ?? resource.name,
         source: present(resource.binding?.source ?? ""),
