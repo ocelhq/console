@@ -55,7 +55,7 @@ describe("DeploymentService over Connect", () => {
       expect(row?.deployedAt.toISOString()).toBe("2026-01-01T00:00:00.000Z");
       expect(row?.topology.apps[0]).toMatchObject({
         name: "web",
-        framework: "nextjs",
+        framework: "next",
         compute: "serverless",
         buildId: "build-1",
         deploymentId: "rel-1",

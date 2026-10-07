@@ -263,12 +263,12 @@ describe("updateProject", () => {
     try {
       const created = await createProjectFor(session, "frameworks-replace");
       const response = await updateProject(
-        patchRequest({ frameworks: ["nextjs", "go", "nextjs"] }, session.headers),
+        patchRequest({ frameworks: ["next", "go", "next"] }, session.headers),
         created.id,
       );
 
       expect(response.status).toBe(200);
-      expect((await response.json()).frameworks).toEqual(["nextjs", "go"]);
+      expect((await response.json()).frameworks).toEqual(["next", "go"]);
 
       const cleared = await updateProject(
         patchRequest({ frameworks: [] }, session.headers),

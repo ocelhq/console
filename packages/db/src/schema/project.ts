@@ -2,7 +2,7 @@ import { pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-co
 import { organization, user } from "./auth-schema";
 
 export const FRAMEWORKS = [
-  "nextjs",
+  "next",
   "react",
   "astro",
   "remix",

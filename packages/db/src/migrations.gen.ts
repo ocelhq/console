@@ -75,4 +75,25 @@ export const migrations: MigrationMeta[] = [
     hash: "7252cd0832c101f5e04827157e405c94a924abde9c715473184bf89ff25e2096",
     name: "20261007214356_deployment_kind_promotes_only",
   },
+  {
+    sql: ["ALTER TYPE \"framework\" RENAME VALUE 'nextjs' TO 'next';\n"],
+    bps: true,
+    folderMillis: 1791409554000,
+    hash: "bb1b5583400c76e02d268353cebe3cef1e0d3607c43a9943d77be3d7036fefdb",
+    name: "20261007214554_framework_nextjs_renamed_next",
+  },
+  {
+    sql: [
+      'ALTER TABLE "project" ALTER COLUMN "frameworks" SET DATA TYPE text[];',
+      '\nALTER TABLE "project" ALTER COLUMN "frameworks" DROP DEFAULT;',
+      '\nDROP TYPE "framework";',
+      "\nCREATE TYPE \"framework\" AS ENUM('next', 'react', 'astro', 'remix', 'nuxt', 'sveltekit', 'node', 'express', 'fastify', 'hono', 'bun', 'deno', 'go', 'python', 'django', 'rust');",
+      '\nALTER TABLE "project" ALTER COLUMN "frameworks" SET DATA TYPE "framework"[] USING "frameworks"::"framework"[];',
+      '\nALTER TABLE "project" ALTER COLUMN "frameworks" SET DEFAULT \'{}\'::"framework"[];',
+    ],
+    bps: true,
+    folderMillis: 1791409561000,
+    hash: "e2b115b901b7eca9f3b38e2ff1f6ff319415fb6c1685f086d8d6ddf251f9d8e4",
+    name: "20261007214601_framework_next",
+  },
 ];
