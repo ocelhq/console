@@ -116,7 +116,7 @@ export function gitOf(source: Source | undefined): DeploymentGit | null {
   if (!source) {
     return null;
   }
-  return { sha: source.commit, branch: present(source.branch), dirty: source.dirty };
+  return { sha: present(source.commit), branch: present(source.branch), dirty: source.dirty };
 }
 
 export function ciOf(ci: CI | undefined): DeploymentCi | undefined {
@@ -149,7 +149,7 @@ function appsOf(deployment: Deployment): DeploymentApp[] {
   return deployment.apps.map((app) => ({
     name: app.name,
     folder: present(app.folder),
-    runtime: { name: app.runtime?.name ?? "", arch: present(app.runtime?.arch ?? "") },
+    runtime: app.runtime && { name: app.runtime.name, arch: present(app.runtime.arch) },
     framework: app.framework === "" ? undefined : frameworks[app.framework],
     compute: named(computeKinds, app.compute, "compute kind"),
     deploymentId: present(app.release),

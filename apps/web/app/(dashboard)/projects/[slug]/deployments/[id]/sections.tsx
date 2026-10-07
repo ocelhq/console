@@ -65,7 +65,7 @@ export function AppList({ apps }: { apps: DeploymentApp[] }) {
   return (
     <ul>
       {apps.map((app) => {
-        const runtime = [app.compute, app.runtime.name, app.runtime.arch]
+        const runtime = [app.compute, app.runtime?.name, app.runtime?.arch]
           .filter(Boolean)
           .join(" · ");
         return (

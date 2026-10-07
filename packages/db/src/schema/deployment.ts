@@ -55,7 +55,7 @@ export type DeploymentTrigger = {
 };
 
 export type DeploymentGit = {
-  sha: string;
+  sha?: string;
   branch?: string;
   message?: string;
   author?: string;
@@ -90,7 +90,7 @@ export type DeploymentVariableGroup = {
 export type DeploymentApp = {
   name: string;
   folder?: string;
-  runtime: { name: string; arch?: string };
+  runtime?: { name: string; arch?: string };
   framework?: Framework;
   compute: ComputeKind;
   deploymentId?: string;

@@ -3,6 +3,8 @@ import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { Lifecycle, Tier } from "@console/connectors/gen/common/environment/v1/environment_pb";
 import {
+  AppOutcome,
+  ComputeKind,
   DeploymentOutcome,
   EnvironmentEventKind,
   EnvironmentEventSchema,
@@ -190,6 +192,24 @@ describe("DeploymentService over Connect", () => {
     }
   });
 
+  it("Report stores an app that names no runtime with no runtime", async () => {
+    const session = await createTestSessionWithOrganization();
+    try {
+      const projectId = await projectIn(session.organization.id, "no-runtime");
+      await clientFor(session.token).report({
+        projectId,
+        deployment: record({
+          apps: [{ name: "web", compute: ComputeKind.SERVERLESS, outcome: AppOutcome.SKIPPED }],
+        }),
+      });
+
+      const [row] = await db.select().from(deployment).where(eq(deployment.projectId, projectId));
+      expect(row?.topology.apps[0]).not.toHaveProperty("runtime");
+    } finally {
+      await session.cleanup();
+    }
+  });
+
   it("Report stores the spans as the run's trace", async () => {
     const session = await createTestSessionWithOrganization();
     try {
@@ -250,9 +270,9 @@ describe("DeploymentService over Connect", () => {
         kind: "preview-removed",
         environmentClass: "preview",
         environmentIdentity: "pr-12",
-        git: { sha: "", branch: "feat/x", dirty: false },
         ci: { provider: "github", repo: "ocelhq/app" },
       });
+      expect(row?.git).toEqual({ branch: "feat/x", dirty: false });
       expect(row?.occurredAt.toISOString()).toBe("2026-01-02T00:00:00.000Z");
     } finally {
       await session.cleanup();

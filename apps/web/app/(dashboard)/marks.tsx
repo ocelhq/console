@@ -72,7 +72,7 @@ export function AppMark({ app, size = 20 }: { app: DeploymentApp; size?: number 
   if (app.framework) {
     return <FrameworkMark framework={app.framework} size={size} />;
   }
-  const mark = runtimeMarks[app.runtime.name.toLowerCase()];
+  const mark = app.runtime && runtimeMarks[app.runtime.name.toLowerCase()];
   if (mark) {
     return <Glyph icon={mark} size={size} />;
   }

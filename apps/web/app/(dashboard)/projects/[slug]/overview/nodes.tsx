@@ -97,7 +97,7 @@ export function AppNode({ id, data, selected }: NodeProps<Node<AppNodeData, "app
         </div>
         <div className="pointer-events-none relative flex items-center gap-1.5">
           <Chip>{app.compute}</Chip>
-          <Chip>{app.runtime.name}</Chip>
+          {app.runtime && <Chip>{app.runtime.name}</Chip>}
         </div>
         {url ? (
           <a
