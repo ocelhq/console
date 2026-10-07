@@ -1,11 +1,11 @@
 import { generateKeyPairSync, type KeyObject } from "node:crypto";
 import { db } from "@console/db";
 import { connector } from "@console/db/schema";
+import { setupTestDatabase } from "@console/db/testing";
 import { eq } from "drizzle-orm";
 import { SignJWT } from "jose";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createTestSessionWithOrganization } from "../../../../../test/auth-harness";
-import { setupTestDatabase } from "../../../../../test/db";
 import { upsertConnector } from "../../route";
 import { connectorHeartbeat } from "./route";
 

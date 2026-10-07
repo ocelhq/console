@@ -1,5 +1,5 @@
+import { setupTestDatabase } from "@console/db/testing";
 import { beforeAll, describe, expect, it } from "vitest";
-import { setupTestDatabase } from "../../../test/db";
 import { health, healthCheck } from "./route";
 
 beforeAll(async () => {

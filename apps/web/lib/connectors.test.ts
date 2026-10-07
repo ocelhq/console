@@ -1,9 +1,9 @@
 import { db } from "@console/db";
 import { connector } from "@console/db/schema";
+import { setupTestDatabase } from "@console/db/testing";
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createTestSessionWithOrganization } from "@/test/auth-harness";
-import { setupTestDatabase } from "@/test/db";
 import { connectorFor, noteDenial } from "./connectors";
 
 describe("connectorFor", () => {

@@ -1,12 +1,12 @@
 import { db } from "@console/db";
 import { connector } from "@console/db/schema";
+import { setupTestDatabase } from "@console/db/testing";
 import { and, eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   createTestSessionWithOrganization,
   createTestSessionWithRole,
 } from "../../../test/auth-harness";
-import { setupTestDatabase } from "../../../test/db";
 import { deleteConnector, updateConnector } from "./[id]/route";
 import { listConnectors, upsertConnector } from "./route";
 
