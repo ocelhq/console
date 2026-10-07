@@ -108,6 +108,7 @@ const resourceId = (name: string) => `resource:${name}`;
 function laidOut(
   topology: DeploymentTopology,
   provider: string,
+  ghost: boolean,
 ): { nodes: ServiceNode[]; edges: Edge<UsageEdgeData>[] } {
   const graph = new dagre.graphlib.Graph();
   graph.setGraph({ rankdir: "LR", ranksep: 176, nodesep: 24, marginx: 16, marginy: 16 });
@@ -146,6 +147,7 @@ function laidOut(
         ariaLabel: `App ${app.name}`,
         data: {
           app,
+          ghost,
           reads: usages.filter((usage) => usage.app === app.name).length,
         },
       }),
@@ -157,7 +159,7 @@ function laidOut(
         position: place(resourceId(resource.name), RESOURCE_SIZE),
         ...RESOURCE_SIZE,
         ariaLabel: `Resource ${resource.name}`,
-        data: { resource, provider },
+        data: { resource, provider, ghost },
       }),
     ),
   ];
@@ -181,11 +183,15 @@ function Canvas({
   provenance,
   failure,
   now,
+  ghost,
+  stampPrefix,
 }: {
   topology: DeploymentTopology;
   provenance?: Provenance;
   failure?: Failure;
   now: string;
+  ghost: boolean;
+  stampPrefix?: string;
 }) {
   const { fitView } = useReactFlow();
   const fitOptions = useFitOptions();
@@ -193,8 +199,8 @@ function Canvas({
   const [hovered, setHovered] = useState<string | null>(null);
 
   const initial = useMemo(
-    () => laidOut(topology, provenance?.providerName ?? ""),
-    [topology, provenance?.providerName],
+    () => laidOut(topology, provenance?.providerName ?? "", ghost),
+    [topology, provenance?.providerName, ghost],
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
@@ -318,7 +324,12 @@ function Canvas({
               </SelectNodeProvider>
             </HoveredEdge.Provider>
           </ActiveEdges.Provider>
-          <ProvenanceStrip provenance={provenance} failure={failure} now={now} />
+          <ProvenanceStrip
+            provenance={provenance}
+            failure={failure}
+            now={now}
+            prefix={stampPrefix}
+          />
           <ViewControls />
         </section>
         {selection && (
@@ -340,10 +351,12 @@ export function ServiceMap(props: {
   provenance?: Provenance;
   failure?: Failure;
   now: string;
+  ghost?: boolean;
+  stampPrefix?: string;
 }) {
   return (
     <ReactFlowProvider>
-      <Canvas {...props} />
+      <Canvas {...props} ghost={props.ghost === true} />
     </ReactFlowProvider>
   );
 }

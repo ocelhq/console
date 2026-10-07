@@ -1,6 +1,6 @@
 import { db } from "@console/db";
-import { type Deployment, deployment } from "@console/db/schema";
-import { and, desc, eq, inArray, lt } from "drizzle-orm";
+import { type Deployment, deployment, environmentEvent } from "@console/db/schema";
+import { and, desc, eq, gt, inArray, lt } from "drizzle-orm";
 import type { Environment } from "@/lib/environment";
 
 export function environmentKey(row: Pick<Deployment, "environmentClass" | "environmentIdentity">) {
@@ -23,11 +23,49 @@ function runKey(row: Pick<Deployment, "projectId" | "environmentClass" | "enviro
   return `${row.projectId}/${environmentKey(row)}`;
 }
 
+async function teardowns(projectIds: string[]): Promise<Map<string, Date>> {
+  const rows = await db
+    .selectDistinctOn(
+      [
+        environmentEvent.projectId,
+        environmentEvent.environmentClass,
+        environmentEvent.environmentIdentity,
+      ],
+      {
+        projectId: environmentEvent.projectId,
+        environmentClass: environmentEvent.environmentClass,
+        environmentIdentity: environmentEvent.environmentIdentity,
+        occurredAt: environmentEvent.occurredAt,
+      },
+    )
+    .from(environmentEvent)
+    .where(inArray(environmentEvent.projectId, projectIds))
+    .orderBy(
+      environmentEvent.projectId,
+      environmentEvent.environmentClass,
+      environmentEvent.environmentIdentity,
+      desc(environmentEvent.occurredAt),
+    );
+  return new Map(rows.map((row) => [runKey(row), row.occurredAt]));
+}
+
 async function activeRuns(projectIds: string[]): Promise<Map<string, ActiveRun>> {
   if (projectIds.length === 0) {
     return new Map();
   }
-  const rows = await db
+  const [rows, tornDown] = await Promise.all([succeededRuns(projectIds), teardowns(projectIds)]);
+  return new Map(
+    rows
+      .filter((row) => {
+        const at = tornDown.get(runKey(row));
+        return !at || at <= row.deployedAt;
+      })
+      .map((row) => [runKey(row), row]),
+  );
+}
+
+async function succeededRuns(projectIds: string[]): Promise<ActiveRun[]> {
+  return db
     .selectDistinctOn(
       [deployment.projectId, deployment.environmentClass, deployment.environmentIdentity],
       {
@@ -49,13 +87,16 @@ async function activeRuns(projectIds: string[]): Promise<Map<string, ActiveRun>>
       deployment.environmentIdentity,
       desc(deployment.deployedAt),
     );
-
-  return new Map(rows.map((row) => [runKey(row), row]));
 }
 
 export type OverviewLoad =
   | { error: true }
-  | { error: false; latest: Deployment | null; lastPromoted: Deployment | null };
+  | {
+      error: false;
+      latest: Deployment | null;
+      lastPromoted: Deployment | null;
+      tornDownAt: Date | null;
+    };
 
 export async function latestDeployments(
   projectId: string,
@@ -77,7 +118,28 @@ export async function latestDeployments(
         .limit(1),
     ]);
 
-    return { error: false, latest: latest ?? null, lastPromoted: lastPromoted ?? null };
+    const [teardown] = latest
+      ? await db
+          .select({ occurredAt: environmentEvent.occurredAt })
+          .from(environmentEvent)
+          .where(
+            and(
+              eq(environmentEvent.projectId, projectId),
+              eq(environmentEvent.environmentClass, environmentClass),
+              eq(environmentEvent.environmentIdentity, latest.environmentIdentity),
+              gt(environmentEvent.occurredAt, latest.deployedAt),
+            ),
+          )
+          .orderBy(desc(environmentEvent.occurredAt))
+          .limit(1)
+      : [];
+
+    return {
+      error: false,
+      latest: latest ?? null,
+      lastPromoted: lastPromoted ?? null,
+      tornDownAt: teardown?.occurredAt ?? null,
+    };
   } catch {
     return { error: true };
   }

@@ -1,10 +1,12 @@
+import type { DeploymentTopology } from "@console/db/schema";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Environment } from "@/lib/environment";
 import { labelType } from "@/lib/type";
 import { CommandPane } from "../../../command-pane";
-import type { Failure } from "./provenance";
+import type { Failure, Provenance } from "./provenance";
 import { ProvenanceStrip } from "./provenance";
+import { ServiceMap } from "./service-map";
 
 const ground = "relative size-full min-h-0 overflow-hidden bg-background";
 
@@ -36,10 +38,12 @@ function GhostTile({
 export function NeverDeployed({
   environment,
   failure,
+  stamp,
   now,
 }: {
   environment: Environment;
   failure?: Failure;
+  stamp?: Provenance;
   now: string;
 }) {
   const command = environment === "preview" ? "ocel preview up" : "ocel deploy";
@@ -75,8 +79,33 @@ export function NeverDeployed({
           </div>
         </div>
       </div>
-      <ProvenanceStrip failure={failure} now={now} />
+      <ProvenanceStrip
+        provenance={stamp}
+        failure={failure}
+        now={now}
+        prefix={stamp ? "Torn down" : undefined}
+      />
     </div>
+  );
+}
+
+export function TornDown({
+  topology,
+  provenance,
+  now,
+}: {
+  topology: DeploymentTopology;
+  provenance: Provenance;
+  now: string;
+}) {
+  return (
+    <ServiceMap
+      topology={topology}
+      provenance={provenance}
+      now={now}
+      ghost
+      stampPrefix="Torn down"
+    />
   );
 }
 

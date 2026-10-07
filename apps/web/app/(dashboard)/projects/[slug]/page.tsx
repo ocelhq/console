@@ -7,7 +7,7 @@ import { latestDeployments } from "@/lib/deployments";
 import { environmentOf, withEnvironment } from "@/lib/environment";
 import type { Provenance } from "./overview/provenance";
 import { ServiceMap } from "./overview/service-map";
-import { LoadError, NeverDeployed } from "./overview/states";
+import { LoadError, NeverDeployed, TornDown } from "./overview/states";
 
 const canvas = "h-[calc(100svh-3.5rem)] min-h-0 overflow-hidden";
 
@@ -55,12 +55,31 @@ export default async function ProjectPage({
     );
   }
 
-  const { latest, lastPromoted } = load;
+  const { latest, lastPromoted, tornDownAt } = load;
 
   if (!latest) {
     return (
       <div className={canvas}>
         <NeverDeployed environment={environment} now={now} />
+      </div>
+    );
+  }
+
+  if (tornDownAt) {
+    const stamp: Provenance = {
+      deployedAt: tornDownAt.toISOString(),
+      promotionId: null,
+      tag: null,
+      providerName: latest.providerName,
+      providerRegion: latest.providerRegion,
+    };
+    return (
+      <div className={canvas}>
+        {lastPromoted ? (
+          <TornDown topology={lastPromoted.topology} provenance={stamp} now={now} />
+        ) : (
+          <NeverDeployed environment={environment} stamp={stamp} now={now} />
+        )}
       </div>
     );
   }
