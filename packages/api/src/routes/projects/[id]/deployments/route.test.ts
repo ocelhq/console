@@ -1,9 +1,9 @@
 import { db } from "@console/db";
 import { deployment } from "@console/db/schema";
+import { setupTestDatabase } from "@console/db/testing";
 import { and, eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createTestSessionWithOrganization } from "../../../../../test/auth-harness";
-import { setupTestDatabase } from "../../../../../test/db";
 import { createProject } from "../../route";
 import { createDeployment, getDeployment, listDeployments } from "./route";
 

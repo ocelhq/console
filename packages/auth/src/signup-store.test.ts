@@ -1,6 +1,6 @@
 import { db } from "@console/db";
-import { migrateDatabase } from "@console/db/migrate";
 import { invitation, organization, user } from "@console/db/schema";
+import { setupTestDatabase } from "@console/db/testing";
 import { pg } from "@console/infra";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -23,7 +23,7 @@ function invited(email: string, status: string, expiresIn: number) {
 }
 
 beforeAll(async () => {
-  await migrateDatabase(pg);
+  await setupTestDatabase();
   await db
     .insert(user)
     .values({ id: inviterId, name: "Inviter", email: `${inviterId}@example.test` });

@@ -1,5 +1,5 @@
-import { migrateDatabase } from "@console/db/migrate";
 import { Pool } from "pg";
+import { migrateDatabase } from "./migrate";
 
 const DATABASE_EXISTS_CODES = new Set(["42P04", "23505"]);
 

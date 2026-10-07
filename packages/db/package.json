@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/client.ts",
     "./migrate": "./src/migrate.ts",
-    "./schema": "./src/schema/index.ts"
+    "./schema": "./src/schema/index.ts",
+    "./testing": "./src/testing.ts"
   },
   "scripts": {
     "db:generate": "drizzle-kit generate && node scripts/embed-migrations.mjs",

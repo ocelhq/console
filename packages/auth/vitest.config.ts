@@ -21,6 +21,7 @@ export default defineConfig({
   test: {
     environment: "node",
     env: {
+      DATABASE_URL: testDatabaseUrl,
       OCEL_RESOURCE_POSTGRES_main: postgresBinding("main", testDatabaseUrl),
     },
   },

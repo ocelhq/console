@@ -1,10 +1,10 @@
 import { auth } from "@console/auth/next";
 import { db } from "@console/db";
 import { deployment, project } from "@console/db/schema";
+import { setupTestDatabase } from "@console/db/testing";
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createTestSessionWithOrganization } from "../../../../test/auth-harness";
-import { setupTestDatabase } from "../../../../test/db";
 import { createProject } from "../route";
 import { deleteProject, getProjectById, updateProject } from "./route";
 
