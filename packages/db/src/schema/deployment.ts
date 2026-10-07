@@ -1,13 +1,7 @@
 import { index, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { type Framework, project } from "./project";
 
-export const DEPLOYMENT_KINDS = [
-  "deploy",
-  "preview-up",
-  "preview-rm",
-  "rollback",
-  "destroy",
-] as const;
+export const DEPLOYMENT_KINDS = ["deploy", "preview-up", "rollback"] as const;
 export type DeploymentKind = (typeof DEPLOYMENT_KINDS)[number];
 export const deploymentKind = pgEnum("deployment_kind", DEPLOYMENT_KINDS);
 

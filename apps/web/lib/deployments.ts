@@ -2,7 +2,6 @@ import { db } from "@console/db";
 import { type Deployment, deployment } from "@console/db/schema";
 import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import type { Environment } from "@/lib/environment";
-import { PROMOTION_KINDS, promotes } from "@/lib/runs";
 
 export function environmentKey(row: Pick<Deployment, "environmentClass" | "environmentIdentity">) {
   return `${row.environmentClass}/${row.environmentIdentity}`;
@@ -51,13 +50,7 @@ async function activeRuns(projectIds: string[]): Promise<Map<string, ActiveRun>>
       desc(deployment.deployedAt),
     );
 
-  const active = new Map<string, ActiveRun>();
-  for (const row of rows) {
-    if (promotes(row.kind)) {
-      active.set(runKey(row), row);
-    }
-  }
-  return active;
+  return new Map(rows.map((row) => [runKey(row), row]));
 }
 
 export type OverviewLoad =
@@ -79,13 +72,7 @@ export async function latestDeployments(
       db
         .select()
         .from(deployment)
-        .where(
-          and(
-            scope,
-            eq(deployment.outcome, "succeeded"),
-            inArray(deployment.kind, [...PROMOTION_KINDS]),
-          ),
-        )
+        .where(and(scope, eq(deployment.outcome, "succeeded")))
         .orderBy(desc(deployment.deployedAt))
         .limit(1),
     ]);

@@ -22,16 +22,7 @@ import {
 import { requireOrganization } from "@/lib/access";
 import { findRun } from "@/lib/deployments";
 import { absoluteTime } from "@/lib/relative-time";
-import {
-  authorOf,
-  commandOf,
-  duration,
-  kindVerbs,
-  promotes,
-  runHref,
-  runStatus,
-  shortId,
-} from "@/lib/runs";
+import { authorOf, commandOf, duration, kindVerbs, runHref, runStatus, shortId } from "@/lib/runs";
 import { labelType } from "@/lib/type";
 import { EdgeMark, ProviderMark } from "../../../../marks";
 import { Stamp } from "../../../../stamp";
@@ -104,7 +95,7 @@ export default async function RunPage({
   const { run, active } = load;
   const status = runStatus(run);
   const isActive = active?.id === run.id;
-  const superseded = !isActive && promotes(run.kind) && run.outcome === "succeeded" && active;
+  const superseded = !isActive && run.outcome === "succeeded" && active;
   const took = duration(run);
   const url = run.topology.apps.flatMap((app) => app.urls)[0] ?? null;
   const title =
@@ -173,7 +164,6 @@ export default async function RunPage({
           </div>
           <RunActions
             url={url}
-            kind={run.kind}
             outcome={run.outcome}
             promotionId={run.promotionId}
             environmentClass={run.environmentClass}

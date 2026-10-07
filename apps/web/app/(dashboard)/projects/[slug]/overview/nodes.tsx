@@ -36,14 +36,9 @@ function Chip({ children }: { children: ReactNode }) {
   );
 }
 
-function tileClass(selected: boolean, ghost: boolean, fill: string) {
-  const border = ghost
-    ? "border-dashed border-dim/60 text-muted-foreground"
-    : selected
-      ? "border-foreground"
-      : "border-border hover:border-dim";
-  const surface = ghost ? "bg-background" : fill;
-  return `relative flex size-full flex-col justify-between border p-3 ${surface} ${border}`;
+function tileClass(selected: boolean, fill: string) {
+  const border = selected ? "border-foreground" : "border-border hover:border-dim";
+  return `relative flex size-full flex-col justify-between border p-3 ${fill} ${border}`;
 }
 
 const surface =
@@ -54,13 +49,11 @@ const content = "pointer-events-none relative flex items-center gap-2";
 export type AppNodeData = {
   app: DeploymentApp;
   reads: number;
-  ghost: boolean;
 };
 
 export type ResourceNodeData = {
   resource: DeploymentResource;
   provider: string;
-  ghost: boolean;
 };
 
 export type GhostNodeData = { title: string; caption: string };
@@ -74,13 +67,13 @@ const handleSide = "!size-0 !min-h-0 !min-w-0 !border-0 !bg-transparent !opacity
 
 export function AppNode({ id, data, selected }: NodeProps<Node<AppNodeData, "app">>) {
   const select = useContext(SelectNode);
-  const { app, reads, ghost } = data;
+  const { app, reads } = data;
   const url = app.urls[0];
 
   return (
     <>
       <Handle type="target" position={Position.Left} className={handleSide} isConnectable={false} />
-      <div className={tileClass(selected === true, ghost, "bg-background")} style={APP_SIZE}>
+      <div className={tileClass(selected === true, "bg-background")} style={APP_SIZE}>
         <button
           type="button"
           aria-label={`App ${app.name}, ${app.outcome}`}
@@ -89,11 +82,11 @@ export function AppNode({ id, data, selected }: NodeProps<Node<AppNodeData, "app
           className={surface}
         />
         <div className={content}>
-          <span className={`flex shrink-0 ${ghost ? "opacity-50" : ""}`}>
+          <span className="flex shrink-0">
             <AppMark app={app} />
           </span>
           <span className="min-w-0 flex-1 truncate text-sm font-semibold">{app.name}</span>
-          {!ghost && <OutcomeDot outcome={app.outcome} />}
+          <OutcomeDot outcome={app.outcome} />
         </div>
         <div className="pointer-events-none relative flex items-center gap-1.5">
           <Chip>{app.compute}</Chip>
@@ -134,14 +127,14 @@ export function ResourceNode({
   selected,
 }: NodeProps<Node<ResourceNodeData, "resource">>) {
   const select = useContext(SelectNode);
-  const { resource, provider, ghost } = data;
+  const { resource, provider } = data;
   const keys = resource.binding.propertyKeys.length;
   const grants = resource.binding.grants.length;
 
   return (
     <>
       <Handle type="target" position={Position.Left} className={handleSide} isConnectable={false} />
-      <div className={tileClass(selected === true, ghost, "bg-muted")} style={RESOURCE_SIZE}>
+      <div className={tileClass(selected === true, "bg-muted")} style={RESOURCE_SIZE}>
         <button
           type="button"
           aria-label={`Resource ${resource.name}, ${resource.type}`}
@@ -150,7 +143,7 @@ export function ResourceNode({
           className={surface}
         />
         <div className={content}>
-          <span className={`flex shrink-0 ${ghost ? "opacity-50" : ""}`}>
+          <span className="flex shrink-0">
             <ResourceMark resource={resource} />
           </span>
           <span className="min-w-0 flex-1 truncate text-sm font-semibold">{resource.name}</span>

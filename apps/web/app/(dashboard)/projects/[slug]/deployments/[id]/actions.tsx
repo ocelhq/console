@@ -1,6 +1,6 @@
 "use client";
 
-import type { DeploymentKind, DeploymentOutcome } from "@console/db/schema";
+import type { DeploymentOutcome } from "@console/db/schema";
 import {
   ArrowCounterClockwiseIcon,
   ArrowSquareOutIcon,
@@ -15,7 +15,6 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { promotes } from "@/lib/runs";
 import { CommandPane } from "../../../../command-pane";
 
 function Deferred({
@@ -51,7 +50,6 @@ function Deferred({
 
 export function RunActions({
   url,
-  kind,
   outcome,
   promotionId,
   environmentClass,
@@ -59,16 +57,12 @@ export function RunActions({
   active,
 }: {
   url: string | null;
-  kind: DeploymentKind;
   outcome: DeploymentOutcome;
   promotionId: string | null;
   environmentClass: "production" | "preview";
   environmentIdentity: string;
   active: boolean;
 }) {
-  if (!promotes(kind)) {
-    return null;
-  }
   const preview = environmentClass === "preview";
   const rollback = !preview && outcome === "succeeded" && promotionId && !active;
   return (

@@ -5,10 +5,9 @@ import { notFound } from "next/navigation";
 import { requireOrganization } from "@/lib/access";
 import { latestDeployments } from "@/lib/deployments";
 import { environmentOf, withEnvironment } from "@/lib/environment";
-import { tearsDown } from "@/lib/runs";
 import type { Provenance } from "./overview/provenance";
 import { ServiceMap } from "./overview/service-map";
-import { LoadError, NeverDeployed, TornDown } from "./overview/states";
+import { LoadError, NeverDeployed } from "./overview/states";
 
 const canvas = "h-[calc(100svh-3.5rem)] min-h-0 overflow-hidden";
 
@@ -62,18 +61,6 @@ export default async function ProjectPage({
     return (
       <div className={canvas}>
         <NeverDeployed environment={environment} now={now} />
-      </div>
-    );
-  }
-
-  if (latest.outcome === "succeeded" && tearsDown(latest.kind)) {
-    return (
-      <div className={canvas}>
-        {lastPromoted ? (
-          <TornDown topology={lastPromoted.topology} provenance={provenanceOf(latest)} now={now} />
-        ) : (
-          <NeverDeployed environment={environment} stamp={provenanceOf(latest)} now={now} />
-        )}
       </div>
     );
   }
