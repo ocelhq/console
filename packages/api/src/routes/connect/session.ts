@@ -1,7 +1,13 @@
-import { Code, ConnectError, createContextKey, type Interceptor } from "@connectrpc/connect";
+import {
+  Code,
+  ConnectError,
+  createContextKey,
+  type HandlerContext,
+  type Interceptor,
+} from "@connectrpc/connect";
 import { getActiveOrganizationSession } from "@console/auth";
 
-export const organizationKey = createContextKey<string | undefined>(undefined);
+const organizationKey = createContextKey<string | null>(null);
 
 export const sessionInterceptor: Interceptor = (next) => async (request) => {
   const session = await getActiveOrganizationSession(request.header);
@@ -11,3 +17,11 @@ export const sessionInterceptor: Interceptor = (next) => async (request) => {
   request.contextValues.set(organizationKey, session.activeOrganizationId);
   return next(request);
 };
+
+export function organizationOf(context: HandlerContext): string {
+  const organizationId = context.values.get(organizationKey);
+  if (organizationId === null) {
+    throw new Error("a handler ran without sessionInterceptor");
+  }
+  return organizationId;
+}
