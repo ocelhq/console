@@ -109,6 +109,80 @@ describe("DeploymentService over Connect", () => {
       }
     });
 
+    it("refuses a second terminal record of the same deployment whose content differs, and keeps the first", async () => {
+      const session = await createTestSessionWithOrganization();
+      try {
+        const projectId = await projectIn(session.organization.id, "report-conflict");
+        const client = connectClient(session.token);
+        await client.report({ projectId, deployment: deploymentRecord() });
+
+        const error = await client
+          .report({
+            projectId,
+            deployment: deploymentRecord({ target: "aws/123456789012/eu-west-1/main" }),
+          })
+          .catch((e: unknown) => e);
+
+        expect(ConnectError.from(error).code).toBe(Code.AlreadyExists);
+        const rows = await db.select().from(deployment).where(eq(deployment.projectId, projectId));
+        expect(rows).toHaveLength(1);
+        expect(rows[0]?.target).toBe("aws/123456789012/us-east-1/main");
+      } finally {
+        await session.cleanup();
+      }
+    });
+
+    it("accepts an identical repeat of a record with spans, variable groups, a pull request and a finish time in nanoseconds", async () => {
+      const session = await createTestSessionWithOrganization();
+      try {
+        const projectId = await projectIn(session.organization.id, "report-rich-twice");
+        const client = connectClient(session.token);
+        const record = deploymentRecord({
+          finishedAt: { seconds: 1_767_225_600n, nanos: 123_456_789 },
+          ci: { name: "github", repo: "ocelhq/app", pr: 42 },
+          spans: [
+            {
+              name: "build",
+              startTimeUnixNano: 1_767_225_480_123_456_789n,
+              endTimeUnixNano: 1_767_225_540_987_654_321n,
+              status: { code: Status_StatusCode.OK },
+            },
+          ],
+          variableGroups: [{ key: "stripe", required: true }],
+        });
+
+        await client.report({ projectId, deployment: record });
+        await client.report({ projectId, deployment: record });
+
+        const rows = await db.select().from(deployment).where(eq(deployment.projectId, projectId));
+        expect(rows).toHaveLength(1);
+      } finally {
+        await session.cleanup();
+      }
+    });
+
+    it("stores the same deployment id once per project", async () => {
+      const session = await createTestSessionWithOrganization();
+      try {
+        const first = await projectIn(session.organization.id, "report-same-id-a");
+        const second = await projectIn(session.organization.id, "report-same-id-b");
+        const client = connectClient(session.token);
+
+        await client.report({ projectId: first, deployment: deploymentRecord() });
+        await client.report({ projectId: second, deployment: deploymentRecord() });
+
+        for (const projectId of [first, second]) {
+          const rows = await db
+            .select()
+            .from(deployment)
+            .where(eq(deployment.projectId, projectId));
+          expect(rows).toHaveLength(1);
+        }
+      } finally {
+        await session.cleanup();
+      }
+    });
+
     it("returns NotFound for a project that does not exist", async () => {
       const session = await createTestSessionWithOrganization();
       try {
@@ -311,6 +385,38 @@ describe("DeploymentService over Connect", () => {
           .where(eq(environmentEvent.projectId, projectId));
         expect(rows).toHaveLength(1);
         expect(rows[0]?.runId).toBe(TRACE_ID);
+      } finally {
+        await session.cleanup();
+      }
+    });
+
+    it("refuses a second event with the same id whose content differs, and keeps the first", async () => {
+      const session = await createTestSessionWithOrganization();
+      try {
+        const projectId = await projectIn(session.organization.id, "event-conflict");
+        const client = connectClient(session.token);
+        const event = {
+          id: TRACE_ID,
+          kind: EnvironmentEventKind.DESTROYED,
+          environment: { tier: Tier.PRODUCTION, lifecycle: Lifecycle.PERSISTENT },
+          at: timestampFromDate(new Date("2026-01-02T00:00:00.000Z")),
+        };
+        await client.recordEnvironmentEvent({ projectId, event });
+
+        const error = await client
+          .recordEnvironmentEvent({
+            projectId,
+            event: { ...event, at: timestampFromDate(new Date("2026-01-03T00:00:00.000Z")) },
+          })
+          .catch((e: unknown) => e);
+
+        expect(ConnectError.from(error).code).toBe(Code.AlreadyExists);
+        const rows = await db
+          .select()
+          .from(environmentEvent)
+          .where(eq(environmentEvent.projectId, projectId));
+        expect(rows).toHaveLength(1);
+        expect(rows[0]?.occurredAt.toISOString()).toBe("2026-01-02T00:00:00.000Z");
       } finally {
         await session.cleanup();
       }
