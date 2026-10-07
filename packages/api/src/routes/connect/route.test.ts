@@ -259,6 +259,32 @@ describe("DeploymentService over Connect", () => {
     }
   });
 
+  it("RecordEnvironmentEvent stores a retried event once", async () => {
+    const session = await createTestSessionWithOrganization();
+    try {
+      const projectId = await projectIn(session.organization.id, "event-twice");
+      const client = clientFor(session.token);
+      const event = {
+        id: TRACE_ID,
+        kind: EnvironmentEventKind.DESTROYED,
+        environment: { tier: Tier.PRODUCTION, lifecycle: Lifecycle.PERSISTENT },
+        at: timestampFromDate(new Date("2026-01-02T00:00:00.000Z")),
+      };
+
+      await client.recordEnvironmentEvent({ projectId, event });
+      await client.recordEnvironmentEvent({ projectId, event });
+
+      const rows = await db
+        .select()
+        .from(environmentEvent)
+        .where(eq(environmentEvent.projectId, projectId));
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.runId).toBe(TRACE_ID);
+    } finally {
+      await session.cleanup();
+    }
+  });
+
   it("RecordEnvironmentEvent refuses a removed preview in the production tier as InvalidArgument", async () => {
     const session = await createTestSessionWithOrganization();
     try {

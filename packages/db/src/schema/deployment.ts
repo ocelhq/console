@@ -174,6 +174,7 @@ export const environmentEvent = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => project.id, { onDelete: "cascade" }),
+    runId: text("run_id").notNull(),
     kind: environmentEventKind("kind").notNull(),
     environmentClass: environmentClass("environment_class").notNull(),
     environmentIdentity: text("environment_identity").notNull().default(""),
@@ -182,7 +183,10 @@ export const environmentEvent = pgTable(
     ci: jsonb("ci").$type<DeploymentCi>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [index("environment_event_project_idx").on(table.projectId, table.occurredAt)],
+  (table) => [
+    uniqueIndex("environment_event_run_uidx").on(table.projectId, table.runId),
+    index("environment_event_project_idx").on(table.projectId, table.occurredAt),
+  ],
 );
 
 export type EnvironmentEvent = typeof environmentEvent.$inferSelect;
