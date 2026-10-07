@@ -68,10 +68,12 @@ export function ProvenanceStrip({
   provenance,
   failure,
   now,
+  prefix = "As at",
 }: {
   provenance?: Provenance;
   failure?: Failure;
   now: string;
+  prefix?: string;
 }) {
   const parts = provenance
     ? [
@@ -94,7 +96,7 @@ export function ProvenanceStrip({
       )}
       {provenance && (
         <p className={`pointer-events-auto bg-background ${labelType}`}>
-          <Stamp at={provenance.deployedAt} now={now} prefix="As at" />
+          <Stamp at={provenance.deployedAt} now={now} prefix={prefix} />
           {parts.map((part) => (
             <span key={part}> · {part}</span>
           ))}
