@@ -44,14 +44,12 @@ export async function projectIn(organizationId: string, slug: string): Promise<s
 }
 
 export function deploymentRecord(
-  slug: string,
   overrides: MessageInitShape<typeof DeploymentSchema> = {},
 ): MessageInitShape<typeof DeploymentSchema> {
   const record: MessageInitShape<typeof DeploymentSchema> = {
     id: TRACE_ID,
     kind: DeploymentKind.DEPLOY,
     outcome: DeploymentOutcome.SUCCEEDED,
-    slug,
     environment: { tier: Tier.PRODUCTION, lifecycle: Lifecycle.PERSISTENT },
     provider: { name: "aws", region: "us-east-1" },
     target: "aws/123456789012/us-east-1/main",
