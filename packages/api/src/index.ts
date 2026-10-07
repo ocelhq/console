@@ -1,5 +1,5 @@
 export { authHandler } from "./routes/auth/route";
-export { connect } from "./routes/connect/route";
+export { CONNECT_PREFIX, connect } from "./routes/connect/route";
 export { connectorHeartbeat } from "./routes/connectors/[id]/heartbeat/route";
 export { deleteConnector, updateConnector } from "./routes/connectors/[id]/route";
 export { type Liveness, liveness } from "./routes/connectors/liveness";

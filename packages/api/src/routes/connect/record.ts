@@ -98,8 +98,12 @@ function oneOf<V extends string>(values: readonly V[], value: string, what: stri
   return found;
 }
 
-function present(value: string): string | undefined {
+function present(value: string | undefined): string | undefined {
   return value === "" ? undefined : value;
+}
+
+function nullable(value: string | undefined): string | null {
+  return present(value) ?? null;
 }
 
 export function environmentOf(environment: Environment | undefined) {
@@ -140,7 +144,7 @@ function stageOf(span: Span): DeploymentStage {
     startedAt: new Date(Number(span.startTimeUnixNano / NANOS_PER_MS)).toISOString(),
     finishedAt: new Date(Number(span.endTimeUnixNano / NANOS_PER_MS)).toISOString(),
     status: failed ? "failed" : "succeeded",
-    error: failed ? present(span.status?.message ?? "") : undefined,
+    error: failed ? present(span.status?.message) : undefined,
     log: [],
   };
 }
@@ -190,7 +194,7 @@ function resourcesOf(deployment: Deployment): DeploymentResource[] {
       type: oneOf(RESOURCE_TYPES, resource.type, "resource type"),
       binding: {
         name: resource.binding?.name ?? resource.name,
-        source: present(resource.binding?.source ?? ""),
+        source: present(resource.binding?.source),
         propertyKeys: resource.binding?.propertyKeys ?? [],
         grants: distinct,
       },
@@ -201,7 +205,7 @@ function resourcesOf(deployment: Deployment): DeploymentResource[] {
 export function deploymentValues(projectId: string, id: string, deployment: Deployment) {
   const trigger: DeploymentTrigger = {
     kind: named(triggerKinds, deployment.trigger?.kind ?? 0, "trigger kind"),
-    actor: present(deployment.trigger?.actor ?? ""),
+    actor: present(deployment.trigger?.actor),
     ci: ciOf(deployment.ci),
   };
   return {
@@ -211,16 +215,16 @@ export function deploymentValues(projectId: string, id: string, deployment: Depl
     kind: named(deploymentKinds, deployment.kind, "deployment kind"),
     ...environmentOf(deployment.environment),
     promotionId: deployment.promotion?.id ?? null,
-    tag: present(deployment.promotion?.tag ?? "") ?? null,
+    tag: nullable(deployment.promotion?.tag),
     providerName: deployment.provider?.name ?? "",
-    providerRegion: present(deployment.provider?.region ?? "") ?? null,
+    providerRegion: nullable(deployment.provider?.region),
     target: deployment.target,
     edgeKind: deployment.edge?.kind ?? null,
     outcome: named(deploymentOutcomes, deployment.outcome, "deployment outcome"),
-    error: present(deployment.error) ?? null,
+    error: nullable(deployment.error),
     trigger,
     git: gitOf(deployment.source),
-    cliVersion: present(deployment.cliVersion) ?? null,
+    cliVersion: nullable(deployment.cliVersion),
     startedAt: deployment.startedAt ? timestampDate(deployment.startedAt) : null,
     deployedAt: deployment.finishedAt ? timestampDate(deployment.finishedAt) : new Date(),
     trace: deployment.spans.map(stageOf),
