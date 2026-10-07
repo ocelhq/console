@@ -1,5 +1,5 @@
 import type { LatestRun } from "@/lib/deployments";
-import { runStatus } from "@/lib/runs";
+import { type RunStatus, runStatus } from "@/lib/runs";
 import { cn } from "@/lib/utils";
 import { Stamp } from "../stamp";
 
@@ -12,8 +12,12 @@ export function StatusLine({ run, now }: { run: LatestRun | undefined; now: stri
       </span>
     );
   }
-  const status = runStatus(run);
-  const word = run.outcome === "failed" ? "Deploy failed" : status.word;
+  const status: RunStatus = run.tornDownAt
+    ? { word: "Destroyed", tone: "faint" }
+    : run.outcome === "failed"
+      ? { word: "Deploy failed", tone: "destructive" }
+      : runStatus(run);
+  const at = run.tornDownAt ?? run.deployedAt;
   return (
     <span
       className={cn(
@@ -30,7 +34,7 @@ export function StatusLine({ run, now }: { run: LatestRun | undefined; now: stri
           status.tone === "destructive" && "bg-destructive",
         )}
       />
-      <Stamp at={run.deployedAt.toISOString()} now={now} prefix={word} />
+      <Stamp at={at.toISOString()} now={now} prefix={status.word} />
     </span>
   );
 }
