@@ -48,21 +48,24 @@ describe("listDeployments", () => {
       const client = connectClient(session.token);
 
       await client.report({
-        deployment: deploymentRecord("deploy-list", {
+        projectId,
+        deployment: deploymentRecord({
           id: "a".repeat(32),
           promotion: { id: "old", seq: 1n },
           finishedAt: timestampFromDate(new Date("2026-01-01T00:00:00.000Z")),
         }),
       });
       await client.report({
-        deployment: deploymentRecord("deploy-list", {
+        projectId,
+        deployment: deploymentRecord({
           id: "b".repeat(32),
           promotion: { id: "new", seq: 2n },
           finishedAt: timestampFromDate(new Date("2026-02-01T00:00:00.000Z")),
         }),
       });
       await client.report({
-        deployment: deploymentRecord("deploy-list", {
+        projectId,
+        deployment: deploymentRecord({
           id: "c".repeat(32),
           kind: DeploymentKind.PREVIEW_UP,
           promotion: { id: "pr-7", seq: 1n },
@@ -143,7 +146,7 @@ describe("getDeployment", () => {
     const session = await createTestSessionWithOrganization();
     try {
       const projectId = await projectIn(session.organization.id, "deploy-get");
-      await connectClient(session.token).report({ deployment: deploymentRecord("deploy-get") });
+      await connectClient(session.token).report({ projectId, deployment: deploymentRecord() });
       const id = await idOf(projectId, TRACE_ID);
 
       const response = await getDeployment(listRequest(session.headers), projectId, id);
@@ -153,7 +156,14 @@ describe("getDeployment", () => {
         id,
         trace: [],
         apps: [
-          { name: "web", hostnames: ["web.example.com"], variables: [{ key: "DATABASE_URL" }] },
+          {
+            name: "web",
+            hostnames: ["web.example.com"],
+            variables: [
+              { key: "DATABASE_URL", folder: "/web" },
+              { key: "DATABASE_URL", folder: "/api" },
+            ],
+          },
         ],
         resources: [{ name: "main", type: "postgres" }],
         usages: [{ app: "web", resource: "main" }],
@@ -169,7 +179,8 @@ describe("getDeployment", () => {
       const mine = await projectIn(session.organization.id, "deploy-get-mine");
       const other = await projectIn(session.organization.id, "deploy-get-other");
       await connectClient(session.token).report({
-        deployment: deploymentRecord("deploy-get-other"),
+        projectId: other,
+        deployment: deploymentRecord(),
       });
       const id = await idOf(other, TRACE_ID);
 

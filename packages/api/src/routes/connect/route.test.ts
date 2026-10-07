@@ -31,7 +31,7 @@ describe("DeploymentService over Connect", () => {
     try {
       const projectId = await projectIn(session.organization.id, "report-stores");
 
-      await clientFor(session.token).report({ deployment: record("report-stores") });
+      await clientFor(session.token).report({ projectId, deployment: record() });
 
       const [row] = await db.select().from(deployment).where(eq(deployment.projectId, projectId));
       expect(row).toMatchObject({
@@ -80,8 +80,8 @@ describe("DeploymentService over Connect", () => {
       const projectId = await projectIn(session.organization.id, "report-twice");
       const client = clientFor(session.token);
 
-      await client.report({ deployment: record("report-twice") });
-      await client.report({ deployment: record("report-twice") });
+      await client.report({ projectId, deployment: record() });
+      await client.report({ projectId, deployment: record() });
 
       const rows = await db.select().from(deployment).where(eq(deployment.projectId, projectId));
       expect(rows).toHaveLength(1);
@@ -90,11 +90,11 @@ describe("DeploymentService over Connect", () => {
     }
   });
 
-  it("Report refuses a project the session's organization does not own", async () => {
+  it("Report refuses a project that does not exist as NotFound", async () => {
     const session = await createTestSessionWithOrganization();
     try {
       const error = await clientFor(session.token)
-        .report({ deployment: record("no-such-project") })
+        .report({ projectId: crypto.randomUUID(), deployment: record() })
         .catch((e: unknown) => e);
       expect(ConnectError.from(error).code).toBe(Code.NotFound);
     } finally {
@@ -102,16 +102,56 @@ describe("DeploymentService over Connect", () => {
     }
   });
 
+  it("Report refuses a project the session's organization does not own as NotFound and stores nothing", async () => {
+    const session = await createTestSessionWithOrganization();
+    const other = await createTestSessionWithOrganization();
+    try {
+      const foreign = await projectIn(other.organization.id, "shop");
+
+      const error = await clientFor(session.token)
+        .report({ projectId: foreign, deployment: record() })
+        .catch((e: unknown) => e);
+
+      expect(ConnectError.from(error).code).toBe(Code.NotFound);
+      const rows = await db.select().from(deployment).where(eq(deployment.projectId, foreign));
+      expect(rows).toHaveLength(0);
+    } finally {
+      await session.cleanup();
+      await other.cleanup();
+    }
+  });
+
+  it("Report stores into the named project when another organization has a project with the same slug", async () => {
+    const session = await createTestSessionWithOrganization();
+    const other = await createTestSessionWithOrganization();
+    try {
+      const mine = await projectIn(session.organization.id, "shop");
+      const foreign = await projectIn(other.organization.id, "shop");
+
+      await clientFor(session.token).report({ projectId: mine, deployment: record() });
+
+      expect(await db.select().from(deployment).where(eq(deployment.projectId, mine))).toHaveLength(
+        1,
+      );
+      expect(
+        await db.select().from(deployment).where(eq(deployment.projectId, foreign)),
+      ).toHaveLength(0);
+    } finally {
+      await session.cleanup();
+      await other.cleanup();
+    }
+  });
+
   it("refuses a call with no session as Unauthenticated", async () => {
     const error = await clientFor(null)
-      .report({ deployment: record("anon") })
+      .report({ projectId: crypto.randomUUID(), deployment: record() })
       .catch((e: unknown) => e);
     expect(ConnectError.from(error).code).toBe(Code.Unauthenticated);
   });
 
   it("refuses a bearer that is not a session as Unauthenticated", async () => {
     const error = await clientFor("not-a-session")
-      .report({ deployment: record("anon") })
+      .report({ projectId: crypto.randomUUID(), deployment: record() })
       .catch((e: unknown) => e);
     expect(ConnectError.from(error).code).toBe(Code.Unauthenticated);
   });
@@ -119,10 +159,10 @@ describe("DeploymentService over Connect", () => {
   it("Report refuses a succeeded deployment that names no promotion as InvalidArgument", async () => {
     const session = await createTestSessionWithOrganization();
     try {
-      await projectIn(session.organization.id, "no-promotion");
+      const projectId = await projectIn(session.organization.id, "no-promotion");
 
       const error = await clientFor(session.token)
-        .report({ deployment: record("no-promotion", { promotion: undefined }) })
+        .report({ projectId, deployment: record({ promotion: undefined }) })
         .catch((e: unknown) => e);
 
       const refused = ConnectError.from(error);
@@ -136,10 +176,10 @@ describe("DeploymentService over Connect", () => {
   it("Report refuses a failed deployment that names a promotion as InvalidArgument", async () => {
     const session = await createTestSessionWithOrganization();
     try {
-      await projectIn(session.organization.id, "failed-promotion");
+      const projectId = await projectIn(session.organization.id, "failed-promotion");
 
       const error = await clientFor(session.token)
-        .report({ deployment: record("failed-promotion", { outcome: DeploymentOutcome.FAILED }) })
+        .report({ projectId, deployment: record({ outcome: DeploymentOutcome.FAILED }) })
         .catch((e: unknown) => e);
 
       const refused = ConnectError.from(error);
@@ -156,7 +196,8 @@ describe("DeploymentService over Connect", () => {
       const projectId = await projectIn(session.organization.id, "report-spans");
 
       await clientFor(session.token).report({
-        deployment: record("report-spans", {
+        projectId,
+        deployment: record({
           spans: [
             {
               name: "build",
@@ -190,9 +231,10 @@ describe("DeploymentService over Connect", () => {
       const projectId = await projectIn(session.organization.id, "event-stores");
 
       await clientFor(session.token).recordEnvironmentEvent({
+        projectId,
         event: create(EnvironmentEventSchema, {
+          id: TRACE_ID,
           kind: EnvironmentEventKind.PREVIEW_REMOVED,
-          slug: "event-stores",
           environment: { tier: Tier.PREVIEW, lifecycle: Lifecycle.EPHEMERAL, identity: "pr-12" },
           at: timestampFromDate(new Date("2026-01-02T00:00:00.000Z")),
           source: { branch: "feat/x" },
@@ -220,13 +262,14 @@ describe("DeploymentService over Connect", () => {
   it("RecordEnvironmentEvent refuses a removed preview in the production tier as InvalidArgument", async () => {
     const session = await createTestSessionWithOrganization();
     try {
-      await projectIn(session.organization.id, "event-prod");
+      const projectId = await projectIn(session.organization.id, "event-prod");
 
       const error = await clientFor(session.token)
         .recordEnvironmentEvent({
+          projectId,
           event: {
+            id: TRACE_ID,
             kind: EnvironmentEventKind.PREVIEW_REMOVED,
-            slug: "event-prod",
             environment: { tier: Tier.PRODUCTION, lifecycle: Lifecycle.PERSISTENT },
             at: timestampFromDate(new Date()),
           },
@@ -236,6 +279,36 @@ describe("DeploymentService over Connect", () => {
       expect(ConnectError.from(error).code).toBe(Code.InvalidArgument);
     } finally {
       await session.cleanup();
+    }
+  });
+
+  it("RecordEnvironmentEvent refuses a project the session's organization does not own as NotFound and stores nothing", async () => {
+    const session = await createTestSessionWithOrganization();
+    const other = await createTestSessionWithOrganization();
+    try {
+      const foreign = await projectIn(other.organization.id, "shop");
+
+      const error = await clientFor(session.token)
+        .recordEnvironmentEvent({
+          projectId: foreign,
+          event: {
+            id: TRACE_ID,
+            kind: EnvironmentEventKind.DESTROYED,
+            environment: { tier: Tier.PRODUCTION, lifecycle: Lifecycle.PERSISTENT },
+            at: timestampFromDate(new Date()),
+          },
+        })
+        .catch((e: unknown) => e);
+
+      expect(ConnectError.from(error).code).toBe(Code.NotFound);
+      const rows = await db
+        .select()
+        .from(environmentEvent)
+        .where(eq(environmentEvent.projectId, foreign));
+      expect(rows).toHaveLength(0);
+    } finally {
+      await session.cleanup();
+      await other.cleanup();
     }
   });
 });

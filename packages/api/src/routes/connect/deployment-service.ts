@@ -7,16 +7,16 @@ import { uuidv7 } from "uuidv7";
 import { deploymentValues, environmentEventValues } from "./record";
 import { organizationKey } from "./session";
 
-async function projectIdOf(organizationId: string | undefined, slug: string): Promise<string> {
+async function projectIdOf(organizationId: string | undefined, projectId: string): Promise<string> {
   if (!organizationId) {
     throw new ConnectError("A session is required", Code.Unauthenticated);
   }
   const [found] = await db
     .select({ id: project.id })
     .from(project)
-    .where(and(eq(project.organizationId, organizationId), eq(project.slug, slug)));
+    .where(and(eq(project.organizationId, organizationId), eq(project.id, projectId)));
   if (!found) {
-    throw new ConnectError(`No project "${slug}" in the session's organization`, Code.NotFound);
+    throw new ConnectError(`No project ${projectId} in the session's organization`, Code.NotFound);
   }
   return found.id;
 }
@@ -27,7 +27,7 @@ export const deploymentService: ServiceImpl<typeof DeploymentService> = {
     if (!reported) {
       throw new ConnectError("protovalidate let through an empty report", Code.Internal);
     }
-    const projectId = await projectIdOf(context.values.get(organizationKey), reported.slug);
+    const projectId = await projectIdOf(context.values.get(organizationKey), request.projectId);
 
     await db
       .insert(deployment)
@@ -41,7 +41,7 @@ export const deploymentService: ServiceImpl<typeof DeploymentService> = {
     if (!event) {
       throw new ConnectError("protovalidate let through an empty event", Code.Internal);
     }
-    const projectId = await projectIdOf(context.values.get(organizationKey), event.slug);
+    const projectId = await projectIdOf(context.values.get(organizationKey), request.projectId);
 
     await db.insert(environmentEvent).values(environmentEventValues(projectId, uuidv7(), event));
     return {};
