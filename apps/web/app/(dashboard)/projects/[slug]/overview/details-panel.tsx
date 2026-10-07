@@ -73,8 +73,8 @@ function AppDetails({ app, topology }: { app: DeploymentApp; topology: Deploymen
       </Section>
       <Section heading="Runtime">
         <div className="flex flex-col gap-1.5">
-          <Field name="Runtime" value={app.runtime.name} />
-          {app.runtime.arch && <Field name="Architecture" value={app.runtime.arch} />}
+          {app.runtime && <Field name="Runtime" value={app.runtime.name} />}
+          {app.runtime?.arch && <Field name="Architecture" value={app.runtime.arch} />}
           <Field name="Compute" value={app.compute} />
           {app.folder && <Field name="Folder" value={app.folder} />}
           {app.deploymentId && <Field name="Deployment" value={app.deploymentId.slice(0, 12)} />}
