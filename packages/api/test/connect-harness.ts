@@ -1,4 +1,4 @@
-import type { MessageInitShape } from "@bufbuild/protobuf";
+import type { DescService, MessageInitShape } from "@bufbuild/protobuf";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { createClient, type Interceptor } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
@@ -18,7 +18,7 @@ import { CONNECT_PREFIX, connect } from "../src/routes/connect/route";
 
 export const TRACE_ID = "0af7651916cd43dd8448eb211c80319c";
 
-export function connectClient(bearer: string | null) {
+export function serviceClient<S extends DescService>(service: S, bearer: string | null) {
   const interceptors: Interceptor[] = bearer
     ? [
         (next) => (req) => {
@@ -28,13 +28,17 @@ export function connectClient(bearer: string | null) {
       ]
     : [];
   return createClient(
-    DeploymentService,
+    service,
     createConnectTransport({
       baseUrl: `http://localhost${CONNECT_PREFIX}`,
       interceptors,
       fetch: (input, init) => connect(new Request(input, init)),
     }),
   );
+}
+
+export function connectClient(bearer: string | null) {
+  return serviceClient(DeploymentService, bearer);
 }
 
 export async function projectIn(organizationId: string, slug: string): Promise<string> {

@@ -5,7 +5,6 @@ import { Tier as WireTier } from "@console/connectors/gen/common/environment/v1/
 import {
   AppOutcome,
   type CI,
-  ComputeKind,
   type Deployment,
   DeploymentKind,
   DeploymentOutcome,
@@ -19,7 +18,6 @@ import type { Span } from "@console/connectors/gen/opentelemetry/proto/trace/v1/
 import { Status_StatusCode } from "@console/connectors/gen/opentelemetry/proto/trace/v1/trace_pb";
 import type {
   AppOutcome as AppOutcomeName,
-  ComputeKind as ComputeKindName,
   DeploymentApp,
   DeploymentCi,
   DeploymentGit,
@@ -35,6 +33,7 @@ import type {
   VariableClass as VariableClassName,
 } from "@console/db/schema";
 import { FRAMEWORKS, RESOURCE_TYPES } from "@console/db/schema";
+import { computeKinds } from "./compute";
 
 const deploymentKinds: Partial<Record<DeploymentKind, DeploymentKindName>> = {
   [DeploymentKind.DEPLOY]: "deploy",
@@ -51,11 +50,6 @@ const appOutcomes: Partial<Record<AppOutcome, AppOutcomeName>> = {
   [AppOutcome.SUCCEEDED]: "succeeded",
   [AppOutcome.FAILED]: "failed",
   [AppOutcome.SKIPPED]: "skipped",
-};
-
-const computeKinds: Partial<Record<ComputeKind, ComputeKindName>> = {
-  [ComputeKind.SERVERLESS]: "serverless",
-  [ComputeKind.CONTAINER]: "container",
 };
 
 const triggerKinds: Partial<Record<TriggerKind, TriggerKindName>> = {

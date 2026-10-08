@@ -1,4 +1,5 @@
 import { generateKeyPairSync, type KeyObject } from "node:crypto";
+import { ConnectorReach, ConnectorService } from "@console/connectors/gen/console/v1/connector_pb";
 import { db } from "@console/db";
 import { connector } from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
@@ -6,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { SignJWT } from "jose";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createTestSessionWithOrganization } from "../../../../../test/auth-harness";
-import { upsertConnector } from "../../route";
+import { serviceClient } from "../../../../../test/connect-harness";
 import { connectorHeartbeat } from "./route";
 
 const origin = "http://localhost:3000";
@@ -57,23 +58,14 @@ function beat(
 async function paired() {
   const session = await createTestSessionWithOrganization();
   const keys = keyPair();
-  const upserted = await (
-    await upsertConnector(
-      new Request("http://localhost/api/connectors", {
-        method: "PUT",
-        headers: { ...Object.fromEntries(session.headers), "Content-Type": "application/json" },
-        body: JSON.stringify({
-          target: "vps/sha256:abc/ocel",
-          vendor: "vps",
-        }),
-      }),
-    )
-  ).json();
-  await db
-    .update(connector)
-    .set({ publicKey: keys.publicKey })
-    .where(eq(connector.id, upserted.id));
-  return { session, keys, id: upserted.id as string };
+  const { connector: upserted } = await serviceClient(ConnectorService, session.token).upsert({
+    target: "vps/sha256:abc/ocel",
+    vendor: "vps",
+    reach: ConnectorReach.DIAL,
+  });
+  const id = upserted?.id ?? "";
+  await db.update(connector).set({ publicKey: keys.publicKey }).where(eq(connector.id, id));
+  return { session, keys, id };
 }
 
 describe("POST /api/connectors/{id}/heartbeat", () => {
