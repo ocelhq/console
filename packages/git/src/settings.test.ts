@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { generateKeyPairSync, randomBytes } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const keys = [
@@ -53,8 +53,15 @@ describe("readGitSettings", () => {
     });
   });
 
-  it("turns private key newlines written as \\n back into newlines", async () => {
-    const settings = await settingsWith({ ...app, GITHUB_APP_PRIVATE_KEY: "a\\nb" });
-    expect(settings.githubApp?.privateKey).toBe("a\nb");
+  it("restores a private key whose newlines the environment flattened to spaces", async () => {
+    const pem = generateKeyPairSync("rsa", { modulusLength: 2048 }).privateKey.export({
+      type: "pkcs1",
+      format: "pem",
+    }) as string;
+    const settings = await settingsWith({
+      ...app,
+      GITHUB_APP_PRIVATE_KEY: pem.replace(/\n/g, " "),
+    });
+    expect(settings.githubApp?.privateKey).toBe(pem);
   });
 });
