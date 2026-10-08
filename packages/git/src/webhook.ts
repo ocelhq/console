@@ -3,9 +3,8 @@ import type { GitRuntime } from "./runtime";
 import type { StoredApp } from "./store";
 
 export interface GitEventContext {
+  deliveryId: string;
   app: StoredApp;
-  installation: { id: string; externalId: string; organizationId: string };
-  projects: { id: string; organizationId: string }[];
 }
 
 export type GitEventHandler = (event: GitEvent, context: GitEventContext) => Promise<void>;
@@ -36,35 +35,20 @@ export function webhookHandler(deps: WebhookDeps) {
     }
     if (!event) return Response.json({ received: true }, { status: 202 });
 
-    if (!(await deps.store.recordDelivery(app.id, deliveryId))) {
-      return Response.json({ received: true, duplicate: true }, { status: 202 });
-    }
-    try {
-      await dispatch(deps, app, event);
-    } catch (error) {
-      await deps.store.forgetDelivery(app.id, deliveryId);
-      throw error;
-    }
+    await dispatch(deps, app, event, deliveryId);
     return Response.json({ received: true }, { status: 202 });
   };
 }
 
-async function dispatch(deps: WebhookDeps, app: StoredApp, event: GitEvent): Promise<void> {
+async function dispatch(
+  deps: WebhookDeps,
+  app: StoredApp,
+  event: GitEvent,
+  deliveryId: string,
+): Promise<void> {
   if (event.type === "uninstalled") {
     await deps.store.removeInstallation(app.id, event.installation);
     return;
   }
-
-  const installation = await deps.store.findInstallation(app.id, event.installation);
-  if (!installation) return;
-  const projects = await deps.store.projectsForRepo(installation.id, event.repo.id);
-  await deps.onEvent(event, {
-    app,
-    installation: {
-      id: installation.id,
-      externalId: installation.externalId,
-      organizationId: installation.organizationId,
-    },
-    projects,
-  });
+  await deps.onEvent(event, { deliveryId, app });
 }

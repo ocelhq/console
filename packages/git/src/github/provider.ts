@@ -166,7 +166,11 @@ export function githubProvider(github: GithubApp, options: GithubOptions = {}): 
         });
         return data.repositories;
       });
-      return repos.map((repo) => ({ id: String(repo.id), fullName: repo.full_name }));
+      return repos.map((repo) => ({
+        id: String(repo.id),
+        fullName: repo.full_name,
+        defaultBranch: repo.default_branch,
+      }));
     },
 
     async repoToken(installation, repo, access) {

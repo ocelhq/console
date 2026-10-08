@@ -3,6 +3,10 @@ export interface RepoRef {
   fullName: string;
 }
 
+export interface Repo extends RepoRef {
+  defaultBranch: string;
+}
+
 export interface InstallationRef {
   externalId: string;
 }
@@ -22,6 +26,7 @@ interface PullRequest {
   branch: string;
   draft: boolean;
   fork: boolean;
+  at: Date;
 }
 
 export type GitEvent =
@@ -32,15 +37,23 @@ export type GitEvent =
       branch: string;
       sha: string;
       deleted: boolean;
+      at: Date;
     }
-  | ({ type: "pr_opened" } & PullRequest)
+  | ({ type: "pr_opened"; reopened: boolean } & PullRequest)
   | ({ type: "pr_sync" } & PullRequest)
-  | { type: "pr_closed"; installation: string; repo: RepoRef; pr: number; merged: boolean }
+  | {
+      type: "pr_closed";
+      installation: string;
+      repo: RepoRef;
+      pr: number;
+      merged: boolean;
+      at: Date;
+    }
   | { type: "uninstalled"; installation: string };
 
 export type CommitState = "pending" | "success" | "failure" | "error";
 
-export type DeploymentState = "in_progress" | "success" | "failure" | "inactive";
+export type DeploymentState = "queued" | "in_progress" | "success" | "failure" | "inactive";
 
 export interface RepoToken {
   token: string;
@@ -61,7 +74,7 @@ export interface GitProvider {
     code: string;
     redirectUri: string;
   }): Promise<UserInstallation[]>;
-  listRepos(installation: InstallationRef): Promise<RepoRef[]>;
+  listRepos(installation: InstallationRef): Promise<Repo[]>;
   repoToken(installation: InstallationRef, repo: RepoRef, access: "read"): Promise<RepoToken>;
   setStatus(
     installation: InstallationRef,

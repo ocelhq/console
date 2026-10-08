@@ -1,12 +1,4 @@
-import {
-  index,
-  pgEnum,
-  pgTable,
-  primaryKey,
-  text,
-  timestamp,
-  uniqueIndex,
-} from "drizzle-orm/pg-core";
+import { index, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { organization } from "./auth-schema";
 import { project } from "./project";
 
@@ -67,23 +59,10 @@ export const projectRepo = pgTable(
       .references(() => gitInstallation.id, { onDelete: "cascade" }),
     repoId: text("repo_id").notNull(),
     fullName: text("full_name").notNull(),
+    productionBranch: text("production_branch").notNull(),
+    jobLabels: text("job_labels").array().notNull().default([]),
   },
   (table) => [
     index("project_repo_installationId_repoId_idx").on(table.installationId, table.repoId),
-  ],
-);
-
-export const gitDelivery = pgTable(
-  "git_delivery",
-  {
-    gitAppId: text("git_app_id")
-      .notNull()
-      .references(() => gitApp.id, { onDelete: "cascade" }),
-    deliveryId: text("delivery_id").notNull(),
-    receivedAt: timestamp("received_at").defaultNow().notNull(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.gitAppId, table.deliveryId] }),
-    index("git_delivery_receivedAt_idx").on(table.receivedAt),
   ],
 );

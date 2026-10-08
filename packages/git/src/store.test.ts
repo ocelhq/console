@@ -1,9 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { db } from "@console/db";
-import { gitApp, gitDelivery, organization, project, projectRepo } from "@console/db/schema";
+import { gitApp, organization, project, projectRepo } from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
 import { pg } from "@console/infra";
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { envKeyStore, type KeyStore } from "./keystore";
 import { gitStore, removeSystemApp, systemAppId } from "./store";
@@ -205,13 +205,35 @@ describe("installations and repos", () => {
       projectId: `p-${suffix}`,
       organizationId: orgA,
       installationId: first.id,
-      repo: { id: "1234", fullName: "acme/web" },
+      repo: { id: "1234", fullName: "acme/web", defaultBranch: "main" },
+      productionBranch: "trunk",
+      jobLabels: ["target:vps-box-1"],
     });
 
     expect(await store.projectsForRepo(first.id, "1234")).toEqual([
-      { id: `p-${suffix}`, organizationId: orgA },
+      {
+        id: `p-${suffix}`,
+        organizationId: orgA,
+        productionBranch: "trunk",
+        jobLabels: ["target:vps-box-1"],
+      },
     ]);
     expect(await store.projectsForRepo(first.id, "other")).toEqual([]);
+  });
+
+  it("builds a project's production from its repo's default branch unless the link names one", async () => {
+    const installation = await store.findInstallation(appId, "99");
+    if (!installation) throw new Error("not bound");
+    await store.linkProjectRepo({
+      projectId: `p-${suffix}`,
+      organizationId: orgA,
+      installationId: installation.id,
+      repo: { id: "1234", fullName: "acme/web", defaultBranch: "develop" },
+    });
+
+    expect(await store.projectsForRepo(installation.id, "1234")).toMatchObject([
+      { id: `p-${suffix}`, productionBranch: "develop", jobLabels: [] },
+    ]);
   });
 
   it("refuses to bind an installation another organization holds", async () => {
@@ -256,7 +278,8 @@ describe("installations and repos", () => {
         projectId: `q-${suffix}`,
         organizationId: orgB,
         installationId: installation.id,
-        repo: { id: "5", fullName: "acme/api" },
+        repo: { id: "5", fullName: "acme/api", defaultBranch: "main" },
+        productionBranch: "main",
       }),
     ).rejects.toThrow(/installation/);
   });
@@ -286,7 +309,7 @@ describe("installations and repos", () => {
       projectId: `p-${suffix}`,
       organizationId: orgA,
       installationId: installation.id,
-      repo: { id: "1234", fullName: "acme/web" },
+      repo: { id: "1234", fullName: "acme/web", defaultBranch: "main" },
     });
 
     await db.delete(gitApp).where(eq(gitApp.id, app.id));
@@ -303,34 +326,5 @@ describe("installations and repos", () => {
         .from(project)
         .where(eq(project.id, `p-${suffix}`)),
     ).toHaveLength(1);
-  });
-});
-
-describe("deliveries", () => {
-  const appId = `app-${suffix}-1`;
-
-  it("takes a delivery once", async () => {
-    expect(await store.recordDelivery(appId, "d-1")).toBe(true);
-    expect(await store.recordDelivery(appId, "d-1")).toBe(false);
-  });
-
-  it("takes a delivery again once it is forgotten", async () => {
-    await store.forgetDelivery(appId, "d-1");
-    expect(await store.recordDelivery(appId, "d-1")).toBe(true);
-  });
-
-  it("forgets deliveries older than it keeps", async () => {
-    await db.insert(gitDelivery).values({
-      gitAppId: appId,
-      deliveryId: "d-old",
-      receivedAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000),
-    });
-    await store.recordDelivery(appId, "d-new");
-    expect(
-      await db
-        .select()
-        .from(gitDelivery)
-        .where(and(eq(gitDelivery.gitAppId, appId), eq(gitDelivery.deliveryId, "d-old"))),
-    ).toEqual([]);
   });
 });

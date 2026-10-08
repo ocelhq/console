@@ -8,6 +8,7 @@ const provider = githubProvider(testApp());
 
 const repository = { id: 1234, full_name: "acme/web" };
 const installation = { id: 99 };
+const PUSHED_AT = 1791453600;
 
 function pullRequest(action: string, extra: Record<string, unknown> = {}) {
   return delivery("pull_request", {
@@ -19,6 +20,7 @@ function pullRequest(action: string, extra: Record<string, unknown> = {}) {
       head: { sha: "a".repeat(40), ref: "feature/x", repo: { id: 1234 } },
       merged: false,
       draft: false,
+      updated_at: "2026-10-08T10:00:00Z",
       ...extra,
     },
   });
@@ -86,7 +88,7 @@ describe("parseEvent", () => {
         after: "b".repeat(40),
         deleted: false,
         installation,
-        repository,
+        repository: { ...repository, pushed_at: PUSHED_AT },
       }),
     );
     expect(event).toEqual({
@@ -96,7 +98,18 @@ describe("parseEvent", () => {
       branch: "main",
       sha: "b".repeat(40),
       deleted: false,
+      at: new Date(PUSHED_AT * 1000),
     });
+  });
+
+  it.each([
+    [
+      "a push with no time",
+      delivery("push", { ref: "refs/heads/main", after: "b".repeat(40), installation, repository }),
+    ],
+    ["a pull request with no time", pullRequest("opened", { updated_at: undefined })],
+  ])("refuses %s as malformed, since its order against other events is unknown", (_, request) => {
+    expect(() => provider.parseEvent(request)).toThrow(MalformedWebhook);
   });
 
   it("ignores a push to a tag", () => {
@@ -108,13 +121,13 @@ describe("parseEvent", () => {
   });
 
   it.each([
-    ["opened", "pr_opened"],
-    ["reopened", "pr_opened"],
-    ["ready_for_review", "pr_opened"],
-    ["synchronize", "pr_sync"],
-  ])("reads a pull request %s as %s", (action, type) => {
+    ["opened", { type: "pr_opened", reopened: false }],
+    ["reopened", { type: "pr_opened", reopened: true }],
+    ["ready_for_review", { type: "pr_opened", reopened: false }],
+    ["synchronize", { type: "pr_sync" }],
+  ])("reads a pull request %s as %j", (action, read) => {
     expect(provider.parseEvent(pullRequest(action))).toEqual({
-      type,
+      ...read,
       installation: "99",
       repo: { id: "1234", fullName: "acme/web" },
       pr: 7,
@@ -122,6 +135,7 @@ describe("parseEvent", () => {
       branch: "feature/x",
       draft: false,
       fork: false,
+      at: new Date("2026-10-08T10:00:00Z"),
     });
   });
 
@@ -152,6 +166,7 @@ describe("parseEvent", () => {
       repo: { id: "1234", fullName: "acme/web" },
       pr: 7,
       merged: true,
+      at: new Date("2026-10-08T10:00:00Z"),
     });
   });
 
@@ -181,7 +196,7 @@ describe("parseEvent", () => {
       ref: "refs/heads/main",
       after: "b".repeat(40),
       installation,
-      repository,
+      repository: { ...repository, pushed_at: PUSHED_AT },
     };
     const body = new URLSearchParams({ payload: JSON.stringify(payload) }).toString();
     expect(
