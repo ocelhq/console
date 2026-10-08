@@ -1,5 +1,14 @@
-import { pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  index,
+  pgEnum,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { organization } from "./auth-schema";
+import { project } from "./project";
 
 export const GIT_KINDS = ["github"] as const;
 export type GitKind = (typeof GIT_KINDS)[number];
@@ -46,3 +55,35 @@ export const gitInstallation = pgTable(
 );
 
 export type GitInstallation = typeof gitInstallation.$inferSelect;
+
+export const projectRepo = pgTable(
+  "project_repo",
+  {
+    projectId: text("project_id")
+      .primaryKey()
+      .references(() => project.id, { onDelete: "cascade" }),
+    installationId: text("installation_id")
+      .notNull()
+      .references(() => gitInstallation.id, { onDelete: "cascade" }),
+    repoId: text("repo_id").notNull(),
+    fullName: text("full_name").notNull(),
+  },
+  (table) => [
+    index("project_repo_installationId_repoId_idx").on(table.installationId, table.repoId),
+  ],
+);
+
+export const gitDelivery = pgTable(
+  "git_delivery",
+  {
+    gitAppId: text("git_app_id")
+      .notNull()
+      .references(() => gitApp.id, { onDelete: "cascade" }),
+    deliveryId: text("delivery_id").notNull(),
+    receivedAt: timestamp("received_at").defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.gitAppId, table.deliveryId] }),
+    index("git_delivery_receivedAt_idx").on(table.receivedAt),
+  ],
+);

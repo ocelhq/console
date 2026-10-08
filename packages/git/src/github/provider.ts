@@ -1,12 +1,21 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { App } from "@octokit/app";
 import { Octokit } from "@octokit/core";
-import type { DeploymentState, GitProvider, InstallationRef, RepoRef } from "../provider";
+import type {
+  DeploymentState,
+  GitProvider,
+  InstallationRef,
+  RepoRef,
+  UserInstallation,
+} from "../provider";
+import type { AppSecret } from "../store";
 import { parseGithubEvent } from "./events";
 
-export interface GithubCredentials {
+export interface GithubApp {
   appId: string;
-  privateKey: string;
-  webhookSecret: string;
+  slug: string;
+  clientId: string;
+  secret(name: AppSecret): Promise<string>;
 }
 
 export interface GithubOptions {
@@ -22,7 +31,7 @@ interface DeploymentStatus {
   auto_inactive?: boolean;
 }
 
-function split(repo: RepoRef): { owner: string; repo: string } {
+function ownerAndName(repo: RepoRef): { owner: string; repo: string } {
   const [owner, name] = repo.fullName.split("/");
   if (!owner || !name) throw new Error(`invalid repo '${repo.fullName}'`);
   return { owner, repo: name };
@@ -37,22 +46,32 @@ async function everyPage<T>(page: (number: number) => Promise<T[]>): Promise<T[]
   }
 }
 
-export function githubProvider(
-  credentials: GithubCredentials,
-  options: GithubOptions = {},
-): GitProvider {
-  const app = new App({
-    appId: credentials.appId,
-    privateKey: credentials.privateKey,
-    webhooks: { secret: credentials.webhookSecret },
-    Octokit: options.fetch ? Octokit.defaults({ request: { fetch: options.fetch } }) : Octokit,
-  });
+function signatureMatches(body: string, signature: string, secret: string): boolean {
+  const expected = Buffer.from(
+    `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`,
+    "utf8",
+  );
+  const given = Buffer.from(signature, "utf8");
+  return expected.length === given.length && timingSafeEqual(expected, given);
+}
 
-  const as = (installation: InstallationRef) =>
-    app.getInstallationOctokit(Number(installation.externalId));
+export function githubProvider(github: GithubApp, options: GithubOptions = {}): GitProvider {
+  const BaseOctokit = options.fetch
+    ? Octokit.defaults({ request: { fetch: options.fetch } })
+    : Octokit;
+  let authenticated: Promise<App> | undefined;
+  const app = () => {
+    authenticated ??= github
+      .secret("privateKey")
+      .then((privateKey) => new App({ appId: github.appId, privateKey, Octokit: BaseOctokit }));
+    return authenticated;
+  };
+
+  const installationClient = async (installation: InstallationRef) =>
+    (await app()).getInstallationOctokit(Number(installation.externalId));
 
   async function deploymentsOf(
-    octokit: Awaited<ReturnType<typeof as>>,
+    octokit: Awaited<ReturnType<typeof installationClient>>,
     target: { owner: string; repo: string },
     environment: string,
     sha?: string,
@@ -73,13 +92,62 @@ export function githubProvider(
     async verifyWebhook({ headers, body }) {
       const signature = headers.get("x-hub-signature-256");
       if (!signature) return false;
-      return app.webhooks.verify(body, signature);
+      return signatureMatches(body, signature, await github.secret("webhookSecret"));
     },
+
+    deliveryId: ({ headers }) => headers.get("x-github-delivery") ?? undefined,
 
     parseEvent: parseGithubEvent,
 
+    authorizeUrl({ state, redirectUri }) {
+      const url = new URL("https://github.com/login/oauth/authorize");
+      url.searchParams.set("client_id", github.clientId);
+      url.searchParams.set("state", state);
+      url.searchParams.set("redirect_uri", redirectUri);
+      return url.href;
+    },
+
+    async installationsOfUser({ code, redirectUri }) {
+      const clientSecret = await github.secret("clientSecret");
+      const token = await exchangeCode(options.fetch ?? fetch, {
+        client_id: github.clientId,
+        client_secret: clientSecret,
+        code,
+        redirect_uri: redirectUri,
+      });
+      try {
+        const person = new BaseOctokit({ auth: token });
+        const installations = await everyPage(async (page) => {
+          const { data } = await person.request("GET /user/installations", {
+            per_page: PAGE,
+            page,
+          });
+          return data.installations;
+        });
+        return installations.map(
+          (installation): UserInstallation => ({
+            externalId: String(installation.id),
+            account:
+              (installation.account && "login" in installation.account
+                ? installation.account.login
+                : installation.account?.slug) ?? "",
+          }),
+        );
+      } finally {
+        await new BaseOctokit()
+          .request("DELETE /applications/{client_id}/token", {
+            client_id: github.clientId,
+            access_token: token,
+            headers: {
+              authorization: `basic ${Buffer.from(`${github.clientId}:${clientSecret}`).toString("base64")}`,
+            },
+          })
+          .catch(() => undefined);
+      }
+    },
+
     async listRepos(installation) {
-      const octokit = await as(installation);
+      const octokit = await installationClient(installation);
       const repos = await everyPage(async (page) => {
         const { data } = await octokit.request("GET /installation/repositories", {
           per_page: PAGE,
@@ -91,11 +159,11 @@ export function githubProvider(
     },
 
     async repoToken(installation, repo, access) {
-      const { data } = await app.octokit.request(
+      const { data } = await (await app()).octokit.request(
         "POST /app/installations/{installation_id}/access_tokens",
         {
           installation_id: Number(installation.externalId),
-          repositories: [split(repo).repo],
+          repository_ids: [Number(repo.id)],
           permissions: { contents: access },
         },
       );
@@ -103,9 +171,9 @@ export function githubProvider(
     },
 
     async setStatus(installation, repo, status) {
-      const octokit = await as(installation);
+      const octokit = await installationClient(installation);
       await octokit.request("POST /repos/{owner}/{repo}/statuses/{sha}", {
-        ...split(repo),
+        ...ownerAndName(repo),
         sha: status.sha,
         state: status.state,
         context: status.context,
@@ -115,8 +183,8 @@ export function githubProvider(
     },
 
     async upsertComment(installation, repo, { pr, marker, body }) {
-      const octokit = await as(installation);
-      const target = split(repo);
+      const octokit = await installationClient(installation);
+      const target = ownerAndName(repo);
       const comments = await everyPage(async (page) => {
         const { data } = await octokit.request(
           "GET /repos/{owner}/{repo}/issues/{issue_number}/comments",
@@ -125,7 +193,8 @@ export function githubProvider(
         return data;
       });
       const sticky = comments.find(
-        (comment) => comment.user?.type === "Bot" && comment.body?.includes(marker),
+        (comment) =>
+          comment.user?.login === `${github.slug}[bot]` && comment.body?.includes(marker),
       );
       if (sticky) {
         await octokit.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
@@ -143,8 +212,8 @@ export function githubProvider(
     },
 
     async upsertDeployment(installation, repo, deployment) {
-      const octokit = await as(installation);
-      const target = split(repo);
+      const octokit = await installationClient(installation);
+      const target = ownerAndName(repo);
       const report = (id: number, status: DeploymentStatus) =>
         octokit.request("POST /repos/{owner}/{repo}/deployments/{deployment_id}/statuses", {
           ...target,
@@ -170,6 +239,22 @@ export function githubProvider(
       await report(id, statusFor(deployment));
     },
   };
+}
+
+async function exchangeCode(
+  fetchImpl: typeof fetch,
+  body: { client_id: string; client_secret: string; code: string; redirect_uri: string },
+): Promise<string> {
+  const response = await fetchImpl("https://github.com/login/oauth/access_token", {
+    method: "POST",
+    headers: { accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const answer = (await response.json()) as { access_token?: string; error?: string };
+  if (!response.ok || !answer.access_token) {
+    throw new Error(`github refused the authorization code: ${answer.error ?? response.status}`);
+  }
+  return answer.access_token;
 }
 
 async function createDeployment(

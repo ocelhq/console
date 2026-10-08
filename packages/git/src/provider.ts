@@ -12,6 +12,18 @@ export interface WebhookRequest {
   body: string;
 }
 
+export class MalformedWebhook extends Error {}
+
+interface PullRequest {
+  installation: string;
+  repo: RepoRef;
+  pr: number;
+  sha: string;
+  branch: string;
+  draft: boolean;
+  fork: boolean;
+}
+
 export type GitEvent =
   | {
       type: "push";
@@ -21,24 +33,9 @@ export type GitEvent =
       sha: string;
       deleted: boolean;
     }
-  | {
-      type: "pr_opened";
-      installation: string;
-      repo: RepoRef;
-      pr: number;
-      sha: string;
-      branch: string;
-    }
-  | {
-      type: "pr_sync";
-      installation: string;
-      repo: RepoRef;
-      pr: number;
-      sha: string;
-      branch: string;
-    }
+  | ({ type: "pr_opened" } & PullRequest)
+  | ({ type: "pr_sync" } & PullRequest)
   | { type: "pr_closed"; installation: string; repo: RepoRef; pr: number; merged: boolean }
-  | { type: "installed"; installation: string; account: string }
   | { type: "uninstalled"; installation: string };
 
 export type CommitState = "pending" | "success" | "failure" | "error";
@@ -50,9 +47,17 @@ export interface RepoToken {
   expiresAt: Date;
 }
 
+export interface UserInstallation {
+  externalId: string;
+  account: string;
+}
+
 export interface GitProvider {
   verifyWebhook(request: WebhookRequest): Promise<boolean>;
+  deliveryId(request: WebhookRequest): string | undefined;
   parseEvent(request: WebhookRequest): GitEvent | undefined;
+  authorizeUrl(input: { state: string; redirectUri: string }): string;
+  installationsOfUser(input: { code: string; redirectUri: string }): Promise<UserInstallation[]>;
   listRepos(installation: InstallationRef): Promise<RepoRef[]>;
   repoToken(installation: InstallationRef, repo: RepoRef, access: "read"): Promise<RepoToken>;
   setStatus(

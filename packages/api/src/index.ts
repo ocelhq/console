@@ -2,6 +2,8 @@ export { authHandler } from "./routes/auth/route";
 export { CONNECT_PREFIX, connect } from "./routes/connect/route";
 export { connectorHeartbeat } from "./routes/connectors/[id]/heartbeat/route";
 export { type Liveness, liveness } from "./routes/connectors/liveness";
+export { githubAuthorized } from "./routes/git/github/[appId]/authorized/route";
+export { githubSetup } from "./routes/git/github/[appId]/setup/route";
 export { githubWebhooks } from "./routes/git/github/[appId]/webhooks/route";
 export { manifestCallback } from "./routes/git/github/manifest/callback/route";
 export { startManifest } from "./routes/git/github/manifest/route";

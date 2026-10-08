@@ -1,51 +1,57 @@
-import type { GitEvent, GitProvider, WebhookRequest } from "./provider";
-import type { GitAppSummary, GitStore, OpenedApp } from "./store";
+import { type GitEvent, MalformedWebhook, type WebhookRequest } from "./provider";
+import type { GitRuntime } from "./runtime";
+import type { StoredApp } from "./store";
 
 export interface GitEventContext {
-  app: GitAppSummary;
+  app: StoredApp;
   installation: { id: string; externalId: string; organizationId: string };
   projects: { id: string; organizationId: string }[];
 }
 
 export type GitEventHandler = (event: GitEvent, context: GitEventContext) => Promise<void>;
 
-export interface WebhookDeps {
-  store: GitStore;
-  providerFor: (app: OpenedApp) => GitProvider;
+export interface WebhookDeps extends GitRuntime {
   onEvent: GitEventHandler;
 }
 
+const refuse = (error: string, status: number) => Response.json({ error }, { status });
+
 export function webhookHandler(deps: WebhookDeps) {
-  return async (request: WebhookRequest, appId: string): Promise<Response> => {
-    const app = await deps.store.loadApp(appId);
-    if (!app) return Response.json({ error: "Not found" }, { status: 404 });
+  return async (request: WebhookRequest, appRowId: string): Promise<Response> => {
+    const app = await deps.store.loadApp(appRowId);
+    if (!app) return refuse("Not found", 404);
 
     const provider = deps.providerFor(app);
-    if (!(await provider.verifyWebhook(request))) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!(await provider.verifyWebhook(request))) return refuse("Unauthorized", 401);
 
-    const event = provider.parseEvent(request);
-    if (event) await dispatch(deps, app, event);
+    const deliveryId = provider.deliveryId(request);
+    if (!deliveryId) return refuse("The delivery has no id", 400);
+
+    let event: GitEvent | undefined;
+    try {
+      event = provider.parseEvent(request);
+    } catch (error) {
+      if (error instanceof MalformedWebhook) return refuse(error.message, 400);
+      throw error;
+    }
+    if (!event) return Response.json({ received: true }, { status: 202 });
+
+    if (!(await deps.store.recordDelivery(app.id, deliveryId))) {
+      return Response.json({ received: true, duplicate: true }, { status: 202 });
+    }
+    try {
+      await dispatch(deps, app, event);
+    } catch (error) {
+      await deps.store.forgetDelivery(app.id, deliveryId);
+      throw error;
+    }
     return Response.json({ received: true }, { status: 202 });
   };
 }
 
-async function dispatch(deps: WebhookDeps, app: OpenedApp, event: GitEvent): Promise<void> {
+async function dispatch(deps: WebhookDeps, app: StoredApp, event: GitEvent): Promise<void> {
   if (event.type === "uninstalled") {
     await deps.store.removeInstallation(app.id, event.installation);
-    return;
-  }
-
-  if (event.type === "installed") {
-    if (app.organizationId) {
-      await deps.store.recordInstallation({
-        gitAppId: app.id,
-        organizationId: app.organizationId,
-        externalId: event.installation,
-        account: event.account,
-      });
-    }
     return;
   }
 

@@ -161,7 +161,6 @@
         "@console/infra": "workspace:*",
         "@octokit/app": "^16.1.0",
         "@octokit/core": "^7.0.8",
-        "@octokit/webhooks": "^14.1.0",
         "drizzle-orm": "catalog:",
       },
       "devDependencies": {

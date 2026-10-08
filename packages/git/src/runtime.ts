@@ -1,27 +1,19 @@
 import { githubProvider } from "./github/provider";
-import { envKeyStore } from "./keystore";
+import type { KeyStore } from "./keystore";
 import type { GitProvider } from "./provider";
-import { readGitSettings } from "./settings";
-import { type GitStore, gitStore, type OpenedApp } from "./store";
+import { type GitStore, gitStore, type StoredApp } from "./store";
 
 export interface GitRuntime {
   store: GitStore;
-  providerFor: (app: OpenedApp) => GitProvider;
+  providerFor: (app: StoredApp) => GitProvider;
+  fetch: typeof fetch;
 }
 
-export function providerFor(app: OpenedApp): GitProvider {
-  return githubProvider({
-    appId: app.appId,
-    privateKey: app.privateKey,
-    webhookSecret: app.webhookSecret,
-  });
-}
-
-let runtime: GitRuntime | undefined;
-
-export function gitRuntime(): GitRuntime | undefined {
-  const { encryptionKey } = readGitSettings();
-  if (!encryptionKey) return undefined;
-  runtime ??= { store: gitStore(envKeyStore(encryptionKey)), providerFor };
-  return runtime;
+export function gitRuntime(keys: KeyStore, options: { fetch?: typeof fetch } = {}): GitRuntime {
+  const fetchImpl = options.fetch ?? fetch;
+  return {
+    store: gitStore(keys),
+    providerFor: (app) => githubProvider(app, { fetch: fetchImpl }),
+    fetch: fetchImpl,
+  };
 }
