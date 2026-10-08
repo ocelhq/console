@@ -1,6 +1,6 @@
 "use client";
 
-import type { DeploymentApp, DeploymentTrigger } from "@console/db/schema";
+import type { DeploymentApp, DeploymentTrigger, Tier } from "@console/db/schema";
 import {
   GitBranchIcon,
   GitPullRequestIcon,
@@ -25,14 +25,8 @@ export function StatusDot({ tone }: { tone: Tone }) {
   return <span aria-hidden className={`size-2 shrink-0 self-center rounded-full ${tones[tone]}`} />;
 }
 
-export function EnvironmentBadge({
-  environmentClass,
-  active,
-}: {
-  environmentClass: "production" | "preview";
-  active: boolean;
-}) {
-  const production = environmentClass === "production";
+export function EnvironmentBadge({ tier, active }: { tier: Tier; active: boolean }) {
+  const production = tier === "production";
   const Icon = production ? GlobeSimpleIcon : GitPullRequestIcon;
   return (
     <Badge

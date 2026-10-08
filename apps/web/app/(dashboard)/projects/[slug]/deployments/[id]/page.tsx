@@ -102,8 +102,7 @@ export default async function RunPage({
     shortId(run.promotionId) ??
     (run.outcome === "failed" ? `Failed ${kindVerbs[run.kind]}` : status.word);
   const stageCount = run.trace.length;
-  const EnvironmentIcon =
-    run.environmentClass === "production" ? GlobeSimpleIcon : GitPullRequestIcon;
+  const EnvironmentIcon = run.tier === "production" ? GlobeSimpleIcon : GitPullRequestIcon;
   const hostnames = hostnamesOf(run.topology.apps).length;
   const checks = checksOf(run.topology.apps).length;
 
@@ -135,7 +134,7 @@ export default async function RunPage({
               <span className="text-muted-foreground">
                 <Stamp at={run.deployedAt.toISOString()} now={now} />
               </span>
-              <EnvironmentBadge environmentClass={run.environmentClass} active={isActive} />
+              <EnvironmentBadge tier={run.tier} active={isActive} />
               {run.environmentIdentity && (
                 <span className="text-muted-foreground">{run.environmentIdentity}</span>
               )}
@@ -166,7 +165,7 @@ export default async function RunPage({
             url={url}
             outcome={run.outcome}
             promotionId={run.promotionId}
-            environmentClass={run.environmentClass}
+            tier={run.tier}
             environmentIdentity={run.environmentIdentity}
             active={isActive}
           />
@@ -177,7 +176,7 @@ export default async function RunPage({
         <Field name="Environment">
           <span className="inline-flex items-center gap-1.5">
             <EnvironmentIcon aria-hidden className="size-4 text-muted-foreground" />
-            {run.environmentClass}
+            {run.tier}
             {run.environmentIdentity ? ` · ${run.environmentIdentity}` : ""}
           </span>
         </Field>
@@ -238,7 +237,9 @@ export default async function RunPage({
         <Field name="CLI">
           <span className="flex flex-col gap-0.5">
             <span>{run.cliVersion ? `ocel ${run.cliVersion}` : <NotReported />}</span>
-            <span className="font-mono text-xs text-muted-foreground">run {run.runId}</span>
+            <span className="font-mono text-xs text-muted-foreground">
+              deployment {run.deploymentId}
+            </span>
           </span>
         </Field>
       </Joined>

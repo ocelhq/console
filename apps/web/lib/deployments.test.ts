@@ -5,8 +5,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { createTestSessionWithOrganization } from "@/test/auth-harness";
 import { findRun, latestDeployments, latestRuns, listRuns } from "./deployments";
 
-const PREVIEW = { environmentClass: "preview", environmentIdentity: "pr-7" } as const;
-const PRODUCTION = { environmentClass: "production", environmentIdentity: "" } as const;
+const PREVIEW = { tier: "preview", environmentIdentity: "pr-7" } as const;
+const PRODUCTION = { tier: "production", environmentIdentity: "" } as const;
 
 type Place = typeof PREVIEW | typeof PRODUCTION;
 
@@ -21,8 +21,8 @@ async function deployed(projectId: string, place: Place, at: string): Promise<st
   await db.insert(deployment).values({
     id,
     projectId,
-    runId: crypto.randomUUID().replaceAll("-", ""),
-    kind: place.environmentClass === "preview" ? "preview-up" : "deploy",
+    deploymentId: crypto.randomUUID().replaceAll("-", ""),
+    kind: place.tier === "preview" ? "preview-up" : "deploy",
     ...place,
     promotionId: `prm-${id}`,
     providerName: "aws",
@@ -40,8 +40,8 @@ async function tornDown(projectId: string, place: Place, at: string) {
   await db.insert(environmentEvent).values({
     id: crypto.randomUUID(),
     projectId,
-    runId: crypto.randomUUID().replaceAll("-", ""),
-    kind: place.environmentClass === "preview" ? "preview-removed" : "destroyed",
+    deploymentId: crypto.randomUUID().replaceAll("-", ""),
+    kind: place.tier === "preview" ? "preview-removed" : "destroyed",
     ...place,
     occurredAt: new Date(at),
   });

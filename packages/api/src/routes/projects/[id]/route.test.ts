@@ -172,9 +172,9 @@ describe("deleteProject", () => {
       await db.insert(deployment).values({
         id: deploymentId,
         projectId: created.id,
-        runId: "run-1",
+        deploymentId: "0af7651916cd43dd8448eb211c80319c",
         kind: "deploy",
-        environmentClass: "production",
+        tier: "production",
         providerName: "aws",
         target: "aws/123456789012/us-east-1/main",
         outcome: "succeeded",

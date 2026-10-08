@@ -8,10 +8,10 @@ export {
 } from "./transport";
 export type {
   Cell,
-  EnvironmentClass,
   EnvSourceStatus,
   Revealed,
   Stored,
+  Tier,
   Version,
 } from "./variables";
 export * as variables from "./variables";

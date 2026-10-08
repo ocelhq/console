@@ -73,7 +73,7 @@ function Row({
         </span>
       </TableCell>
       <TableCell className={cell}>
-        <EnvironmentBadge environmentClass={run.environmentClass} active={run.active} />
+        <EnvironmentBadge tier={run.tier} active={run.active} />
       </TableCell>
       <TableCell className={cell}>
         <AppMarks apps={run.apps} />

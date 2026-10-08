@@ -1,10 +1,9 @@
 import { db } from "@console/db";
-import { type Deployment, deployment, environmentEvent } from "@console/db/schema";
+import { type Deployment, deployment, environmentEvent, type Tier } from "@console/db/schema";
 import { and, desc, eq, inArray, lt } from "drizzle-orm";
-import type { Environment } from "@/lib/environment";
 
-export function environmentKey(row: Pick<Deployment, "environmentClass" | "environmentIdentity">) {
-  return `${row.environmentClass}/${row.environmentIdentity}`;
+export function environmentKey(row: Pick<Deployment, "tier" | "environmentIdentity">) {
+  return `${row.tier}/${row.environmentIdentity}`;
 }
 
 export type ActiveRun = Pick<
@@ -14,26 +13,22 @@ export type ActiveRun = Pick<
   | "kind"
   | "promotionId"
   | "tag"
-  | "environmentClass"
+  | "tier"
   | "environmentIdentity"
   | "deployedAt"
 >;
 
-function runKey(row: Pick<Deployment, "projectId" | "environmentClass" | "environmentIdentity">) {
+function runKey(row: Pick<Deployment, "projectId" | "tier" | "environmentIdentity">) {
   return `${row.projectId}/${environmentKey(row)}`;
 }
 
 async function teardowns(projectIds: string[]): Promise<Map<string, Date>> {
   const rows = await db
     .selectDistinctOn(
-      [
-        environmentEvent.projectId,
-        environmentEvent.environmentClass,
-        environmentEvent.environmentIdentity,
-      ],
+      [environmentEvent.projectId, environmentEvent.tier, environmentEvent.environmentIdentity],
       {
         projectId: environmentEvent.projectId,
-        environmentClass: environmentEvent.environmentClass,
+        tier: environmentEvent.tier,
         environmentIdentity: environmentEvent.environmentIdentity,
         occurredAt: environmentEvent.occurredAt,
       },
@@ -42,17 +37,14 @@ async function teardowns(projectIds: string[]): Promise<Map<string, Date>> {
     .where(inArray(environmentEvent.projectId, projectIds))
     .orderBy(
       environmentEvent.projectId,
-      environmentEvent.environmentClass,
+      environmentEvent.tier,
       environmentEvent.environmentIdentity,
       desc(environmentEvent.occurredAt),
     );
   return new Map(rows.map((row) => [runKey(row), row.occurredAt]));
 }
 
-type Placed = Pick<
-  Deployment,
-  "projectId" | "environmentClass" | "environmentIdentity" | "deployedAt"
->;
+type Placed = Pick<Deployment, "projectId" | "tier" | "environmentIdentity" | "deployedAt">;
 
 function tornDownAfter(tornDown: Map<string, Date>, run: Placed): Date | null {
   const at = tornDown.get(runKey(run));
@@ -71,24 +63,21 @@ async function activeRuns(projectIds: string[]): Promise<Map<string, ActiveRun>>
 
 async function succeededRuns(projectIds: string[]): Promise<ActiveRun[]> {
   return db
-    .selectDistinctOn(
-      [deployment.projectId, deployment.environmentClass, deployment.environmentIdentity],
-      {
-        id: deployment.id,
-        projectId: deployment.projectId,
-        kind: deployment.kind,
-        promotionId: deployment.promotionId,
-        tag: deployment.tag,
-        environmentClass: deployment.environmentClass,
-        environmentIdentity: deployment.environmentIdentity,
-        deployedAt: deployment.deployedAt,
-      },
-    )
+    .selectDistinctOn([deployment.projectId, deployment.tier, deployment.environmentIdentity], {
+      id: deployment.id,
+      projectId: deployment.projectId,
+      kind: deployment.kind,
+      promotionId: deployment.promotionId,
+      tag: deployment.tag,
+      tier: deployment.tier,
+      environmentIdentity: deployment.environmentIdentity,
+      deployedAt: deployment.deployedAt,
+    })
     .from(deployment)
     .where(and(inArray(deployment.projectId, projectIds), eq(deployment.outcome, "succeeded")))
     .orderBy(
       deployment.projectId,
-      deployment.environmentClass,
+      deployment.tier,
       deployment.environmentIdentity,
       desc(deployment.deployedAt),
     );
@@ -103,14 +92,8 @@ export type OverviewLoad =
       tornDownAt: Date | null;
     };
 
-export async function latestDeployments(
-  projectId: string,
-  environmentClass: Environment,
-): Promise<OverviewLoad> {
-  const scope = and(
-    eq(deployment.projectId, projectId),
-    eq(deployment.environmentClass, environmentClass),
-  );
+export async function latestDeployments(projectId: string, tier: Tier): Promise<OverviewLoad> {
+  const scope = and(eq(deployment.projectId, projectId), eq(deployment.tier, tier));
 
   try {
     const [[latest], [lastPromoted], tornDown] = await Promise.all([
@@ -146,15 +129,15 @@ export const RUNS_PAGE = 50;
 
 export async function listRuns(
   projectIds: string[],
-  environmentClass: Environment | null,
+  tier: Tier | null,
   before: Date | null,
 ): Promise<RunsLoad> {
   if (projectIds.length === 0) {
     return { error: false, rows: [], more: false };
   }
   const filters = [inArray(deployment.projectId, projectIds)];
-  if (environmentClass) {
-    filters.push(eq(deployment.environmentClass, environmentClass));
+  if (tier) {
+    filters.push(eq(deployment.tier, tier));
   }
   if (before) {
     filters.push(lt(deployment.deployedAt, before));
@@ -226,7 +209,7 @@ export async function latestRuns(projectIds: string[]): Promise<Map<string, Late
         ...row,
         tornDownAt: tornDownAfter(tornDown, {
           ...row,
-          environmentClass: "production",
+          tier: "production",
           environmentIdentity: "",
         }),
       },
@@ -245,8 +228,6 @@ async function latestProductionRuns(projectIds: string[]) {
       providerRegion: deployment.providerRegion,
     })
     .from(deployment)
-    .where(
-      and(inArray(deployment.projectId, projectIds), eq(deployment.environmentClass, "production")),
-    )
+    .where(and(inArray(deployment.projectId, projectIds), eq(deployment.tier, "production")))
     .orderBy(deployment.projectId, desc(deployment.deployedAt));
 }

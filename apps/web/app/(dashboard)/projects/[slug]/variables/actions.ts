@@ -8,12 +8,13 @@ import {
   variables,
 } from "@console/connectors";
 import { db } from "@console/db";
-import { type EnvironmentClass, project } from "@console/db/schema";
+import { project, type Tier } from "@console/db/schema";
 import type { Coordinate, OtherValue, State, Version } from "@ocelhq/variables-ui";
 import { and, eq } from "drizzle-orm";
 import { requireOrganization } from "@/lib/access";
 import { abilityFor, connectorFor, dial, noteDenial } from "@/lib/connectors";
 import { latestTopology, namedEnvironments } from "@/lib/project-variables";
+import { otherTier, tierOf } from "@/lib/tier";
 import { stateOf } from "@/lib/variables";
 
 export type Answer<T> = { ok: true; result: T } | { ok: false; status: number; message: string };
@@ -35,11 +36,11 @@ interface Reached {
   slug: string;
   projectId: string;
   connector: Dialled;
-  environmentClass: EnvironmentClass;
+  tier: Tier;
 }
 
 async function reach(projectId: string, env: string): Promise<Answer<Reached>> {
-  const environmentClass: EnvironmentClass = env === "preview" ? "preview" : "production";
+  const tier = tierOf(env);
   const session = await requireOrganization();
   const [found] = await db
     .select({ id: project.id, slug: project.slug })
@@ -50,7 +51,7 @@ async function reach(projectId: string, env: string): Promise<Answer<Reached>> {
   if (!found) {
     return failed(404, "no such project");
   }
-  const latest = await latestTopology(found.id, environmentClass);
+  const latest = await latestTopology(found.id, tier);
   if (latest.error || latest.row === null) {
     return failed(409, "this project has reported no deploy, so nothing names its variables");
   }
@@ -64,7 +65,7 @@ async function reach(projectId: string, env: string): Promise<Answer<Reached>> {
   }
   return {
     ok: true,
-    result: { slug: found.slug, projectId: found.id, connector: dialled, environmentClass },
+    result: { slug: found.slug, projectId: found.id, connector: dialled, tier },
   };
 }
 
@@ -81,7 +82,7 @@ async function attempt<T>(run: () => Promise<Answer<T>>): Promise<Answer<T>> {
 
 export async function readState(projectId: string, env: string): Promise<Answer<State>> {
   return attempt(async () => {
-    const environmentClass: EnvironmentClass = env === "preview" ? "preview" : "production";
+    const tier = tierOf(env);
     const session = await requireOrganization();
     const [found] = await db
       .select({ id: project.id, slug: project.slug })
@@ -92,7 +93,7 @@ export async function readState(projectId: string, env: string): Promise<Answer<
     if (!found) {
       return failed(404, "no such project");
     }
-    const latest = await latestTopology(found.id, environmentClass);
+    const latest = await latestTopology(found.id, tier);
     if (latest.error || latest.row === null) {
       return failed(409, "this project has reported no deploy");
     }
@@ -103,22 +104,14 @@ export async function readState(projectId: string, env: string): Promise<Answer<
     if (dialled === null) {
       return {
         ok: true,
-        result: stateOf(
-          found.slug,
-          environmentClass,
-          latest.row.topology,
-          [],
-          environments,
-          can,
-          "unknown",
-        ),
+        result: stateOf(found.slug, tier, latest.row.topology, [], environments, can, "unknown"),
       };
     }
-    const answer = await variables.list(dialled, environmentClass, found.slug);
+    const answer = await variables.list(dialled, tier, found.slug);
     if (!answer.done) {
       return refused(dialled.id, "list", answer.refusal);
     }
-    const described = await variables.describeEnvSource(dialled, environmentClass, found.slug);
+    const described = await variables.describeEnvSource(dialled, tier, found.slug);
     if (!described.done) {
       return refused(dialled.id, "describe", described.refusal);
     }
@@ -126,7 +119,7 @@ export async function readState(projectId: string, env: string): Promise<Answer<
       ok: true,
       result: stateOf(
         found.slug,
-        environmentClass,
+        tier,
         latest.row.topology,
         answer.result,
         environments,
@@ -146,8 +139,8 @@ export async function revealValues(
   return attempt(async () => {
     const reached = await reach(projectId, env);
     if (!reached.ok) return reached;
-    const { slug, connector, environmentClass } = reached.result;
-    const answer = await variables.reveal(connector, environmentClass, slug, cells);
+    const { slug, connector, tier } = reached.result;
+    const answer = await variables.reveal(connector, tier, slug, cells);
     if (!answer.done) {
       return refused(connector.id, "reveal", answer.refusal);
     }
@@ -165,8 +158,8 @@ export async function setValue(
   return attempt(async () => {
     const reached = await reach(projectId, env);
     if (!reached.ok) return reached;
-    const { slug, connector, environmentClass } = reached.result;
-    const answer = await variables.set(connector, environmentClass, slug, at, value, version);
+    const { slug, connector, tier } = reached.result;
+    const answer = await variables.set(connector, tier, slug, at, value, version);
     if (!answer.done) {
       return refused(connector.id, "set", answer.refusal);
     }
@@ -189,20 +182,13 @@ export async function setInEnvSource(
     }
     const reached = await reach(projectId, env);
     if (!reached.ok) return reached;
-    const { slug, projectId: id, connector, environmentClass } = reached.result;
-    const latest = await latestTopology(id, environmentClass);
+    const { slug, projectId: id, connector, tier } = reached.result;
+    const latest = await latestTopology(id, tier);
     const description =
       (latest.error ? undefined : latest.row?.topology.apps)
         ?.flatMap((app) => app.variables)
         .find((variable) => variable.key === at.key)?.description ?? "";
-    const answer = await variables.setEnvSourceValue(
-      connector,
-      environmentClass,
-      slug,
-      at,
-      value,
-      description,
-    );
+    const answer = await variables.setEnvSourceValue(connector, tier, slug, at, value, description);
     if (!answer.done) {
       return refused(connector.id, "set", answer.refusal);
     }
@@ -219,8 +205,8 @@ export async function removeValue(
   return attempt(async () => {
     const reached = await reach(projectId, env);
     if (!reached.ok) return reached;
-    const { slug, connector, environmentClass } = reached.result;
-    const answer = await variables.remove(connector, environmentClass, slug, at, version);
+    const { slug, connector, tier } = reached.result;
+    const answer = await variables.remove(connector, tier, slug, at, version);
     if (!answer.done) {
       return refused(connector.id, "remove", answer.refusal);
     }
@@ -236,8 +222,8 @@ export async function listVersions(
   return attempt(async () => {
     const reached = await reach(projectId, env);
     if (!reached.ok) return reached;
-    const { slug, connector, environmentClass } = reached.result;
-    const answer = await variables.versions(connector, environmentClass, slug, at);
+    const { slug, connector, tier } = reached.result;
+    const answer = await variables.versions(connector, tier, slug, at);
     if (!answer.done) {
       return refused(connector.id, "versions", answer.refusal);
     }
@@ -252,8 +238,8 @@ export async function otherValues(
   return attempt(async () => {
     const reached = await reach(projectId, env);
     if (!reached.ok) return reached;
-    const { slug, connector, environmentClass } = reached.result;
-    const other: EnvironmentClass = environmentClass === "production" ? "preview" : "production";
+    const { slug, connector, tier } = reached.result;
+    const other = otherTier(tier);
     const listed = await variables.list(connector, other, slug);
     if (!listed.done) {
       return refused(connector.id, "list", listed.refusal);
@@ -299,8 +285,8 @@ export async function copyValues(
   return attempt(async () => {
     const reached = await reach(projectId, env);
     if (!reached.ok) return reached;
-    const { slug, connector, environmentClass } = reached.result;
-    const other: EnvironmentClass = environmentClass === "production" ? "preview" : "production";
+    const { slug, connector, tier } = reached.result;
+    const other = otherTier(tier);
     const shown = await variables.reveal(connector, other, slug, cells);
     if (!shown.done) {
       return refused(connector.id, "reveal", shown.refusal);
@@ -319,14 +305,7 @@ export async function copyValues(
         continue;
       }
       try {
-        const answer = await variables.set(
-          connector,
-          environmentClass,
-          slug,
-          at,
-          value,
-          at.version,
-        );
+        const answer = await variables.set(connector, tier, slug, at, value, at.version);
         if (!answer.done) {
           await noteDenial(connector.id, "set", answer.refusal);
         }

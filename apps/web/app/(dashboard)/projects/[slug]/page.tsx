@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { requireOrganization } from "@/lib/access";
 import { latestDeployments } from "@/lib/deployments";
-import { environmentOf, withEnvironment } from "@/lib/environment";
+import { tierOf, withTier } from "@/lib/tier";
 import type { Provenance } from "./overview/provenance";
 import { ServiceMap } from "./overview/service-map";
 import { LoadError, NeverDeployed, TornDown } from "./overview/states";
@@ -33,7 +33,7 @@ export default async function ProjectPage({
     searchParams,
     requireOrganization(),
   ]);
-  const environment = environmentOf(typeof query.env === "string" ? query.env : null);
+  const tier = tierOf(typeof query.env === "string" ? query.env : null);
 
   const [found] = await db
     .select({ id: project.id })
@@ -44,13 +44,13 @@ export default async function ProjectPage({
     notFound();
   }
 
-  const load = await latestDeployments(found.id, environment);
+  const load = await latestDeployments(found.id, tier);
   const now = new Date().toISOString();
 
   if (load.error) {
     return (
       <div className={canvas}>
-        <LoadError href={withEnvironment(`/projects/${slug}`, environment)} />
+        <LoadError href={withTier(`/projects/${slug}`, tier)} />
       </div>
     );
   }
@@ -60,7 +60,7 @@ export default async function ProjectPage({
   if (!latest) {
     return (
       <div className={canvas}>
-        <NeverDeployed environment={environment} now={now} />
+        <NeverDeployed tier={tier} now={now} />
       </div>
     );
   }
@@ -78,7 +78,7 @@ export default async function ProjectPage({
         {lastPromoted ? (
           <TornDown topology={lastPromoted.topology} provenance={stamp} now={now} />
         ) : (
-          <NeverDeployed environment={environment} stamp={stamp} now={now} />
+          <NeverDeployed tier={tier} stamp={stamp} now={now} />
         )}
       </div>
     );
@@ -96,7 +96,7 @@ export default async function ProjectPage({
             now={now}
           />
         ) : (
-          <NeverDeployed environment={environment} failure={failure} now={now} />
+          <NeverDeployed tier={tier} failure={failure} now={now} />
         )}
       </div>
     );

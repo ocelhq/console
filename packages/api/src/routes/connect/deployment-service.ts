@@ -66,7 +66,7 @@ export const deploymentService: ServiceImpl<typeof DeploymentService> = {
     const projectId = await ownedProject(context, request.projectId);
     const values = deploymentValues(projectId, uuidv7(), reported);
     await recordOnce(
-      `Deployment ${values.runId}`,
+      `Deployment ${values.deploymentId}`,
       values,
       (row) =>
         db.insert(deployment).values(row).onConflictDoNothing().returning({ id: deployment.id }),
@@ -74,7 +74,12 @@ export const deploymentService: ServiceImpl<typeof DeploymentService> = {
         const [row] = await db
           .select()
           .from(deployment)
-          .where(and(eq(deployment.projectId, projectId), eq(deployment.runId, values.runId)));
+          .where(
+            and(
+              eq(deployment.projectId, projectId),
+              eq(deployment.deploymentId, values.deploymentId),
+            ),
+          );
         return row;
       },
     );
@@ -86,7 +91,7 @@ export const deploymentService: ServiceImpl<typeof DeploymentService> = {
     const projectId = await ownedProject(context, request.projectId);
     const values = environmentEventValues(projectId, uuidv7(), event);
     await recordOnce(
-      `Environment event ${values.runId}`,
+      `Environment event ${values.deploymentId}`,
       values,
       (row) =>
         db
@@ -101,7 +106,7 @@ export const deploymentService: ServiceImpl<typeof DeploymentService> = {
           .where(
             and(
               eq(environmentEvent.projectId, projectId),
-              eq(environmentEvent.runId, values.runId),
+              eq(environmentEvent.deploymentId, values.deploymentId),
             ),
           );
         return row;

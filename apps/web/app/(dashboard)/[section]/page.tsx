@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { environmentOf } from "@/lib/environment";
+import { tierOf } from "@/lib/tier";
 import { noticeBody, PageNotice, PageShell } from "../page-shell";
 import { ProjectPicker } from "../project-picker";
 import { projectPage } from "../sections";
@@ -34,7 +34,7 @@ export default async function PickProjectPage({
     >
       <ProjectPicker
         section={page.section}
-        environment={environmentOf(typeof env === "string" ? env : undefined)}
+        tier={tierOf(typeof env === "string" ? env : undefined)}
       />
     </PageShell>
   );

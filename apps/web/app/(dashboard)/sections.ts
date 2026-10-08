@@ -1,4 +1,5 @@
-import { type Environment, withEnvironment } from "@/lib/environment";
+import type { Tier } from "@console/db/schema";
+import { withTier } from "@/lib/tier";
 
 type ProjectPage = {
   section: string;
@@ -75,8 +76,8 @@ export function sectionOf(pathname: string): string | null {
   return null;
 }
 
-export function projectHref(slug: string, section: string, environment: Environment): string {
-  return withEnvironment(`/projects/${slug}${section ? `/${section}` : ""}`, environment);
+export function projectHref(slug: string, section: string, tier: Tier): string {
+  return withTier(`/projects/${slug}${section ? `/${section}` : ""}`, tier);
 }
 
 export function scopeHref(section: string | null): string {

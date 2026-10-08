@@ -96,4 +96,20 @@ export const migrations: MigrationMeta[] = [
     hash: "e2b115b901b7eca9f3b38e2ff1f6ff319415fb6c1685f086d8d6ddf251f9d8e4",
     name: "20261007214601_framework_next",
   },
+  {
+    sql: [
+      'ALTER TYPE "environment_class" RENAME TO "tier";',
+      '\nALTER TABLE "deployment" RENAME COLUMN "run_id" TO "deployment_id";',
+      '\nALTER TABLE "deployment" RENAME COLUMN "environment_class" TO "tier";',
+      '\nALTER TABLE "environment_event" RENAME COLUMN "run_id" TO "deployment_id";',
+      '\nALTER TABLE "environment_event" RENAME COLUMN "environment_class" TO "tier";',
+      '\nALTER INDEX "deployment_run_uidx" RENAME TO "deployment_deployment_id_uidx";',
+      '\nALTER INDEX "environment_event_run_uidx" RENAME TO "environment_event_deployment_id_uidx";',
+      '\nUPDATE "deployment" SET "topology" = jsonb_set("topology", \'{apps}\', (\n\tSELECT jsonb_agg(\n\t\tCASE WHEN "app" ? \'deploymentId\'\n\t\t\tTHEN ("app" - \'deploymentId\') || jsonb_build_object(\'release\', "app" -> \'deploymentId\')\n\t\t\tELSE "app"\n\t\tEND ORDER BY "position")\n\tFROM jsonb_array_elements("topology" -> \'apps\') WITH ORDINALITY AS "apps" ("app", "position")\n)) WHERE jsonb_path_exists("topology", \'$.apps[*].deploymentId\');',
+    ],
+    bps: true,
+    folderMillis: 1791418098000,
+    hash: "cfd11dfd9db3237537c3612ced62c0e865fdda1dacd3fe2ba8a3ea4db72f060e",
+    name: "20261008000818_tier_deployment_id_release",
+  },
 ];

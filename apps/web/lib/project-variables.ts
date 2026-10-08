@@ -1,11 +1,11 @@
 import { db } from "@console/db";
-import { deployment, type EnvironmentClass } from "@console/db/schema";
+import { deployment, type Tier } from "@console/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 import type { Latest } from "@/lib/variables";
 
 export async function latestTopology(
   projectId: string,
-  environmentClass: EnvironmentClass,
+  tier: Tier,
 ): Promise<{ error: true } | { error: false; row: Latest | null }> {
   try {
     const [row] = await db
@@ -23,7 +23,7 @@ export async function latestTopology(
       .where(
         and(
           eq(deployment.projectId, projectId),
-          eq(deployment.environmentClass, environmentClass),
+          eq(deployment.tier, tier),
           eq(deployment.outcome, "succeeded"),
         ),
       )
@@ -40,7 +40,7 @@ export async function namedEnvironments(projectId: string): Promise<string[]> {
     const rows = await db
       .selectDistinct({ identity: deployment.environmentIdentity })
       .from(deployment)
-      .where(and(eq(deployment.projectId, projectId), eq(deployment.environmentClass, "preview")));
+      .where(and(eq(deployment.projectId, projectId), eq(deployment.tier, "preview")));
     return rows.map((row) => row.identity).filter((identity) => identity !== "");
   } catch {
     return [];

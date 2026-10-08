@@ -1,7 +1,6 @@
-import type { DeploymentTopology } from "@console/db/schema";
+import type { DeploymentTopology, Tier } from "@console/db/schema";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Environment } from "@/lib/environment";
 import { labelType } from "@/lib/type";
 import { CommandPane } from "../../../command-pane";
 import type { Failure, Provenance } from "./provenance";
@@ -36,17 +35,17 @@ function GhostTile({
 }
 
 export function NeverDeployed({
-  environment,
+  tier,
   failure,
   stamp,
   now,
 }: {
-  environment: Environment;
+  tier: Tier;
   failure?: Failure;
   stamp?: Provenance;
   now: string;
 }) {
-  const command = environment === "preview" ? "ocel preview up" : "ocel deploy";
+  const command = tier === "preview" ? "ocel preview up" : "ocel deploy";
 
   return (
     <div className={ground} style={dots}>
@@ -68,7 +67,7 @@ export function NeverDeployed({
           <div className="flex w-full flex-col items-start gap-5 border border-border bg-background px-5 py-8 md:px-8">
             <div className="flex flex-col gap-1">
               <h1 className="text-lg font-semibold tracking-tight text-balance">
-                Nothing deployed to {environment} yet
+                Nothing deployed to {tier} yet
               </h1>
               <p className="text-muted-foreground">
                 Deploys run from your terminal and land in your own cloud. Run this in the

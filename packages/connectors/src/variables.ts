@@ -1,8 +1,8 @@
-import { Tier } from "./gen/common/environment/v1/environment_pb";
+import { Tier as WireTier } from "./gen/common/environment/v1/environment_pb";
 import type { Outcome } from "./item";
 import { ask, type Connector, variableStore } from "./transport";
 
-export type EnvironmentClass = "production" | "preview";
+export type Tier = "production" | "preview";
 
 export interface Cell {
   key: string;
@@ -36,22 +36,18 @@ export interface Version {
   size: number;
 }
 
-function tierOf(environmentClass: EnvironmentClass): Tier {
-  return environmentClass === "preview" ? Tier.PREVIEW : Tier.PRODUCTION;
+function wireTierOf(tier: Tier): WireTier {
+  return tier === "preview" ? WireTier.PREVIEW : WireTier.PRODUCTION;
 }
 
 function cellOf(at: { key?: string; folder?: string; environment?: string } | undefined): Cell {
   return { key: at?.key ?? "", folder: at?.folder ?? "", environment: at?.environment ?? "" };
 }
 
-export function list(
-  connector: Connector,
-  environmentClass: EnvironmentClass,
-  slug: string,
-): Promise<Outcome<Stored[]>> {
+export function list(connector: Connector, tier: Tier, slug: string): Promise<Outcome<Stored[]>> {
   return ask(async () => {
     const answer = await variableStore(connector).listValues({
-      tier: tierOf(environmentClass),
+      tier: wireTierOf(tier),
       slug,
     });
     return answer.values.map((value) => ({
@@ -73,12 +69,12 @@ export function list(
 
 export function describeEnvSource(
   connector: Connector,
-  environmentClass: EnvironmentClass,
+  tier: Tier,
   slug: string,
 ): Promise<Outcome<EnvSourceStatus>> {
   return ask(async () => {
     const { status } = await variableStore(connector).describeEnvSource({
-      tier: tierOf(environmentClass),
+      tier: wireTierOf(tier),
       slug,
     });
     return {
@@ -93,7 +89,7 @@ export function describeEnvSource(
 
 export function setEnvSourceValue(
   connector: Connector,
-  environmentClass: EnvironmentClass,
+  tier: Tier,
   slug: string,
   at: Cell,
   value: string,
@@ -101,7 +97,7 @@ export function setEnvSourceValue(
 ): Promise<Outcome<{ awaitingApproval: boolean }>> {
   return ask(async () => {
     const answer = await variableStore(connector).setEnvSourceValue({
-      tier: tierOf(environmentClass),
+      tier: wireTierOf(tier),
       coordinate: { slug, ...at },
       value,
       description,
@@ -112,13 +108,13 @@ export function setEnvSourceValue(
 
 export function reveal(
   connector: Connector,
-  environmentClass: EnvironmentClass,
+  tier: Tier,
   slug: string,
   cells: readonly Cell[],
 ): Promise<Outcome<Revealed[]>> {
   return ask(async () => {
     const answer = await variableStore(connector).revealValues({
-      tier: tierOf(environmentClass),
+      tier: wireTierOf(tier),
       slug,
       cells: cells.map((at) => ({ slug, ...at })),
     });
@@ -131,7 +127,7 @@ export function reveal(
 
 export function set(
   connector: Connector,
-  environmentClass: EnvironmentClass,
+  tier: Tier,
   slug: string,
   at: Cell,
   value: string,
@@ -139,7 +135,7 @@ export function set(
 ): Promise<Outcome<void>> {
   return ask(async () => {
     await variableStore(connector).setValue({
-      tier: tierOf(environmentClass),
+      tier: wireTierOf(tier),
       coordinate: { slug, ...at },
       value,
       ...(expectedVersion !== undefined &&
@@ -150,14 +146,14 @@ export function set(
 
 export function remove(
   connector: Connector,
-  environmentClass: EnvironmentClass,
+  tier: Tier,
   slug: string,
   at: Cell,
   expectedVersion?: number,
 ): Promise<Outcome<void>> {
   return ask(async () => {
     await variableStore(connector).deleteValue({
-      tier: tierOf(environmentClass),
+      tier: wireTierOf(tier),
       coordinate: { slug, ...at },
       ...(expectedVersion !== undefined &&
         expectedVersion > 0 && { expectedVersion: BigInt(expectedVersion) }),
@@ -167,13 +163,13 @@ export function remove(
 
 export function versions(
   connector: Connector,
-  environmentClass: EnvironmentClass,
+  tier: Tier,
   slug: string,
   at: Cell,
 ): Promise<Outcome<Version[]>> {
   return ask(async () => {
     const answer = await variableStore(connector).listVersions({
-      tier: tierOf(environmentClass),
+      tier: wireTierOf(tier),
       coordinate: { slug, ...at },
     });
     return answer.versions.map((entry) => ({

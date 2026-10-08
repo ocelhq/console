@@ -44,6 +44,41 @@ describe("migrateDatabase", () => {
     expect(applied.rowCount).toBe(migrations.length);
   });
 
+  it("keeps a deployment's id and each app's release when the deployment vocabulary changes", async () => {
+    const before = `${database}_vocabulary`;
+    await admin.query(`CREATE DATABASE "${before}"`);
+    const old = new Pool({ connectionString: new URL(`/${before}`, url).toString() });
+    try {
+      const earlier = migrations.filter(
+        (migration) => !migration.name.endsWith("_tier_deployment_id_release"),
+      );
+      await migrate(earlier, drizzle({ client: old }), "__drizzle_migrations");
+      await old.query(
+        `insert into "organization" (id, name, slug, created_at) values ('org', 'Org', 'org', now());
+         insert into "project" (id, organization_id, name, slug) values ('p', 'org', 'Shop', 'shop');
+         insert into "deployment" (id, project_id, run_id, kind, environment_class, provider_name,
+           target, outcome, trigger, deployed_at, trace, topology)
+           values ('d', 'p', 'trace-1', 'deploy', 'production', 'aws', 't', 'succeeded',
+             '{"kind":"cli"}', now(), '[]',
+             '{"apps":[{"name":"web","deploymentId":"rel-1"},{"name":"api"}],"resources":[],"usages":[]}');`,
+      );
+
+      await migrateDatabase(old);
+
+      const deployment = await old.query<{ deployment_id: string; tier: string; apps: unknown }>(
+        `select deployment_id, tier::text, topology->'apps' as apps from "deployment" where id = 'd'`,
+      );
+      expect(deployment.rows[0]).toEqual({
+        deployment_id: "trace-1",
+        tier: "production",
+        apps: [{ name: "web", release: "rel-1" }, { name: "api" }],
+      });
+    } finally {
+      await old.end();
+      await admin.query(`DROP DATABASE "${before}"`);
+    }
+  });
+
   it("keeps a project that chose Next.js as one that chose next", async () => {
     const before = `${database}_framework`;
     await admin.query(`CREATE DATABASE "${before}"`);

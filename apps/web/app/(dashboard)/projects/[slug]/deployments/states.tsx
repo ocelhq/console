@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
-import type { RunScope } from "@/lib/environment";
+import type { RunScope } from "@/lib/tier";
 import { CommandPane } from "../../../command-pane";
 import { noticeBody } from "../../../page-shell";
 import { RunsHead, runColumns } from "./columns";
