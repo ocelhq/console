@@ -1,0 +1,38 @@
+import { defineConfig } from "vitest/config";
+
+function postgresBinding(name: string, url: string): string {
+  const parsed = new URL(url);
+  return JSON.stringify({
+    name,
+    postgres: {
+      host: parsed.hostname,
+      port: Number(parsed.port || 5432),
+      database: parsed.pathname.slice(1),
+      username: decodeURIComponent(parsed.username),
+      password: decodeURIComponent(parsed.password),
+    },
+  });
+}
+
+export default defineConfig({
+  test: {
+    environment: "node",
+    env: {
+      BETTER_AUTH_SECRET: "test-secret-at-least-32-characters-long",
+      BETTER_AUTH_URL: "http://localhost:3000",
+      CONSOLE_EMAIL_AUTH: "true",
+      CONSOLE_SIGNUP: "open",
+      DATABASE_URL:
+        process.env.TEST_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/ocelhq_test",
+      OCEL_RESOURCE_POSTGRES_main: postgresBinding(
+        "main",
+        process.env.TEST_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/ocelhq_test",
+      ),
+    },
+    server: {
+      deps: {
+        inline: ["@console/db"],
+      },
+    },
+  },
+});

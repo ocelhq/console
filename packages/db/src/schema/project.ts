@@ -1,5 +1,6 @@
-import { pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { index, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { organization, user } from "./auth-schema";
+import { gitInstallation } from "./git";
 
 export const FRAMEWORKS = [
   "next",
@@ -35,6 +36,11 @@ export const project = pgTable(
     slug: text("slug").notNull(),
     description: text("description"),
     frameworks: framework("frameworks").array().notNull().default([]),
+    repoInstallationId: text("repo_installation_id").references(() => gitInstallation.id, {
+      onDelete: "set null",
+    }),
+    repoFullName: text("repo_full_name"),
+    repoId: text("repo_id"),
     createdBy: text("created_by").references(() => user.id, {
       onDelete: "set null",
     }),
@@ -44,5 +50,8 @@ export const project = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [uniqueIndex("project_organizationId_slug_uidx").on(table.organizationId, table.slug)],
+  (table) => [
+    uniqueIndex("project_organizationId_slug_uidx").on(table.organizationId, table.slug),
+    index("project_repoId_idx").on(table.repoId),
+  ],
 );
