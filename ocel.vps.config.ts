@@ -27,6 +27,6 @@ export default defineConfig({
       health: { path: "/api/health" },
     },
   ],
-  discovery: { paths: ["packages/infra/src"] },
+  discovery: { paths: ["packages/infra/src", "packages/jobs/src/tasks"] },
   ...(target.CONSOLE_DOMAIN ? { domains: { production: target.CONSOLE_DOMAIN } } : {}),
 });

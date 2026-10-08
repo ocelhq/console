@@ -1,3 +1,4 @@
+export { configuredGit, gitKeyStore } from "./configured";
 export { appName, convertManifest, githubManifest, manifestStartUrl } from "./github/manifest";
 export { envKeyStore, type KeyStore, type WrappedKey } from "./keystore";
 export type * from "./provider";
