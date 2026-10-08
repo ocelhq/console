@@ -120,6 +120,13 @@ export function gitStore(keys: KeyStore) {
       return stored;
     },
 
+    async installationsFor(organizationId: string): Promise<GitInstallation[]> {
+      return db
+        .select()
+        .from(gitInstallation)
+        .where(eq(gitInstallation.organizationId, organizationId));
+    },
+
     async findInstallation(
       gitAppId: string,
       externalId: string,

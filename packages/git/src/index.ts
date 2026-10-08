@@ -1,8 +1,15 @@
+export {
+  convertManifest,
+  githubManifest,
+  manifestStartUrl,
+  signState,
+  verifyState,
+} from "./github/manifest";
 export { envKeyStore, type KeyStore } from "./keystore";
 export type * from "./provider";
 export { type GitRuntime, gitRuntime } from "./runtime";
 export { openSecret, sealSecret } from "./secrets";
-export { type GitSettings, readGitSettings } from "./settings";
+export { type GitSettings, readGitSettings, stateSecret } from "./settings";
 export {
   type AppCredentials,
   type GitAppSummary,

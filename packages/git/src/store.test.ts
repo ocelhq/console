@@ -124,6 +124,16 @@ describe("installations and repos", () => {
     expect(await store.projectsForRepo(first.id, "other")).toEqual([]);
   });
 
+  it("lists the installations an organization made, with the app each belongs to", async () => {
+    const mine = await store.installationsFor(orgA);
+    expect(mine.map((row) => [row.externalId, row.gitAppId, row.account])).toContainEqual([
+      "99",
+      `app-${suffix}-1`,
+      "acme-renamed",
+    ]);
+    expect((await store.installationsFor(orgB)).map((row) => row.externalId)).not.toContain("99");
+  });
+
   it("refuses to link a project to another organization's installation", async () => {
     const installation = await store.recordInstallation({
       gitAppId: `app-${suffix}-1`,
