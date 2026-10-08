@@ -36,7 +36,7 @@ function connectorMessage(row: Connector) {
   };
 }
 
-async function changingSession(context: HandlerContext) {
+async function requireAdministeringSession(context: HandlerContext) {
   const session = sessionOf(context);
   if (!administers(await roleOf(session.userId, session.activeOrganizationId))) {
     throw new ConnectError(
@@ -47,7 +47,7 @@ async function changingSession(context: HandlerContext) {
   return session;
 }
 
-async function ownedConnector(organizationId: string, id: string): Promise<string> {
+async function ownedConnectorId(organizationId: string, id: string): Promise<string> {
   const [found] = await db
     .select({ id: connector.id })
     .from(connector)
@@ -58,7 +58,7 @@ async function ownedConnector(organizationId: string, id: string): Promise<strin
   return found.id;
 }
 
-function required<T>(row: T | undefined): T {
+function requireWritten<T>(row: T | undefined): T {
   if (!row) {
     throw new ConnectError("the write returned no connector", Code.Internal);
   }
@@ -67,7 +67,7 @@ function required<T>(row: T | undefined): T {
 
 export const connectorService: ServiceImpl<typeof ConnectorService> = {
   async upsert(request, context) {
-    const session = await changingSession(context);
+    const session = await requireAdministeringSession(context);
     const [saved] = await db
       .insert(connector)
       .values({
@@ -82,7 +82,7 @@ export const connectorService: ServiceImpl<typeof ConnectorService> = {
         set: { vendor: request.vendor, reach: "dial" },
       })
       .returning();
-    return { connector: connectorMessage(required(saved)) };
+    return { connector: connectorMessage(requireWritten(saved)) };
   },
 
   async list(_request, context) {
@@ -95,8 +95,8 @@ export const connectorService: ServiceImpl<typeof ConnectorService> = {
   },
 
   async setAddress(request, context) {
-    const session = await changingSession(context);
-    const id = await ownedConnector(session.activeOrganizationId, request.id);
+    const session = await requireAdministeringSession(context);
+    const id = await ownedConnectorId(session.activeOrganizationId, request.id);
     const [saved] = await db
       .update(connector)
       .set({
@@ -109,12 +109,12 @@ export const connectorService: ServiceImpl<typeof ConnectorService> = {
       })
       .where(eq(connector.id, id))
       .returning();
-    return { connector: connectorMessage(required(saved)) };
+    return { connector: connectorMessage(requireWritten(saved)) };
   },
 
   async remove(request, context) {
-    const session = await changingSession(context);
-    const id = await ownedConnector(session.activeOrganizationId, request.id);
+    const session = await requireAdministeringSession(context);
+    const id = await ownedConnectorId(session.activeOrganizationId, request.id);
     await db.delete(connector).where(eq(connector.id, id));
     return {};
   },
