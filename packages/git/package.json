@@ -1,0 +1,28 @@
+{
+  "name": "@console/git",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "the git providers the console talks to: webhooks in, statuses and comments out",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts",
+    "./github": "./src/github/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@console/db": "workspace:*",
+    "@console/infra": "workspace:*",
+    "@octokit/app": "^16.1.0",
+    "@octokit/webhooks": "^14.1.0",
+    "drizzle-orm": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "catalog:",
+    "vitest": "^4.1.9"
+  }
+}
