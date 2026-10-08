@@ -117,7 +117,7 @@ describe("DeploymentService over Connect", () => {
       const session = await createTestSessionWithOrganization();
       try {
         const projectId = await projectIn(session.organization.id, "report-conflict");
-        const client = connectClient(session.token);
+        const client = serviceClient(DeploymentService, session.token);
         await client.report({ projectId, deployment: deploymentRecord() });
 
         const error = await client
@@ -140,7 +140,7 @@ describe("DeploymentService over Connect", () => {
       const session = await createTestSessionWithOrganization();
       try {
         const projectId = await projectIn(session.organization.id, "report-rich-twice");
-        const client = connectClient(session.token);
+        const client = serviceClient(DeploymentService, session.token);
         const record = deploymentRecord({
           finishedAt: { seconds: 1_767_225_600n, nanos: 123_456_789 },
           ci: { name: "github", repo: "ocelhq/app", pr: 42 },
@@ -170,7 +170,7 @@ describe("DeploymentService over Connect", () => {
       try {
         const first = await projectIn(session.organization.id, "report-same-id-a");
         const second = await projectIn(session.organization.id, "report-same-id-b");
-        const client = connectClient(session.token);
+        const client = serviceClient(DeploymentService, session.token);
 
         await client.report({ projectId: first, deployment: deploymentRecord() });
         await client.report({ projectId: second, deployment: deploymentRecord() });
@@ -398,7 +398,7 @@ describe("DeploymentService over Connect", () => {
       const session = await createTestSessionWithOrganization();
       try {
         const projectId = await projectIn(session.organization.id, "event-conflict");
-        const client = connectClient(session.token);
+        const client = serviceClient(DeploymentService, session.token);
         const event = {
           id: TRACE_ID,
           kind: EnvironmentEventKind.DESTROYED,
