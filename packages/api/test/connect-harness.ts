@@ -9,7 +9,6 @@ import {
   DeploymentKind,
   DeploymentOutcome,
   type DeploymentSchema,
-  DeploymentService,
   TriggerKind,
 } from "@console/connectors/gen/console/v1/deployment_pb";
 import { db } from "@console/db";
