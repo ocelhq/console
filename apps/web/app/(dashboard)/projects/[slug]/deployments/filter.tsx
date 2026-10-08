@@ -9,7 +9,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { type RunScope, runScopeOf, runScopes } from "@/lib/environment";
+import { type RunScope, runScopeOf, runScopes } from "@/lib/tier";
 
 const labels: Record<RunScope, string> = {
   all: "All environments",

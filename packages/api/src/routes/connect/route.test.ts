@@ -54,10 +54,10 @@ describe("DeploymentService over Connect", () => {
 
         const [row] = await db.select().from(deployment).where(eq(deployment.projectId, projectId));
         expect(row).toMatchObject({
-          runId: TRACE_ID,
+          deploymentId: TRACE_ID,
           kind: "deploy",
           outcome: "succeeded",
-          environmentClass: "production",
+          tier: "production",
           environmentIdentity: "",
           promotionId: "prm-1",
           tag: "v1",
@@ -75,7 +75,7 @@ describe("DeploymentService over Connect", () => {
           framework: "next",
           compute: "serverless",
           buildId: "build-1",
-          deploymentId: "rel-1",
+          release: "rel-1",
           outcome: "succeeded",
           variables: [
             { key: "DATABASE_URL", class: "secret", folder: "/web" },
@@ -353,7 +353,7 @@ describe("DeploymentService over Connect", () => {
           .where(eq(environmentEvent.projectId, projectId));
         expect(row).toMatchObject({
           kind: "preview-removed",
-          environmentClass: "preview",
+          tier: "preview",
           environmentIdentity: "pr-12",
           ci: { provider: "github", repo: "ocelhq/app" },
         });
@@ -384,7 +384,7 @@ describe("DeploymentService over Connect", () => {
           .from(environmentEvent)
           .where(eq(environmentEvent.projectId, projectId));
         expect(rows).toHaveLength(1);
-        expect(rows[0]?.runId).toBe(TRACE_ID);
+        expect(rows[0]?.deploymentId).toBe(TRACE_ID);
       } finally {
         await session.cleanup();
       }

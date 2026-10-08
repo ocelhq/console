@@ -77,7 +77,7 @@ function AppDetails({ app, topology }: { app: DeploymentApp; topology: Deploymen
           {app.runtime?.arch && <Field name="Architecture" value={app.runtime.arch} />}
           <Field name="Compute" value={app.compute} />
           {app.folder && <Field name="Folder" value={app.folder} />}
-          {app.deploymentId && <Field name="Deployment" value={app.deploymentId.slice(0, 12)} />}
+          {app.release && <Field name="Release" value={app.release.slice(0, 12)} />}
         </div>
       </Section>
       <Section heading="Variables">

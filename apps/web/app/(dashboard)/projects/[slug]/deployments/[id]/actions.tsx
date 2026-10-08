@@ -1,6 +1,6 @@
 "use client";
 
-import type { DeploymentOutcome } from "@console/db/schema";
+import type { DeploymentOutcome, Tier } from "@console/db/schema";
 import {
   ArrowCounterClockwiseIcon,
   ArrowSquareOutIcon,
@@ -52,18 +52,18 @@ export function RunActions({
   url,
   outcome,
   promotionId,
-  environmentClass,
+  tier,
   environmentIdentity,
   active,
 }: {
   url: string | null;
   outcome: DeploymentOutcome;
   promotionId: string | null;
-  environmentClass: "production" | "preview";
+  tier: Tier;
   environmentIdentity: string;
   active: boolean;
 }) {
-  const preview = environmentClass === "preview";
+  const preview = tier === "preview";
   const rollback = !preview && outcome === "succeeded" && promotionId && !active;
   return (
     <div className="flex flex-wrap items-center gap-2">

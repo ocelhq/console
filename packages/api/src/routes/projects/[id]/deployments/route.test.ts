@@ -25,13 +25,13 @@ function listRequest(headers: Headers, query = "") {
   return new Request(`http://localhost/api/projects/x/deployments${query}`, { headers });
 }
 
-async function idOf(projectId: string, runId: string): Promise<string> {
+async function idOf(projectId: string, deploymentId: string): Promise<string> {
   const [row] = await db
     .select({ id: deployment.id })
     .from(deployment)
-    .where(and(eq(deployment.projectId, projectId), eq(deployment.runId, runId)));
+    .where(and(eq(deployment.projectId, projectId), eq(deployment.deploymentId, deploymentId)));
   if (!row) {
-    throw new Error(`run ${runId} was not recorded`);
+    throw new Error(`deployment ${deploymentId} was not recorded`);
   }
   return row.id;
 }
@@ -79,11 +79,12 @@ describe("listDeployments", () => {
       const rows = await readJson<(ListedRow & Record<string, unknown>)[]>(all);
       expect(rows.map((row) => row.promotionId)).toEqual(["pr-7", "new", "old"]);
       expect(rows[0]).toMatchObject({
+        deploymentId: "c".repeat(32),
         kind: "preview-up",
         trigger: { kind: "ci", actor: "victor" },
         git: { sha: "0123456789abcdef", branch: "main", dirty: false },
         startedAt: Date.parse("2025-12-31T23:58:00.000Z"),
-        environment: { class: "preview", identity: "pr-7" },
+        environment: { tier: "preview", identity: "pr-7" },
         provider: { name: "aws", region: "us-east-1" },
         target: "aws/123456789012/us-east-1/main",
         tag: null,

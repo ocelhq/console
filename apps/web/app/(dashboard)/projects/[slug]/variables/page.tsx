@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { requireOrganization } from "@/lib/access";
 import { abilityFor, connectorFor, dial } from "@/lib/connectors";
 import { latestTopology, namedEnvironments } from "@/lib/project-variables";
+import { tierOf } from "@/lib/tier";
 import { stateOf } from "@/lib/variables";
 import { PageShell } from "../../../page-shell";
 import { Provenance } from "./provenance";
@@ -21,7 +22,7 @@ export default async function VariablesPage({
 }) {
   const { slug } = await params;
   const { env } = await searchParams;
-  const environmentClass = env === "preview" ? "preview" : "production";
+  const tier = tierOf(env);
 
   const session = await requireOrganization();
   const [found] = await db
@@ -32,7 +33,7 @@ export default async function VariablesPage({
     notFound();
   }
 
-  const latest = await latestTopology(found.id, environmentClass);
+  const latest = await latestTopology(found.id, tier);
   if (latest.error) {
     return (
       <PageShell title="Variables">
@@ -56,7 +57,7 @@ export default async function VariablesPage({
   let refusal = null;
   const dialled = connector === null ? null : await dial(session, connector);
   if (dialled !== null) {
-    const answer = await variables.list(dialled, environmentClass, found.slug);
+    const answer = await variables.list(dialled, tier, found.slug);
     if (answer.done) {
       stored = answer.result;
     } else {
@@ -67,7 +68,7 @@ export default async function VariablesPage({
   const readOnly = dialled === null || refusal !== null;
   const state = stateOf(
     found.slug,
-    environmentClass,
+    tier,
     latest.row.topology,
     stored,
     environments,
@@ -88,12 +89,7 @@ export default async function VariablesPage({
       />
       {dialled === null && <NoConnector vendor={latest.row.providerName} />}
       {refusal !== null && <Refused reason={refusal.reason} message={refusal.message} />}
-      <VariablesTable
-        projectId={found.id}
-        environment={environmentClass}
-        initial={state}
-        readOnly={readOnly}
-      />
+      <VariablesTable projectId={found.id} environment={tier} initial={state} readOnly={readOnly} />
     </PageShell>
   );
 }

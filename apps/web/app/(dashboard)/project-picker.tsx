@@ -1,20 +1,14 @@
 import { db } from "@console/db";
+import type { Tier } from "@console/db/schema";
 import { project } from "@console/db/schema";
 import { ArrowRightIcon } from "@phosphor-icons/react/dist/ssr";
 import { asc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { requireOrganization } from "@/lib/access";
-import type { Environment } from "@/lib/environment";
 import { EmptyProjects } from "./(overview)/empty";
 import { projectHref } from "./sections";
 
-export async function ProjectPicker({
-  section,
-  environment,
-}: {
-  section: string;
-  environment: Environment;
-}) {
+export async function ProjectPicker({ section, tier }: { section: string; tier: Tier }) {
   const session = await requireOrganization();
   const projects = await db
     .select({ name: project.name, slug: project.slug })
@@ -31,7 +25,7 @@ export async function ProjectPicker({
       {projects.map((item) => (
         <li key={item.slug}>
           <Link
-            href={projectHref(item.slug, section, environment)}
+            href={projectHref(item.slug, section, tier)}
             className="group/pick flex items-center justify-between gap-4 px-5 py-4 outline-none transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-inset"
           >
             <span className="flex min-w-0 flex-col gap-0.5">

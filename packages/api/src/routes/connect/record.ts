@@ -1,7 +1,7 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { VariableClass } from "@console/connectors/gen/app/resources/v1/variables_pb";
 import type { Environment } from "@console/connectors/gen/common/environment/v1/environment_pb";
-import { Tier } from "@console/connectors/gen/common/environment/v1/environment_pb";
+import { Tier as WireTier } from "@console/connectors/gen/common/environment/v1/environment_pb";
 import {
   AppOutcome,
   type CI,
@@ -29,8 +29,8 @@ import type {
   DeploymentStage,
   DeploymentTrigger,
   DeploymentVariable,
-  EnvironmentClass,
   EnvironmentEventKind as EnvironmentEventKindName,
+  Tier,
   TriggerKind as TriggerKindName,
   VariableClass as VariableClassName,
 } from "@console/db/schema";
@@ -64,9 +64,9 @@ const triggerKinds: Partial<Record<TriggerKind, TriggerKindName>> = {
   [TriggerKind.GIT]: "git",
 };
 
-const environmentClasses: Partial<Record<Tier, EnvironmentClass>> = {
-  [Tier.PREVIEW]: "preview",
-  [Tier.PRODUCTION]: "production",
+const tiers: Partial<Record<WireTier, Tier>> = {
+  [WireTier.PREVIEW]: "preview",
+  [WireTier.PRODUCTION]: "production",
 };
 
 const environmentEventKinds: Partial<Record<EnvironmentEventKind, EnvironmentEventKindName>> = {
@@ -111,7 +111,7 @@ export function environmentOf(environment: Environment | undefined) {
     throw new Error("protovalidate let through a record with no environment");
   }
   return {
-    environmentClass: named(environmentClasses, environment.tier, "environment tier"),
+    tier: named(tiers, environment.tier, "environment tier"),
     environmentIdentity: environment.identity,
   };
 }
@@ -156,7 +156,7 @@ function appsOf(deployment: Deployment): DeploymentApp[] {
     runtime: app.runtime && { name: app.runtime.name, arch: present(app.runtime.arch) },
     framework: app.framework === "" ? undefined : oneOf(FRAMEWORKS, app.framework, "framework"),
     compute: named(computeKinds, app.compute, "compute kind"),
-    deploymentId: present(app.release),
+    release: present(app.release),
     buildId: present(app.buildId),
     urls: app.urls,
     hostnames: app.hostnames,
@@ -211,7 +211,7 @@ export function deploymentValues(projectId: string, id: string, deployment: Depl
   return {
     id,
     projectId,
-    runId: deployment.id,
+    deploymentId: deployment.id,
     kind: named(deploymentKinds, deployment.kind, "deployment kind"),
     ...environmentOf(deployment.environment),
     promotionId: deployment.promotion?.id ?? null,
@@ -249,7 +249,7 @@ export function environmentEventValues(projectId: string, id: string, event: Env
   return {
     id,
     projectId,
-    runId: event.id,
+    deploymentId: event.id,
     kind: named(environmentEventKinds, event.kind, "environment event kind"),
     ...environmentOf(event.environment),
     occurredAt: event.at ? timestampDate(event.at) : new Date(),

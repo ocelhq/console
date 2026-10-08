@@ -1,10 +1,5 @@
 import type { Stored } from "@console/connectors";
-import type {
-  Deployment,
-  DeploymentTopology,
-  DeploymentVariable,
-  EnvironmentClass,
-} from "@console/db/schema";
+import type { Deployment, DeploymentTopology, DeploymentVariable, Tier } from "@console/db/schema";
 import type {
   Ability,
   AppResolution,
@@ -19,6 +14,7 @@ import type {
   VariableGroup,
 } from "@ocelhq/variables-ui";
 import { envSourceGroup } from "@ocelhq/variables-ui/model";
+import { otherTier } from "./tier";
 
 type Declared = DeploymentVariable & { folders: Set<string>; scopes: Set<string> };
 
@@ -241,7 +237,7 @@ export function matrixOf(
 
 export function stateOf(
   slug: string,
-  environmentClass: EnvironmentClass,
+  tier: Tier,
   topology: DeploymentTopology,
   stored: readonly Stored[],
   environments: readonly string[],
@@ -251,17 +247,12 @@ export function stateOf(
 ): State {
   return {
     slug,
-    tier: environmentClass,
-    other: environmentClass === "production" ? "preview" : "production",
+    tier,
+    other: otherTier(tier),
     values,
     can,
     environments: [...environments],
-    matrix: matrixOf(
-      topology,
-      stored,
-      environmentClass === "preview" ? environments : [],
-      envSource,
-    ),
+    matrix: matrixOf(topology, stored, tier === "preview" ? environments : [], envSource),
     ...(envSource && { envSource }),
   };
 }

@@ -9,9 +9,9 @@ export const DEPLOYMENT_OUTCOMES = ["succeeded", "failed"] as const;
 export type DeploymentOutcome = (typeof DEPLOYMENT_OUTCOMES)[number];
 export const deploymentOutcome = pgEnum("deployment_outcome", DEPLOYMENT_OUTCOMES);
 
-export const ENVIRONMENT_CLASSES = ["production", "preview"] as const;
-export type EnvironmentClass = (typeof ENVIRONMENT_CLASSES)[number];
-export const environmentClass = pgEnum("environment_class", ENVIRONMENT_CLASSES);
+export const TIERS = ["production", "preview"] as const;
+export type Tier = (typeof TIERS)[number];
+export const tier = pgEnum("tier", TIERS);
 
 export const TRIGGER_KINDS = ["cli", "ci", "git"] as const;
 export type TriggerKind = (typeof TRIGGER_KINDS)[number];
@@ -87,7 +87,7 @@ export type DeploymentApp = {
   runtime?: { name: string; arch?: string };
   framework?: Framework;
   compute: ComputeKind;
-  deploymentId?: string;
+  release?: string;
   buildId?: string;
   urls: string[];
   hostnames: string[];
@@ -124,9 +124,9 @@ export const deployment = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => project.id, { onDelete: "cascade" }),
-    runId: text("run_id").notNull(),
+    deploymentId: text("deployment_id").notNull(),
     kind: deploymentKind("kind").notNull(),
-    environmentClass: environmentClass("environment_class").notNull(),
+    tier: tier("tier").notNull(),
     environmentIdentity: text("environment_identity").notNull().default(""),
     promotionId: text("promotion_id"),
     tag: text("tag"),
@@ -146,12 +146,8 @@ export const deployment = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("deployment_run_uidx").on(table.projectId, table.runId),
-    index("deployment_project_latest_idx").on(
-      table.projectId,
-      table.environmentClass,
-      table.deployedAt,
-    ),
+    uniqueIndex("deployment_deployment_id_uidx").on(table.projectId, table.deploymentId),
+    index("deployment_project_latest_idx").on(table.projectId, table.tier, table.deployedAt),
   ],
 );
 
@@ -168,9 +164,9 @@ export const environmentEvent = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => project.id, { onDelete: "cascade" }),
-    runId: text("run_id").notNull(),
+    deploymentId: text("deployment_id").notNull(),
     kind: environmentEventKind("kind").notNull(),
-    environmentClass: environmentClass("environment_class").notNull(),
+    tier: tier("tier").notNull(),
     environmentIdentity: text("environment_identity").notNull().default(""),
     occurredAt: timestamp("occurred_at").notNull(),
     git: jsonb("git").$type<DeploymentGit>(),
@@ -178,7 +174,7 @@ export const environmentEvent = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("environment_event_run_uidx").on(table.projectId, table.runId),
+    uniqueIndex("environment_event_deployment_id_uidx").on(table.projectId, table.deploymentId),
     index("environment_event_project_idx").on(table.projectId, table.occurredAt),
   ],
 );

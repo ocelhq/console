@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { listRuns } from "@/lib/deployments";
-import { runScopeOf } from "@/lib/environment";
+import { runScopeOf } from "@/lib/tier";
 import { PageShell } from "../../../page-shell";
 import type { RunProject } from "./columns";
 import { RunFilter } from "./filter";

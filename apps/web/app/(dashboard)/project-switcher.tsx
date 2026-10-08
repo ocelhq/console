@@ -14,7 +14,7 @@ import {
   ComboboxSeparator,
   ComboboxTrigger,
 } from "@/components/ui/combobox";
-import { environmentOf } from "@/lib/environment";
+import { tierOf } from "@/lib/tier";
 import { EnvironmentSwitcher } from "./environment-switcher";
 import { projectHref, scopeHref, sectionOf } from "./sections";
 
@@ -30,7 +30,7 @@ export function ProjectSwitcher({ projects }: { projects: ProjectOption[] | null
   const router = useRouter();
   const { slug } = useParams<{ slug?: string }>();
   const section = sectionOf(usePathname()) ?? "";
-  const environment = environmentOf(useSearchParams().get("env"));
+  const tier = tierOf(useSearchParams().get("env"));
   const anchorRef = useRef<HTMLLIElement>(null);
   const triggerAnchorRef = useRef<HTMLDivElement>(null);
 
@@ -46,7 +46,7 @@ export function ProjectSwitcher({ projects }: { projects: ProjectOption[] | null
       value={active}
       onValueChange={(next) => {
         if (next) {
-          router.push(projectHref(next.slug, section, environment));
+          router.push(projectHref(next.slug, section, tier));
         }
       }}
       itemToStringLabel={(item) => item.name}
@@ -56,7 +56,7 @@ export function ProjectSwitcher({ projects }: { projects: ProjectOption[] | null
           <ol className="flex min-w-0 items-center gap-1">
             <li ref={anchorRef} className="flex min-w-0 items-center gap-0.5">
               <Link
-                href={projectHref(active.slug, "", environment)}
+                href={projectHref(active.slug, "", tier)}
                 className="truncate px-2 py-1 font-medium outline-hidden transition-colors hover:bg-muted focus-visible:ring-1 focus-visible:ring-ring"
               >
                 {active.slug}

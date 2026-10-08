@@ -62,7 +62,7 @@ import {
   SidebarResizer,
 } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
-import { environmentOf } from "@/lib/environment";
+import { tierOf } from "@/lib/tier";
 import { projectHref, projectPages, scopeHref, sectionOf } from "./sections";
 
 export type Viewer = { name: string; email: string; image: string | null };
@@ -138,7 +138,7 @@ function NavLink({
 function ScopedNavigation() {
   const pathname = usePathname();
   const params = useParams<{ slug?: string }>();
-  const environment = environmentOf(useSearchParams().get("env"));
+  const tier = tierOf(useSearchParams().get("env"));
   const slug = pathname.startsWith("/projects/") ? params.slug : undefined;
   const current = sectionOf(pathname);
 
@@ -176,7 +176,7 @@ function ScopedNavigation() {
               <NavLink
                 key={label}
                 label={projects ? "Projects" : label}
-                href={slug ? projectHref(slug, section, environment) : scopeHref(section)}
+                href={slug ? projectHref(slug, section, tier) : scopeHref(section)}
                 active={current === section}
                 Icon={projects ? FoldersIcon : Icon}
               />
