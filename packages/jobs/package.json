@@ -1,0 +1,25 @@
+{
+  "name": "@console/jobs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "the job queue runners claim from, and the git events that fill and report on it",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@console/db": "workspace:*",
+    "drizzle-orm": "catalog:"
+  },
+  "devDependencies": {
+    "@console/infra": "workspace:*",
+    "@types/node": "^20",
+    "typescript": "catalog:",
+    "vitest": "^4.1.9"
+  }
+}
