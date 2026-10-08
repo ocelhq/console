@@ -6,13 +6,18 @@ import { deployment, environmentEvent, project } from "@console/db/schema";
 import { and, eq } from "drizzle-orm";
 import { uuidv7 } from "uuidv7";
 import { deploymentValues, environmentEventValues } from "./record";
-import { organizationOf } from "./session";
+import { sessionOf } from "./session";
 
 async function ownedProject(context: HandlerContext, projectId: string): Promise<string> {
   const [found] = await db
     .select({ id: project.id })
     .from(project)
-    .where(and(eq(project.organizationId, organizationOf(context)), eq(project.id, projectId)));
+    .where(
+      and(
+        eq(project.organizationId, sessionOf(context).activeOrganizationId),
+        eq(project.id, projectId),
+      ),
+    );
   if (!found) {
     throw new ConnectError(`No project ${projectId} in the session's organization`, Code.NotFound);
   }

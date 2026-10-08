@@ -25,7 +25,3 @@ export function sessionOf(context: HandlerContext): ActiveOrganizationSession {
   }
   return session;
 }
-
-export function organizationOf(context: HandlerContext): string {
-  return sessionOf(context).activeOrganizationId;
-}

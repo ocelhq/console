@@ -1,6 +1,9 @@
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { Lifecycle, Tier } from "@console/connectors/gen/common/environment/v1/environment_pb";
-import { DeploymentKind } from "@console/connectors/gen/console/v1/deployment_pb";
+import {
+  DeploymentKind,
+  DeploymentService,
+} from "@console/connectors/gen/console/v1/deployment_pb";
 import { db } from "@console/db";
 import { deployment } from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
@@ -8,9 +11,9 @@ import { and, eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createTestSessionWithOrganization } from "../../../../../test/auth-harness";
 import {
-  connectClient,
   deploymentRecord,
   projectIn,
+  serviceClient,
   TRACE_ID,
 } from "../../../../../test/connect-harness";
 import { getDeployment, listDeployments } from "./route";
@@ -45,7 +48,7 @@ describe("listDeployments", () => {
     const session = await createTestSessionWithOrganization();
     try {
       const projectId = await projectIn(session.organization.id, "deploy-list");
-      const client = connectClient(session.token);
+      const client = serviceClient(DeploymentService, session.token);
 
       await client.report({
         projectId,
@@ -147,7 +150,10 @@ describe("getDeployment", () => {
     const session = await createTestSessionWithOrganization();
     try {
       const projectId = await projectIn(session.organization.id, "deploy-get");
-      await connectClient(session.token).report({ projectId, deployment: deploymentRecord() });
+      await serviceClient(DeploymentService, session.token).report({
+        projectId,
+        deployment: deploymentRecord(),
+      });
       const id = await idOf(projectId, TRACE_ID);
 
       const response = await getDeployment(listRequest(session.headers), projectId, id);
@@ -179,7 +185,7 @@ describe("getDeployment", () => {
     try {
       const mine = await projectIn(session.organization.id, "deploy-get-mine");
       const other = await projectIn(session.organization.id, "deploy-get-other");
-      await connectClient(session.token).report({
+      await serviceClient(DeploymentService, session.token).report({
         projectId: other,
         deployment: deploymentRecord(),
       });
