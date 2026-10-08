@@ -11,6 +11,7 @@ import {
   DotsThreeVerticalIcon,
   FoldersIcon,
   GearSixIcon,
+  GitBranchIcon,
   GithubLogoIcon,
   GlobeIcon,
   GraphIcon,
@@ -87,6 +88,7 @@ const organizationNavigation = [
   { label: "General", href: "/organization/general", Icon: GearSixIcon },
   { label: "Members", href: "/organization/members", Icon: UsersIcon },
   { label: "Connectors", href: "/organization/connectors", Icon: PlugsIcon },
+  { label: "Git", href: "/organization/git", Icon: GitBranchIcon },
 ];
 
 const themes = [

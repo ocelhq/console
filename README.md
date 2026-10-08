@@ -14,6 +14,7 @@ infrastructure, and using it is optional.
 | `packages/auth`       | better-auth config: sessions, organizations, JWT, the CLI's device flow     |
 | `packages/db`         | Drizzle schema, relations and client                                       |
 | `packages/connectors` | The connector client; `src/gen` is generated from `buf.build/ocelhq/ocel`  |
+| `packages/git`        | The git provider port, its GitHub adapter, and the sealed storage of apps  |
 | `packages/infra`      | The Ocel resources the console declares (`postgres("main")`)               |
 | `packages/theme`      | The design tokens shared with the other Ocel surfaces                      |
 | `packages/variables`  | The variables table, rendered here and by the CLI's env UI                 |
@@ -89,6 +90,15 @@ Sign-in is configured with these variables:
 The console refuses to start with no sign-in method enabled. While sign-up is invite-only, the
 first account created owns the console, so create yours right after the first deploy. If
 someone else gets there first, delete their row from the `user` table.
+
+Git integrations need `CONSOLE_ENCRYPTION_KEY` (32 random bytes, base64: `openssl rand -base64 32`),
+which seals each GitHub App's private key and secrets before they reach the database. With it set,
+an owner or admin registers a GitHub App of their own under Organization > Git: GitHub asks them
+to confirm, and the console stores the app it hands back. To offer one app to every organization
+instead, set `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_APP_PRIVATE_KEY`,
+`GITHUB_APP_WEBHOOK_SECRET`, `GITHUB_APP_CLIENT_ID` and `GITHUB_APP_CLIENT_SECRET` together; the
+console stores them as the system app at start. Point that app's webhook at
+`{origin}/api/git/github/system-github/webhooks`.
 
 Then point the CLI at your console:
 `OCEL_CONSOLE_URL=https://console.example.com ocel login`,

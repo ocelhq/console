@@ -20,3 +20,7 @@ export function readGitSettings(): GitSettings {
     },
   };
 }
+
+export function stateSecret(): string {
+  return env.BETTER_AUTH_SECRET;
+}
