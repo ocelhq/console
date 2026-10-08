@@ -231,24 +231,26 @@ describe("authorizeUrl", () => {
   });
 });
 
-describe("installationsOfUser", () => {
+describe("administeredInstallations", () => {
   const redirectUri = "https://console.example/back";
+  const person = { id: 42, login: "ada" };
 
-  it("lists every installation of the app the person can reach, then revokes their token", async () => {
+  it("lists every installation on an account the person administers, then revokes their token", async () => {
     const { github, provider } = setup();
     github.oauth.codes.set("code-1", "ghu_person");
+    github.oauth.people.set("ghu_person", { ...person, roles: {} });
     github.oauth.userInstallations.set(
       "ghu_person",
       Array.from({ length: 101 }, (_, index) => ({
         id: index + 1,
-        account: { login: `acct-${index + 1}` },
+        account: { id: person.id, login: person.login, type: "User" as const },
       })),
     );
 
-    const installations = await provider.installationsOfUser({ code: "code-1", redirectUri });
+    const installations = await provider.administeredInstallations({ code: "code-1", redirectUri });
 
     expect(installations).toHaveLength(101);
-    expect(installations[100]).toEqual({ externalId: "101", account: "acct-101" });
+    expect(installations[100]).toEqual({ externalId: "101", account: "ada" });
     const [exchange] = github.callsTo("POST", /^\/login\/oauth\/access_token$/);
     expect(exchange?.body).toEqual({
       client_id: "Iv1.test",
@@ -259,10 +261,34 @@ describe("installationsOfUser", () => {
     expect(github.oauth.revoked).toEqual(["ghu_person"]);
   });
 
+  it("leaves out installations the person reaches only as a collaborator or member", async () => {
+    const { github, provider } = setup();
+    github.oauth.codes.set("code-1", "ghu_person");
+    github.oauth.people.set("ghu_person", {
+      ...person,
+      roles: { "acme-admin": "admin", "acme-member": "member" },
+    });
+    github.oauth.userInstallations.set("ghu_person", [
+      { id: 1, account: { id: 42, login: "ada", type: "User" } },
+      { id: 2, account: { id: 43, login: "grace", type: "User" } },
+      { id: 3, account: { id: 100, login: "acme-admin", type: "Organization" } },
+      { id: 4, account: { id: 101, login: "acme-member", type: "Organization" } },
+      { id: 5, account: { id: 102, login: "acme-outside", type: "Organization" } },
+    ]);
+
+    const installations = await provider.administeredInstallations({ code: "code-1", redirectUri });
+
+    expect(installations).toEqual([
+      { externalId: "1", account: "ada" },
+      { externalId: "3", account: "acme-admin" },
+    ]);
+    expect(github.oauth.revoked).toEqual(["ghu_person"]);
+  });
+
   it("fails when GitHub refuses the code", async () => {
     const { provider } = setup();
-    await expect(provider.installationsOfUser({ code: "stale", redirectUri })).rejects.toThrow(
-      /bad_verification_code/,
-    );
+    await expect(
+      provider.administeredInstallations({ code: "stale", redirectUri }),
+    ).rejects.toThrow(/bad_verification_code/);
   });
 });

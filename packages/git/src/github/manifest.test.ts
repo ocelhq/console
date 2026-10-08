@@ -33,6 +33,7 @@ describe("githubManifest", () => {
   it("asks for what the provider port does, and no more", () => {
     expect(manifest.default_permissions).toEqual({
       metadata: "read",
+      members: "read",
       contents: "read",
       pull_requests: "write",
       issues: "write",

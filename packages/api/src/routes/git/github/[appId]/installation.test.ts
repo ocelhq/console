@@ -43,7 +43,11 @@ const authorized = (
 async function install(
   session: Session,
   appRowId: string,
-  options: { installation: string; reachable: { id: number; login: string }[] },
+  options: {
+    installation: string;
+    reachable: { id: number; login: string }[];
+    role?: "admin" | "member";
+  },
 ) {
   const started = await setup(session, appRowId, {
     installation_id: options.installation,
@@ -53,9 +57,19 @@ async function install(
   const code = `code-${crypto.randomUUID()}`;
   const token = `ghu_${crypto.randomUUID()}`;
   github.oauth.codes.set(code, token);
+  github.oauth.people.set(token, {
+    id: 1,
+    login: "person",
+    roles: Object.fromEntries(
+      options.reachable.map(({ login }) => [login, options.role ?? "admin"]),
+    ),
+  });
   github.oauth.userInstallations.set(
     token,
-    options.reachable.map(({ id, login }) => ({ id, account: { login } })),
+    options.reachable.map(({ id, login }) => ({
+      id,
+      account: { id: 1000 + id, login, type: "Organization" as const },
+    })),
   );
   return authorized(session, appRowId, {
     code,
@@ -223,6 +237,22 @@ describe("GET /api/git/github/:appId/authorized", () => {
     }
   });
 
+  it("refuses an installation on an organization the person is only a member of", async () => {
+    const session = await createTestSessionWithOrganization();
+    try {
+      const response = await install(session, SYSTEM, {
+        installation: "778",
+        reachable: [{ id: 778, login: "acme-member" }],
+        role: "member",
+      });
+
+      expect(response.headers.get("location")).toContain("error=unreachable");
+      expect(await git.store.findInstallation(SYSTEM, "778")).toBeUndefined();
+    } finally {
+      await session.cleanup();
+    }
+  });
+
   it("refuses an installation another organization already bound", async () => {
     const first = await createTestSessionWithOrganization();
     const second = await createTestSessionWithOrganization();
@@ -250,7 +280,10 @@ describe("GET /api/git/github/:appId/authorized", () => {
       const started = await setup(starter, SYSTEM, { installation_id: "901" });
       const state = new URL(started.headers.get("location") ?? "").searchParams.get("state") ?? "";
       github.oauth.codes.set("code-other", "ghu_other");
-      github.oauth.userInstallations.set("ghu_other", [{ id: 901, account: { login: "acme" } }]);
+      github.oauth.people.set("ghu_other", { id: 2, login: "other", roles: { acme: "admin" } });
+      github.oauth.userInstallations.set("ghu_other", [
+        { id: 901, account: { id: 1901, login: "acme", type: "Organization" } },
+      ]);
 
       const response = await authorized(other, SYSTEM, { code: "code-other", state });
 

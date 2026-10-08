@@ -18,7 +18,7 @@ const failures: Record<string, string> = {
   app: "That GitHub App isn’t available to this organization. Switch to the organization that registered it.",
   denied: "You declined on GitHub, so nothing was connected.",
   unreachable:
-    "Your GitHub account can’t reach that installation, so the console didn’t connect it. Ask someone who can to install the app.",
+    "Your GitHub account doesn’t own that installation’s account or administer its organization, so the console didn’t connect it. Ask an owner to install the app.",
   claimed: "Another organization on this console already connected that installation.",
 };
 
