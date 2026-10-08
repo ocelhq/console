@@ -7,4 +7,7 @@ export async function register() {
   const { pg } = await import("@console/infra");
   const { migrateDatabase } = await import("@console/db/migrate");
   await migrateDatabase(pg);
+
+  const { syncSystemApp } = await import("@console/git");
+  await syncSystemApp();
 }
