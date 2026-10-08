@@ -180,6 +180,20 @@
         "typescript": "catalog:",
       },
     },
+    "packages/jobs": {
+      "name": "@console/jobs",
+      "version": "0.0.0",
+      "dependencies": {
+        "@console/db": "workspace:*",
+        "drizzle-orm": "catalog:",
+      },
+      "devDependencies": {
+        "@console/infra": "workspace:*",
+        "@types/node": "^20",
+        "typescript": "catalog:",
+        "vitest": "^4.1.9",
+      },
+    },
     "packages/theme": {
       "name": "@ocelhq/theme",
       "version": "0.1.0",
@@ -391,6 +405,8 @@
     "@console/git": ["@console/git@workspace:packages/git"],
 
     "@console/infra": ["@console/infra@workspace:packages/infra"],
+
+    "@console/jobs": ["@console/jobs@workspace:packages/jobs"],
 
     "@console/storybook": ["@console/storybook@workspace:apps/storybook"],
 
