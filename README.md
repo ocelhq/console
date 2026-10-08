@@ -100,9 +100,10 @@ instead, set `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_APP_PRIVATE_KEY`,
 console stores them as the system app at start, and removes it once they are unset. On that app,
 set the webhook URL to `{origin}/api/git/github/system-github/webhooks`, the setup URL to
 `{origin}/api/git/github/system-github/setup` with "Redirect on update" checked, and the callback
-URL to `{origin}/api/git/github/system-github/authorized`. Whoever installs the app comes back
-through the setup URL, signs in to GitHub, and the console connects the installation to their
-organization once GitHub confirms their account can reach it.
+URL to `{origin}/api/git/github/system-github/authorized`, and grant it read access to
+organization members. Whoever installs the app comes back through the setup URL, signs in to
+GitHub, and the console connects the installation to their organization once GitHub confirms
+their account owns the account it is installed on, or is an owner of that organization.
 
 Then point the CLI at your console:
 `OCEL_CONSOLE_URL=https://console.example.com ocel login`,

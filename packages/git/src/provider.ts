@@ -57,7 +57,10 @@ export interface GitProvider {
   deliveryId(request: WebhookRequest): string | undefined;
   parseEvent(request: WebhookRequest): GitEvent | undefined;
   authorizeUrl(input: { state: string; redirectUri: string }): string;
-  installationsOfUser(input: { code: string; redirectUri: string }): Promise<UserInstallation[]>;
+  administeredInstallations(input: {
+    code: string;
+    redirectUri: string;
+  }): Promise<UserInstallation[]>;
   listRepos(installation: InstallationRef): Promise<RepoRef[]>;
   repoToken(installation: InstallationRef, repo: RepoRef, access: "read"): Promise<RepoToken>;
   setStatus(

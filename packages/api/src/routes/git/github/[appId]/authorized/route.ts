@@ -29,13 +29,15 @@ export async function githubAuthorized(
     return backToGitPage({ error: "app" });
   }
 
-  let reachable: Awaited<ReturnType<ReturnType<GitRuntime["providerFor"]>["installationsOfUser"]>>;
+  let reachable: Awaited<
+    ReturnType<ReturnType<GitRuntime["providerFor"]>["administeredInstallations"]>
+  >;
   try {
     reachable = await runtime
       .providerFor(app)
-      .installationsOfUser({ code, redirectUri: authorizedUri(app.id) });
+      .administeredInstallations({ code, redirectUri: authorizedUri(app.id) });
   } catch (error) {
-    console.error("git: GitHub refused to say which installations the person can reach", {
+    console.error("git: GitHub refused to say which installations the person administers", {
       appRowId,
       organizationId: claims.organizationId,
       error: error instanceof Error ? error.message : String(error),

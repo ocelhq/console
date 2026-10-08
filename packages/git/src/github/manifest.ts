@@ -22,6 +22,7 @@ export function githubManifest(input: { origin: string; appRowId: string; name: 
     public: false,
     default_permissions: {
       metadata: "read",
+      members: "read",
       contents: "read",
       pull_requests: "write",
       issues: "write",

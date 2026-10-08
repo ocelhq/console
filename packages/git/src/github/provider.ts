@@ -107,7 +107,7 @@ export function githubProvider(github: GithubApp, options: GithubOptions = {}): 
       return url.href;
     },
 
-    async installationsOfUser({ code, redirectUri }) {
+    async administeredInstallations({ code, redirectUri }) {
       const clientSecret = await github.secret("clientSecret");
       const token = await exchangeCode(options.fetch ?? fetch, {
         client_id: github.clientId,
@@ -117,6 +117,19 @@ export function githubProvider(github: GithubApp, options: GithubOptions = {}): 
       });
       try {
         const person = new BaseOctokit({ auth: token });
+        const { data: me } = await person.request("GET /user");
+        const administers = async (account: {
+          id: number | bigint;
+          login: string;
+          type: string;
+        }) => {
+          if (account.type === "User") return String(account.id) === String(me.id);
+          if (account.type !== "Organization") return false;
+          const membership = await person
+            .request("GET /user/memberships/orgs/{org}", { org: account.login })
+            .catch(() => undefined);
+          return membership?.data.state === "active" && membership.data.role === "admin";
+        };
         const installations = await everyPage(async (page) => {
           const { data } = await person.request("GET /user/installations", {
             per_page: PAGE,
@@ -124,15 +137,13 @@ export function githubProvider(github: GithubApp, options: GithubOptions = {}): 
           });
           return data.installations;
         });
-        return installations.map(
-          (installation): UserInstallation => ({
-            externalId: String(installation.id),
-            account:
-              (installation.account && "login" in installation.account
-                ? installation.account.login
-                : installation.account?.slug) ?? "",
-          }),
-        );
+        const administered: UserInstallation[] = [];
+        for (const installation of installations) {
+          const account = installation.account;
+          if (!account || !("login" in account) || !(await administers(account))) continue;
+          administered.push({ externalId: String(installation.id), account: account.login });
+        }
+        return administered;
       } finally {
         await new BaseOctokit()
           .request("DELETE /applications/{client_id}/token", {

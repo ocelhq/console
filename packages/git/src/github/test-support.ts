@@ -70,7 +70,14 @@ export function fakeGithub() {
   const oauth = {
     codes: new Map<string, string>(),
     revoked: [] as string[],
-    userInstallations: new Map<string, { id: number; account: { login: string } }[]>(),
+    people: new Map<
+      string,
+      { id: number; login: string; roles: Record<string, "admin" | "member"> }
+    >(),
+    userInstallations: new Map<
+      string,
+      { id: number; account: { id: number; login: string; type: "User" | "Organization" } }[]
+    >(),
   };
   let nextId = 1;
 
@@ -110,6 +117,19 @@ export function fakeGithub() {
         total_count: installations.length,
         installations: installations.slice((page - 1) * size, page * size),
       });
+    }
+    if (at === "GET /user") {
+      const person = oauth.people.get(authorization.replace(/^(token|bearer) /i, ""));
+      if (!person) return reply({ message: "Bad credentials" }, 401);
+      return reply({ id: person.id, login: person.login, type: "User" });
+    }
+    const membership = at.match(/^GET \/user\/memberships\/orgs\/([^/]+)$/);
+    if (membership) {
+      const person = oauth.people.get(authorization.replace(/^(token|bearer) /i, ""));
+      if (!person) return reply({ message: "Bad credentials" }, 401);
+      const role = person.roles[decodeURIComponent(membership[1] ?? "")];
+      if (!role) return reply({ message: "Not Found" }, 404);
+      return reply({ state: "active", role });
     }
     if (/^DELETE \/applications\/[^/]+\/token$/.test(at)) {
       oauth.revoked.push(String(body.access_token));
