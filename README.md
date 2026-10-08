@@ -13,7 +13,7 @@ infrastructure, and using it is optional.
 | `packages/api`        | The route handlers `apps/web/app/api` exports                              |
 | `packages/auth`       | better-auth config: sessions, organizations, JWT, the CLI's device flow     |
 | `packages/db`         | Drizzle schema, relations and client                                       |
-| `packages/connectors` | The connector client; `src/gen` is generated from `buf.build/ocelhq/ocel`  |
+| `packages/connectors` | The connector client; `src/gen` is generated from ocel's `proto/`          |
 | `packages/git`        | The git provider port, its GitHub adapter, and the sealed storage of apps  |
 | `packages/infra`      | The Ocel resources the console declares (`postgres("main")`)               |
 | `packages/theme`      | The design tokens shared with the other Ocel surfaces                      |

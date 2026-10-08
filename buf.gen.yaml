@@ -1,7 +1,9 @@
 version: v2
 clean: true
 inputs:
-  - module: buf.build/ocelhq/ocel:v0.0.2
+  - git_repo: https://github.com/ocelhq/ocel.git
+    ref: 5cf9a0db2d89c21903d57aa8efadfef1b32f54af
+    subdir: proto
     paths:
       - provider/variablestore
       - common/environment
