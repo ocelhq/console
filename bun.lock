@@ -42,6 +42,7 @@
         "@console/db": "workspace:*",
         "@console/git": "workspace:*",
         "@console/infra": "workspace:*",
+        "@console/jobs": "workspace:*",
         "@dagrejs/dagre": "^3.1.1",
         "@ocelhq/theme": "workspace:^",
         "@ocelhq/variables-ui": "workspace:^",
@@ -187,6 +188,7 @@
         "@console/db": "workspace:*",
         "@console/git": "workspace:*",
         "drizzle-orm": "catalog:",
+        "ocel": "latest",
       },
       "devDependencies": {
         "@console/infra": "workspace:*",

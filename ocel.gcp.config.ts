@@ -13,6 +13,6 @@ export default defineConfig({
   slug: "console",
   provider: gcpProvider({ project: target.GCP_PROJECT, region: target.GCP_REGION }),
   apps: [{ name: "console", path: "apps/web" }],
-  discovery: { paths: ["packages/infra/src"] },
+  discovery: { paths: ["packages/infra/src", "packages/jobs/src/tasks"] },
   ...(target.CONSOLE_DOMAIN ? { domains: { production: target.CONSOLE_DOMAIN } } : {}),
 });

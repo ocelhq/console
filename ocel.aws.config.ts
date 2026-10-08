@@ -16,7 +16,7 @@ export default defineConfig({
   edge: cloudflare(),
   dns: cloudflareDns(),
   apps: [{ name: "console", path: "apps/web" }],
-  discovery: { paths: ["packages/infra/src"] },
+  discovery: { paths: ["packages/infra/src", "packages/jobs/src/tasks"] },
   bindings: { postgres: { main: { url: { $env: "NEON_DATABASE_URL" } } } },
   ...(target.CONSOLE_DOMAIN ? { domains: { production: target.CONSOLE_DOMAIN } } : {}),
 });
