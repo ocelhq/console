@@ -1,13 +1,35 @@
 import { createHmac, generateKeyPairSync } from "node:crypto";
 import type { WebhookRequest } from "../provider";
+import type { GithubApp } from "./provider";
 
 export const WEBHOOK_SECRET = "whsec_test";
+export const CLIENT_SECRET = "client-secret";
 
 export const PRIVATE_KEY = generateKeyPairSync("rsa", {
   modulusLength: 2048,
   privateKeyEncoding: { type: "pkcs8", format: "pem" },
   publicKeyEncoding: { type: "spki", format: "pem" },
 }).privateKey;
+
+export function testApp(over: Partial<GithubApp> = {}): GithubApp & { opened: string[] } {
+  const secrets = {
+    privateKey: PRIVATE_KEY,
+    webhookSecret: WEBHOOK_SECRET,
+    clientSecret: CLIENT_SECRET,
+  };
+  const opened: string[] = [];
+  return {
+    appId: "7",
+    slug: "ocel-test",
+    clientId: "Iv1.test",
+    async secret(name) {
+      opened.push(name);
+      return secrets[name];
+    },
+    opened,
+    ...over,
+  };
+}
 
 export function delivery(event: string, payload: unknown, secret = WEBHOOK_SECRET): WebhookRequest {
   const body = JSON.stringify(payload);
@@ -31,7 +53,7 @@ interface Call {
 interface FakeComment {
   id: number;
   body: string;
-  user: { type: "Bot" | "User" };
+  user: { login: string; type: "Bot" | "User" };
 }
 
 interface FakeDeployment {
@@ -45,6 +67,11 @@ export function fakeGithub() {
   const deployments: FakeDeployment[] = [];
   const comments: FakeComment[] = [];
   const repositories: { id: number; full_name: string }[] = [];
+  const oauth = {
+    codes: new Map<string, string>(),
+    revoked: [] as string[],
+    userInstallations: new Map<string, { id: number; account: { login: string } }[]>(),
+  };
   let nextId = 1;
 
   function reply(body: unknown, status = 200): Response {
@@ -63,6 +90,31 @@ export function fakeGithub() {
     const call = { method, path: url.pathname, query: url.searchParams, body };
     calls.push(call);
     const at = `${method} ${url.pathname}`;
+    const authorization = new Headers(init?.headers).get("authorization") ?? "";
+
+    if (url.host === "github.com" && at === "POST /login/oauth/access_token") {
+      const token = oauth.codes.get(String(body.code));
+      if (body.client_secret !== CLIENT_SECRET || !token) {
+        return reply({ error: "bad_verification_code" });
+      }
+      return reply({ access_token: token, token_type: "bearer" });
+    }
+    if (at === "GET /user/installations") {
+      const installations = oauth.userInstallations.get(
+        authorization.replace(/^(token|bearer) /i, ""),
+      );
+      if (!installations) return reply({ message: "Bad credentials" }, 401);
+      const page = Number(url.searchParams.get("page") ?? "1");
+      const size = Number(url.searchParams.get("per_page") ?? "30");
+      return reply({
+        total_count: installations.length,
+        installations: installations.slice((page - 1) * size, page * size),
+      });
+    }
+    if (/^DELETE \/applications\/[^/]+\/token$/.test(at)) {
+      oauth.revoked.push(String(body.access_token));
+      return new Response(null, { status: 204 });
+    }
 
     if (/^POST \/app\/installations\/\d+\/access_tokens$/.test(at)) {
       return reply(
@@ -112,7 +164,11 @@ export function fakeGithub() {
       return reply(comments.slice((page - 1) * size, page * size));
     }
     if (/^POST \/repos\/[^/]+\/[^/]+\/issues\/\d+\/comments$/.test(at)) {
-      const comment = { id: nextId++, body: String(body.body), user: { type: "Bot" as const } };
+      const comment = {
+        id: nextId++,
+        body: String(body.body),
+        user: { login: "ocel-test[bot]", type: "Bot" as const },
+      };
       comments.push(comment);
       return reply(comment, 201);
     }
@@ -132,6 +188,7 @@ export function fakeGithub() {
     deployments,
     comments,
     repositories,
+    oauth,
     callsTo(method: string, pattern: RegExp) {
       return calls.filter((call) => call.method === method && pattern.test(call.path));
     },

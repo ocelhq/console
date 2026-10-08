@@ -1,19 +1,19 @@
-import { type GitEventHandler, gitRuntime, webhookHandler } from "@console/git";
+import { type GitEventHandler, type GitRuntime, webhookHandler } from "@console/git";
 
 const ignoreEvent: GitEventHandler = async () => {};
 
 export async function githubWebhooks(
   request: Request,
-  appId: string,
+  appRowId: string,
+  git: GitRuntime | undefined,
   onEvent: GitEventHandler = ignoreEvent,
 ): Promise<Response> {
-  const runtime = gitRuntime();
-  if (!runtime) {
+  if (!git) {
     return Response.json({ error: "Git integrations are not configured" }, { status: 503 });
   }
 
-  return webhookHandler({ ...runtime, onEvent })(
+  return webhookHandler({ ...git, onEvent })(
     { headers: request.headers, body: await request.text() },
-    appId,
+    appRowId,
   );
 }

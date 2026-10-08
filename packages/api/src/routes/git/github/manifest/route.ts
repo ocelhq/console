@@ -1,7 +1,15 @@
-import { administers, consoleOrigin, getActiveOrganizationSession, roleOf } from "@console/auth";
-import { githubManifest, gitRuntime, manifestStartUrl, signState, stateSecret } from "@console/git";
+import { consoleOrigin } from "@console/auth";
+import {
+  appName,
+  type GitRuntime,
+  githubManifest,
+  manifestStartUrl,
+  signState,
+  stateSecret,
+} from "@console/git";
 import { z } from "zod";
 import { readBody } from "../../../../body";
+import { administerGit, GIT_REFUSAL_STATUS } from "../access";
 
 const startSchema = z.object({
   owner: z
@@ -10,17 +18,24 @@ const startSchema = z.object({
     .optional(),
 });
 
-export async function startManifest(request: Request): Promise<Response> {
-  const session = await getActiveOrganizationSession(request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+const REFUSALS = {
+  session: "Unauthorized",
+  unconfigured: "Git integrations are not configured",
+  forbidden: "Forbidden",
+} as const;
+
+export async function startManifest(
+  request: Request,
+  git: GitRuntime | undefined,
+): Promise<Response> {
+  const access = await administerGit(request, git);
+  if (!access.ok) {
+    return Response.json(
+      { error: REFUSALS[access.refusal] },
+      { status: GIT_REFUSAL_STATUS[access.refusal] },
+    );
   }
-  if (!administers(await roleOf(session.userId, session.activeOrganizationId))) {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
-  }
-  if (!gitRuntime()) {
-    return Response.json({ error: "Git integrations are not configured" }, { status: 503 });
-  }
+  const { session } = access;
 
   const parsed = await readBody(request, startSchema);
   if (!parsed.ok) {
@@ -29,6 +44,7 @@ export async function startManifest(request: Request): Promise<Response> {
 
   const appRowId = crypto.randomUUID();
   const state = signState(
+    "manifest",
     { organizationId: session.activeOrganizationId, userId: session.userId, appRowId },
     stateSecret(),
   );
@@ -38,7 +54,7 @@ export async function startManifest(request: Request): Promise<Response> {
     manifest: githubManifest({
       origin: consoleOrigin(),
       appRowId,
-      name: `Ocel ${session.activeOrganizationId.slice(0, 8)}`,
+      name: appName(session.activeOrganizationId),
     }),
   });
 }

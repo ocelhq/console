@@ -1,23 +1,24 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import type { AppCredentials } from "../store";
 
-const STATE_LIFETIME_MS = 60 * 60 * 1000;
-
-export interface StateClaims {
-  organizationId: string;
-  userId: string;
-  appRowId: string;
+export function appName(organizationId: string): string {
+  return `Ocel ${organizationId.slice(0, 8)} ${randomBytes(4).toString("hex")}`;
 }
 
 export function githubManifest(input: { origin: string; appRowId: string; name: string }) {
+  const app = `${input.origin}/api/git/github/${input.appRowId}`;
   return {
     name: input.name,
     url: input.origin,
     hook_attributes: {
-      url: `${input.origin}/api/git/github/${input.appRowId}/webhooks`,
+      url: `${app}/webhooks`,
       active: true,
     },
     redirect_url: `${input.origin}/api/git/github/manifest/callback`,
+    setup_url: `${app}/setup`,
+    setup_on_update: true,
+    callback_urls: [`${app}/authorized`],
+    request_oauth_on_install: false,
     public: false,
     default_permissions: {
       metadata: "read",
@@ -36,40 +37,6 @@ export function manifestStartUrl(owner: string | undefined, state: string): stri
     ? `https://github.com/organizations/${owner}/settings/apps/new`
     : "https://github.com/settings/apps/new";
   return `${base}?state=${state}`;
-}
-
-function mac(payload: string, secret: string): Buffer {
-  return createHmac("sha256", secret).update(payload).digest();
-}
-
-export function signState(claims: StateClaims, secret: string, now = new Date()): string {
-  const payload = Buffer.from(
-    JSON.stringify({ ...claims, exp: now.getTime() + STATE_LIFETIME_MS }),
-  ).toString("base64url");
-  return `${payload}.${mac(payload, secret).toString("base64url")}`;
-}
-
-export function verifyState(
-  state: string,
-  secret: string,
-  now = new Date(),
-): StateClaims | undefined {
-  const [payload, signature] = state.split(".");
-  if (!payload || !signature) return undefined;
-
-  const expected = mac(payload, secret);
-  const given = Buffer.from(signature, "base64url");
-  if (given.length !== expected.length || !timingSafeEqual(given, expected)) return undefined;
-
-  const claims = JSON.parse(Buffer.from(payload, "base64url").toString()) as StateClaims & {
-    exp: number;
-  };
-  if (!(claims.exp > now.getTime())) return undefined;
-  return {
-    organizationId: claims.organizationId,
-    userId: claims.userId,
-    appRowId: claims.appRowId,
-  };
 }
 
 interface Conversion {

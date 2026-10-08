@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { githubProvider } from "./provider";
-import { fakeGithub, PRIVATE_KEY, WEBHOOK_SECRET } from "./test-support";
+import { fakeGithub, testApp } from "./test-support";
 
 const installation = { externalId: "99" };
 const repo = { id: "1234", fullName: "acme/web" };
@@ -8,10 +8,7 @@ const marker = "<!-- ocel-preview -->";
 
 function setup() {
   const github = fakeGithub();
-  const provider = githubProvider(
-    { appId: "7", privateKey: PRIVATE_KEY, webhookSecret: WEBHOOK_SECRET },
-    { fetch: github.fetch },
-  );
+  const provider = githubProvider(testApp(), { fetch: github.fetch });
   return { github, provider };
 }
 
@@ -25,7 +22,17 @@ describe("repoToken", () => {
     expect(token.expiresAt).toEqual(new Date("2030-01-01T00:00:00Z"));
     const [mint] = github.callsTo("POST", /access_tokens$/);
     expect(mint?.path).toBe("/app/installations/99/access_tokens");
-    expect(mint?.body).toEqual({ repositories: ["web"], permissions: { contents: "read" } });
+    expect(mint?.body).toEqual({ repository_ids: [1234], permissions: { contents: "read" } });
+  });
+
+  it("names the repository by id, so a renamed repository still gets its token", async () => {
+    const { github, provider } = setup();
+
+    await provider.repoToken(installation, { id: "1234", fullName: "acme/old-name" }, "read");
+
+    const [mint] = github.callsTo("POST", /access_tokens$/);
+    expect(mint?.body).toMatchObject({ repository_ids: [1234] });
+    expect(mint?.body).not.toHaveProperty("repositories");
   });
 });
 
@@ -79,7 +86,11 @@ describe("upsertComment", () => {
 
   it("does not take a person's comment quoting the marker for its own", async () => {
     const { github, provider } = setup();
-    github.comments.push({ id: 500, body: `noise ${marker}`, user: { type: "User" } });
+    github.comments.push({
+      id: 500,
+      body: `noise ${marker}`,
+      user: { login: "someone", type: "User" },
+    });
 
     await provider.upsertComment(installation, repo, { pr: 7, marker, body: `${marker}\nmine` });
 
@@ -87,12 +98,33 @@ describe("upsertComment", () => {
     expect(github.comments[0]?.body).toBe(`noise ${marker}`);
   });
 
+  it("does not take another app's comment carrying the same marker for its own", async () => {
+    const { github, provider } = setup();
+    github.comments.push({
+      id: 500,
+      body: `${marker}\ntheirs`,
+      user: { login: "other-ocel[bot]", type: "Bot" },
+    });
+
+    await provider.upsertComment(installation, repo, { pr: 7, marker, body: `${marker}\nmine` });
+
+    expect(github.comments.map((comment) => comment.body)).toEqual([
+      `${marker}\ntheirs`,
+      `${marker}\nmine`,
+    ]);
+    expect(github.callsTo("PATCH", /comments/)).toEqual([]);
+  });
+
   it("finds its comment past the first page", async () => {
     const { github, provider } = setup();
     for (let id = 1; id <= 100; id++) {
-      github.comments.push({ id, body: "chatter", user: { type: "User" } });
+      github.comments.push({ id, body: "chatter", user: { login: "someone", type: "User" } });
     }
-    github.comments.push({ id: 101, body: `${marker}\nold`, user: { type: "Bot" } });
+    github.comments.push({
+      id: 101,
+      body: `${marker}\nold`,
+      user: { login: "ocel-test[bot]", type: "Bot" },
+    });
 
     await provider.upsertComment(installation, repo, { pr: 7, marker, body: `${marker}\nnew` });
 
@@ -181,5 +213,56 @@ describe("upsertDeployment", () => {
     await expect(
       provider.upsertDeployment(installation, repo, { environment, state: "success" }),
     ).rejects.toThrow(/commit/);
+  });
+});
+
+describe("authorizeUrl", () => {
+  it("sends the person to authorize the app, carrying the state and where to come back", () => {
+    const { provider } = setup();
+    const url = new URL(
+      provider.authorizeUrl({ state: "s.t", redirectUri: "https://console.example/back" }),
+    );
+    expect(`${url.origin}${url.pathname}`).toBe("https://github.com/login/oauth/authorize");
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      client_id: "Iv1.test",
+      state: "s.t",
+      redirect_uri: "https://console.example/back",
+    });
+  });
+});
+
+describe("installationsOfUser", () => {
+  const redirectUri = "https://console.example/back";
+
+  it("lists every installation of the app the person can reach, then revokes their token", async () => {
+    const { github, provider } = setup();
+    github.oauth.codes.set("code-1", "ghu_person");
+    github.oauth.userInstallations.set(
+      "ghu_person",
+      Array.from({ length: 101 }, (_, index) => ({
+        id: index + 1,
+        account: { login: `acct-${index + 1}` },
+      })),
+    );
+
+    const installations = await provider.installationsOfUser({ code: "code-1", redirectUri });
+
+    expect(installations).toHaveLength(101);
+    expect(installations[100]).toEqual({ externalId: "101", account: "acct-101" });
+    const [exchange] = github.callsTo("POST", /^\/login\/oauth\/access_token$/);
+    expect(exchange?.body).toEqual({
+      client_id: "Iv1.test",
+      client_secret: "client-secret",
+      code: "code-1",
+      redirect_uri: redirectUri,
+    });
+    expect(github.oauth.revoked).toEqual(["ghu_person"]);
+  });
+
+  it("fails when GitHub refuses the code", async () => {
+    const { provider } = setup();
+    await expect(provider.installationsOfUser({ code: "stale", redirectUri })).rejects.toThrow(
+      /bad_verification_code/,
+    );
   });
 });

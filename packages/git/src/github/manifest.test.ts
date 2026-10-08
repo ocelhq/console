@@ -1,15 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  convertManifest,
-  githubManifest,
-  manifestStartUrl,
-  signState,
-  verifyState,
-} from "./manifest";
-
-const secret = "state-secret-at-least-32-characters";
-const now = new Date("2026-10-08T12:00:00Z");
-const claims = { organizationId: "org_1", userId: "user_1", appRowId: "app_1" };
+import { appName, convertManifest, githubManifest, manifestStartUrl } from "./manifest";
 
 describe("githubManifest", () => {
   const manifest = githubManifest({
@@ -31,6 +21,15 @@ describe("githubManifest", () => {
     );
   });
 
+  it("sends whoever installs the app through the setup that binds it to an organization", () => {
+    expect(manifest.setup_url).toBe("https://console.example.com/api/git/github/app_1/setup");
+    expect(manifest.setup_on_update).toBe(true);
+    expect(manifest.callback_urls).toEqual([
+      "https://console.example.com/api/git/github/app_1/authorized",
+    ]);
+    expect(manifest.request_oauth_on_install).toBe(false);
+  });
+
   it("asks for what the provider port does, and no more", () => {
     expect(manifest.default_permissions).toEqual({
       metadata: "read",
@@ -45,6 +44,17 @@ describe("githubManifest", () => {
   });
 });
 
+describe("appName", () => {
+  it("is different each time, so registering again never collides on GitHub", () => {
+    const names = new Set(Array.from({ length: 20 }, () => appName("org_123456789")));
+    expect(names.size).toBe(20);
+  });
+
+  it("fits GitHub's 34 character limit", () => {
+    expect(appName("o".repeat(64)).length).toBeLessThanOrEqual(34);
+  });
+});
+
 describe("manifestStartUrl", () => {
   it("registers the app on the person's account by default", () => {
     expect(manifestStartUrl(undefined, "s")).toBe("https://github.com/settings/apps/new?state=s");
@@ -54,36 +64,6 @@ describe("manifestStartUrl", () => {
     expect(manifestStartUrl("acme-inc", "s")).toBe(
       "https://github.com/organizations/acme-inc/settings/apps/new?state=s",
     );
-  });
-});
-
-describe("state", () => {
-  it("round-trips its claims", () => {
-    expect(verifyState(signState(claims, secret, now), secret, now)).toEqual(claims);
-  });
-
-  it("refuses a state signed under another secret", () => {
-    expect(
-      verifyState(signState(claims, "other-secret-other-secret-other-secret", now), secret, now),
-    ).toBeUndefined();
-  });
-
-  it("refuses a state whose claims were changed", () => {
-    const [payload, signature] = signState(claims, secret, now).split(".");
-    const forged = Buffer.from(
-      JSON.stringify({ ...claims, organizationId: "org_2", exp: Infinity }),
-    ).toString("base64url");
-    expect(payload).not.toBe(forged);
-    expect(verifyState(`${forged}.${signature}`, secret, now)).toBeUndefined();
-  });
-
-  it("refuses a state older than an hour", () => {
-    const later = new Date(now.getTime() + 61 * 60 * 1000);
-    expect(verifyState(signState(claims, secret, now), secret, later)).toBeUndefined();
-  });
-
-  it("refuses what is not a state", () => {
-    expect(verifyState("garbage", secret, now)).toBeUndefined();
   });
 });
 

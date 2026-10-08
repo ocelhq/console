@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "e11998c9-1c47-4440-a58b-9e90225a8426",
+  "id": "80032b6f-9800-4089-9283-a0119779307d",
   "prevIds": [
     "3e6fdbd0-3d33-4e3c-b8d8-01829bdbf7c1"
   ],
@@ -171,7 +171,19 @@
     },
     {
       "isRlsEnabled": false,
+      "name": "git_delivery",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
       "name": "git_installation",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "project_repo",
       "entityType": "tables",
       "schema": "public"
     },
@@ -1853,6 +1865,45 @@
       "default": null,
       "generated": null,
       "identity": null,
+      "name": "git_app_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "git_delivery"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "delivery_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "git_delivery"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "received_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "git_delivery"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
       "name": "id",
       "entityType": "columns",
       "schema": "public",
@@ -1931,6 +1982,58 @@
       "default": null,
       "generated": null,
       "identity": null,
+      "name": "project_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "project_repo"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "installation_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "project_repo"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "repo_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "project_repo"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "full_name",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "project_repo"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
       "name": "id",
       "entityType": "columns",
       "schema": "public",
@@ -1997,45 +2100,6 @@
       "generated": null,
       "identity": null,
       "name": "frameworks",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "project"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "repo_installation_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "project"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "repo_full_name",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "project"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "repo_id",
       "entityType": "columns",
       "schema": "public",
       "table": "project"
@@ -2426,6 +2490,27 @@
       "nameExplicit": true,
       "columns": [
         {
+          "value": "received_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "git_delivery_receivedAt_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "git_delivery"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
           "value": "git_app_id",
           "isExpression": false,
           "asc": true,
@@ -2454,6 +2539,34 @@
       "nameExplicit": true,
       "columns": [
         {
+          "value": "installation_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "repo_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "project_repo_installationId_repoId_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "project_repo"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
           "value": "organization_id",
           "isExpression": false,
           "asc": true,
@@ -2474,27 +2587,6 @@
       "method": "btree",
       "concurrently": false,
       "name": "project_organizationId_slug_uidx",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "project"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "repo_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "project_repoId_idx",
       "entityType": "indexes",
       "schema": "public",
       "table": "project"
@@ -2681,6 +2773,23 @@
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
+      "name": "git_delivery_git_app_id_git_app_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "git_delivery"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "git_app_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "git_app",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
       "name": "git_installation_git_app_id_git_app_id_fkey",
       "entityType": "fks",
       "schema": "public",
@@ -2706,6 +2815,40 @@
     {
       "nameExplicit": false,
       "columns": [
+        "project_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "project",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "project_repo_project_id_project_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "project_repo"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "installation_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "git_installation",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "project_repo_installation_id_git_installation_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "project_repo"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
         "organization_id"
       ],
       "schemaTo": "public",
@@ -2716,23 +2859,6 @@
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "project_organization_id_organization_id_fkey",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "project"
-    },
-    {
-      "nameExplicit": false,
-      "columns": [
-        "repo_installation_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "git_installation",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "SET NULL",
-      "name": "project_repo_installation_id_git_installation_id_fkey",
       "entityType": "fks",
       "schema": "public",
       "table": "project"
@@ -2753,6 +2879,17 @@
       "entityType": "fks",
       "schema": "public",
       "table": "project"
+    },
+    {
+      "columns": [
+        "git_app_id",
+        "delivery_id"
+      ],
+      "nameExplicit": false,
+      "name": "git_delivery_pkey",
+      "entityType": "pks",
+      "schema": "public",
+      "table": "git_delivery"
     },
     {
       "columns": [
@@ -2892,6 +3029,16 @@
       "name": "git_installation_pkey",
       "schema": "public",
       "table": "git_installation",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "project_id"
+      ],
+      "nameExplicit": false,
+      "name": "project_repo_pkey",
+      "schema": "public",
+      "table": "project_repo",
       "entityType": "pks"
     },
     {

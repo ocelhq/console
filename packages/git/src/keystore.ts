@@ -1,32 +1,36 @@
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
+import { open, seal } from "./aead";
+
+export interface WrappedKey {
+  keyId: string;
+  wrapped: Buffer;
+}
 
 export interface KeyStore {
-  wrap(dataKey: Buffer): Promise<string>;
-  unwrap(wrapped: string): Promise<Buffer>;
+  wrap(dataKey: Buffer, context: string): Promise<WrappedKey>;
+  unwrap(key: WrappedKey, context: string): Promise<Buffer>;
 }
 
 const KEY_BYTES = 32;
-const IV_BYTES = 12;
 
 export function envKeyStore(masterKey: string): KeyStore {
   const key = Buffer.from(masterKey, "base64");
   if (key.length !== KEY_BYTES) {
     throw new Error(`the console encryption key must be ${KEY_BYTES} bytes, base64 encoded`);
   }
+  const keyId = `env:${createHash("sha256").update(key).digest("hex").slice(0, 16)}`;
 
   return {
-    async wrap(dataKey) {
-      const iv = randomBytes(IV_BYTES);
-      const cipher = createCipheriv("aes-256-gcm", key, iv);
-      const sealed = Buffer.concat([cipher.update(dataKey), cipher.final()]);
-      return [iv, sealed, cipher.getAuthTag()].map((part) => part.toString("base64")).join(".");
+    async wrap(dataKey, context) {
+      return { keyId, wrapped: seal(key, dataKey, context) };
     },
-    async unwrap(wrapped) {
-      const [iv, sealed, tag] = wrapped.split(".").map((part) => Buffer.from(part, "base64"));
-      if (!iv || !sealed || !tag) throw new Error("the wrapped data key is malformed");
-      const decipher = createDecipheriv("aes-256-gcm", key, iv, { authTagLength: 16 });
-      decipher.setAuthTag(tag);
-      return Buffer.concat([decipher.update(sealed), decipher.final()]);
+    async unwrap(wrapped, context) {
+      if (wrapped.keyId !== keyId) {
+        throw new Error(
+          `the secret was sealed under key ${wrapped.keyId}, but CONSOLE_ENCRYPTION_KEY is ${keyId}`,
+        );
+      }
+      return open(key, wrapped.wrapped, context);
     },
   };
 }

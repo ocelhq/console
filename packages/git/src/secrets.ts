@@ -1,36 +1,39 @@
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
+import { open, seal } from "./aead";
 import type { KeyStore } from "./keystore";
 
 const VERSION = "v1";
-const IV_BYTES = 12;
 
-export async function sealSecret(keys: KeyStore, plaintext: string): Promise<string> {
+export async function sealSecret(
+  keys: KeyStore,
+  plaintext: string,
+  context: string,
+): Promise<string> {
   const dataKey = randomBytes(32);
-  const iv = randomBytes(IV_BYTES);
-  const cipher = createCipheriv("aes-256-gcm", dataKey, iv);
-  const sealed = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
-  const wrapped = await keys.wrap(dataKey);
+  const { keyId, wrapped } = await keys.wrap(dataKey, context);
   return [
     VERSION,
-    Buffer.from(wrapped).toString("base64url"),
-    iv.toString("base64url"),
-    Buffer.concat([sealed, cipher.getAuthTag()]).toString("base64url"),
+    Buffer.from(keyId, "utf8").toString("base64url"),
+    wrapped.toString("base64url"),
+    seal(dataKey, Buffer.from(plaintext, "utf8"), context).toString("base64url"),
   ].join(".");
 }
 
-export async function openSecret(keys: KeyStore, envelope: string): Promise<string> {
-  const [version, wrapped, iv, body] = envelope.split(".");
-  if (version !== VERSION || !wrapped || !iv || !body) {
+export async function openSecret(
+  keys: KeyStore,
+  envelope: string,
+  context: string,
+): Promise<string> {
+  const [version, keyId, wrapped, sealed, extra] = envelope.split(".");
+  if (version !== VERSION || !keyId || !wrapped || !sealed || extra !== undefined) {
     throw new Error("not a secret envelope this console wrote");
   }
-  const dataKey = await keys.unwrap(Buffer.from(wrapped, "base64url").toString());
-  const bytes = Buffer.from(body, "base64url");
-  const decipher = createDecipheriv("aes-256-gcm", dataKey, Buffer.from(iv, "base64url"), {
-    authTagLength: 16,
-  });
-  decipher.setAuthTag(bytes.subarray(bytes.length - 16));
-  return Buffer.concat([
-    decipher.update(bytes.subarray(0, bytes.length - 16)),
-    decipher.final(),
-  ]).toString("utf8");
+  const dataKey = await keys.unwrap(
+    {
+      keyId: Buffer.from(keyId, "base64url").toString("utf8"),
+      wrapped: Buffer.from(wrapped, "base64url"),
+    },
+    context,
+  );
+  return open(dataKey, Buffer.from(sealed, "base64url"), context).toString("utf8");
 }

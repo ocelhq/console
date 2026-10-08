@@ -8,6 +8,7 @@ export async function register() {
   const { migrateDatabase } = await import("@console/db/migrate");
   await migrateDatabase(pg);
 
-  const { syncSystemApp } = await import("@console/git");
-  await syncSystemApp();
+  const { readGitSettings, syncSystemApp } = await import("@console/git");
+  const { gitKeyStore } = await import("./lib/git");
+  await syncSystemApp(gitKeyStore(), readGitSettings().githubApp);
 }

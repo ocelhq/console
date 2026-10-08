@@ -97,8 +97,12 @@ an owner or admin registers a GitHub App of their own under Organization > Git: 
 to confirm, and the console stores the app it hands back. To offer one app to every organization
 instead, set `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_APP_PRIVATE_KEY`,
 `GITHUB_APP_WEBHOOK_SECRET`, `GITHUB_APP_CLIENT_ID` and `GITHUB_APP_CLIENT_SECRET` together; the
-console stores them as the system app at start. Point that app's webhook at
-`{origin}/api/git/github/system-github/webhooks`.
+console stores them as the system app at start, and removes it once they are unset. On that app,
+set the webhook URL to `{origin}/api/git/github/system-github/webhooks`, the setup URL to
+`{origin}/api/git/github/system-github/setup` with "Redirect on update" checked, and the callback
+URL to `{origin}/api/git/github/system-github/authorized`. Whoever installs the app comes back
+through the setup URL, signs in to GitHub, and the console connects the installation to their
+organization once GitHub confirms their account can reach it.
 
 Then point the CLI at your console:
 `OCEL_CONSOLE_URL=https://console.example.com ocel login`,

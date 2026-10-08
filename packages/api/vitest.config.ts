@@ -21,7 +21,6 @@ export default defineConfig({
       BETTER_AUTH_SECRET: "test-secret-at-least-32-characters-long",
       BETTER_AUTH_URL: "http://localhost:3000",
       CONSOLE_EMAIL_AUTH: "true",
-      CONSOLE_ENCRYPTION_KEY: "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
       CONSOLE_SIGNUP: "open",
       DATABASE_URL:
         process.env.TEST_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/ocelhq_test",
