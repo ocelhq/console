@@ -185,6 +185,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@console/db": "workspace:*",
+        "@console/git": "workspace:*",
         "drizzle-orm": "catalog:",
       },
       "devDependencies": {
