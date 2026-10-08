@@ -2,6 +2,8 @@ import { generateKeyPairSync, type KeyObject } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { auth } from "@console/auth/next";
+import { ConnectorReach, ConnectorService } from "@console/connectors/gen/console/v1/connector_pb";
+import { ComputeKind } from "@console/connectors/gen/console/v1/deployment_pb";
 import { db } from "@console/db";
 import { connector } from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
@@ -10,10 +12,8 @@ import { SignJWT } from "jose";
 import { uuidv7 } from "uuidv7";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createTestSessionWithOrganization } from "../test/auth-harness";
+import { serviceClient } from "../test/connect-harness";
 import { connectorHeartbeat } from "./routes/connectors/[id]/heartbeat/route";
-import { deleteConnector, updateConnector } from "./routes/connectors/[id]/route";
-import { listConnectors, upsertConnector } from "./routes/connectors/route";
-import { createProject, listProjects } from "./routes/projects/route";
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
@@ -45,18 +45,9 @@ function route(request: Request): Promise<Response> {
   const handlers: Record<string, ((request: Request) => Promise<Response>) | undefined> =
     api !== "api"
       ? {}
-      : resource === "projects" && id === undefined
-        ? { GET: listProjects, POST: createProject }
-        : resource === "connectors" && id === undefined
-          ? { GET: listConnectors, PUT: upsertConnector }
-          : resource === "connectors" && action === undefined
-            ? {
-                PATCH: (request) => updateConnector(request, id),
-                DELETE: (request) => deleteConnector(request, id),
-              }
-            : resource === "connectors" && action === "heartbeat"
-              ? { POST: (request) => connectorHeartbeat(request, id) }
-              : {};
+      : resource === "connectors" && action === "heartbeat"
+        ? { POST: (request) => connectorHeartbeat(request, id) }
+        : {};
   const handler = handlers[request.method];
   if (!handler) {
     throw new Error(`the console routes no ${request.method} ${pathname}`);
@@ -180,20 +171,22 @@ async function requestDeviceCode() {
 }
 
 async function registerConnector(session: Session): Promise<string> {
-  const registered = await sendOk("PUT", "/api/connectors", session, {
+  const { connector: registered } = await serviceClient(ConnectorService, session.token).upsert({
     target: "vps/sha256:abc/ocel",
     vendor: "vps",
+    reach: ConnectorReach.DIAL,
   });
-  return registered.id;
+  return registered?.id ?? "";
 }
 
 async function registerAddressedConnector(session: Session) {
   const id = await registerConnector(session);
   const keys = keyPair();
-  await sendOk("PATCH", `/api/connectors/${id}`, session, {
+  await serviceClient(ConnectorService, session.token).setAddress({
+    id,
     url: "https://connector.example.test",
     publicKey: keys.publicKey,
-    compute: "container",
+    compute: ComputeKind.CONTAINER,
   });
   return { id, keys };
 }
@@ -211,48 +204,6 @@ const setups: Record<string, (session: Session) => Promise<Binding>> = {
   "organization-list": async () => ({}),
   "organization-set-active": async () => ({}),
   "sign-out": async () => ({}),
-  "projects-list": async (session) => {
-    const created = await sendOk("POST", "/api/projects", session, { name: "Shop", slug: "shop" });
-    return { "project.id": created.id };
-  },
-  "projects-list-signed-out": async () => ({}),
-  "projects-create": async () => ({}),
-  "projects-create-conflict": async (session) => {
-    await sendOk("POST", "/api/projects", session, { name: "Shop", slug: "shop" });
-    return {};
-  },
-  "connectors-list": async (session) => {
-    const { id, keys } = await registerAddressedConnector(session);
-    const beat = await connectorHeartbeat(
-      new Request(`${origin}/api/connectors/${id}/heartbeat`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${await mintHeartbeatToken(keys.privateKey, id)}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ version: "0.0.0-alpha", capabilities: ["variables.read"] }),
-      }),
-      id,
-    );
-    expect(beat.status).toBe(204);
-    await db
-      .update(connector)
-      .set({
-        lastDenied: {
-          verb: "set",
-          at: "2026-01-02T03:04:05.678Z",
-          message: "the token has no variables.write scope",
-        },
-      })
-      .where(eq(connector.id, id));
-    return { "connector.id": id, "connector.publicKey": keys.publicKey };
-  },
-  "connectors-upsert": async () => ({}),
-  "connectors-set-address": async (session) => ({
-    "connector.id": await registerConnector(session),
-    "connector.publicKey": keyPair().publicKey,
-  }),
-  "connectors-remove": async (session) => ({ "connector.id": await registerConnector(session) }),
   "connector-heartbeat": async (session) => {
     const { id, keys } = await registerAddressedConnector(session);
     return {
