@@ -6,6 +6,7 @@ import {
   AppOutcome,
   ComputeKind,
   DeploymentOutcome,
+  DeploymentService,
   EnvironmentEventKind,
   EnvironmentEventSchema,
 } from "@console/connectors/gen/console/v1/deployment_pb";
@@ -17,9 +18,9 @@ import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createTestSessionWithOrganization } from "../../../test/auth-harness";
 import {
-  connectClient,
   deploymentRecord,
   projectIn,
+  serviceClient,
   TRACE_ID,
 } from "../../../test/connect-harness";
 
@@ -30,14 +31,14 @@ describe("DeploymentService over Connect", () => {
 
   describe("the session", () => {
     it("returns Unauthenticated for a call with no session", async () => {
-      const error = await connectClient(null)
+      const error = await serviceClient(DeploymentService, null)
         .report({ projectId: crypto.randomUUID(), deployment: deploymentRecord() })
         .catch((e: unknown) => e);
       expect(ConnectError.from(error).code).toBe(Code.Unauthenticated);
     });
 
     it("returns Unauthenticated for a bearer that is not a session", async () => {
-      const error = await connectClient("not-a-session")
+      const error = await serviceClient(DeploymentService, "not-a-session")
         .report({ projectId: crypto.randomUUID(), deployment: deploymentRecord() })
         .catch((e: unknown) => e);
       expect(ConnectError.from(error).code).toBe(Code.Unauthenticated);
@@ -50,7 +51,10 @@ describe("DeploymentService over Connect", () => {
       try {
         const projectId = await projectIn(session.organization.id, "report-stores");
 
-        await connectClient(session.token).report({ projectId, deployment: deploymentRecord() });
+        await serviceClient(DeploymentService, session.token).report({
+          projectId,
+          deployment: deploymentRecord(),
+        });
 
         const [row] = await db.select().from(deployment).where(eq(deployment.projectId, projectId));
         expect(row).toMatchObject({
@@ -97,7 +101,7 @@ describe("DeploymentService over Connect", () => {
       const session = await createTestSessionWithOrganization();
       try {
         const projectId = await projectIn(session.organization.id, "report-twice");
-        const client = connectClient(session.token);
+        const client = serviceClient(DeploymentService, session.token);
 
         await client.report({ projectId, deployment: deploymentRecord() });
         await client.report({ projectId, deployment: deploymentRecord() });
@@ -186,7 +190,7 @@ describe("DeploymentService over Connect", () => {
     it("returns NotFound for a project that does not exist", async () => {
       const session = await createTestSessionWithOrganization();
       try {
-        const error = await connectClient(session.token)
+        const error = await serviceClient(DeploymentService, session.token)
           .report({ projectId: crypto.randomUUID(), deployment: deploymentRecord() })
           .catch((e: unknown) => e);
         expect(ConnectError.from(error).code).toBe(Code.NotFound);
@@ -201,7 +205,7 @@ describe("DeploymentService over Connect", () => {
       try {
         const foreign = await projectIn(other.organization.id, "shop");
 
-        const error = await connectClient(session.token)
+        const error = await serviceClient(DeploymentService, session.token)
           .report({ projectId: foreign, deployment: deploymentRecord() })
           .catch((e: unknown) => e);
 
@@ -221,7 +225,7 @@ describe("DeploymentService over Connect", () => {
         const mine = await projectIn(session.organization.id, "shop");
         const foreign = await projectIn(other.organization.id, "shop");
 
-        await connectClient(session.token).report({
+        await serviceClient(DeploymentService, session.token).report({
           projectId: mine,
           deployment: deploymentRecord(),
         });
@@ -243,7 +247,7 @@ describe("DeploymentService over Connect", () => {
       try {
         const projectId = await projectIn(session.organization.id, "no-promotion");
 
-        const error = await connectClient(session.token)
+        const error = await serviceClient(DeploymentService, session.token)
           .report({ projectId, deployment: deploymentRecord({ promotion: undefined }) })
           .catch((e: unknown) => e);
 
@@ -260,7 +264,7 @@ describe("DeploymentService over Connect", () => {
       try {
         const projectId = await projectIn(session.organization.id, "failed-promotion");
 
-        const error = await connectClient(session.token)
+        const error = await serviceClient(DeploymentService, session.token)
           .report({
             projectId,
             deployment: deploymentRecord({ outcome: DeploymentOutcome.FAILED }),
@@ -279,7 +283,7 @@ describe("DeploymentService over Connect", () => {
       const session = await createTestSessionWithOrganization();
       try {
         const projectId = await projectIn(session.organization.id, "no-runtime");
-        await connectClient(session.token).report({
+        await serviceClient(DeploymentService, session.token).report({
           projectId,
           deployment: deploymentRecord({
             apps: [{ name: "web", compute: ComputeKind.SERVERLESS, outcome: AppOutcome.SKIPPED }],
@@ -298,7 +302,7 @@ describe("DeploymentService over Connect", () => {
       try {
         const projectId = await projectIn(session.organization.id, "report-spans");
 
-        await connectClient(session.token).report({
+        await serviceClient(DeploymentService, session.token).report({
           projectId,
           deployment: deploymentRecord({
             spans: [
@@ -335,7 +339,7 @@ describe("DeploymentService over Connect", () => {
       try {
         const projectId = await projectIn(session.organization.id, "event-stores");
 
-        await connectClient(session.token).recordEnvironmentEvent({
+        await serviceClient(DeploymentService, session.token).recordEnvironmentEvent({
           projectId,
           event: create(EnvironmentEventSchema, {
             id: TRACE_ID,
@@ -368,7 +372,7 @@ describe("DeploymentService over Connect", () => {
       const session = await createTestSessionWithOrganization();
       try {
         const projectId = await projectIn(session.organization.id, "event-twice");
-        const client = connectClient(session.token);
+        const client = serviceClient(DeploymentService, session.token);
         const event = {
           id: TRACE_ID,
           kind: EnvironmentEventKind.DESTROYED,
@@ -427,7 +431,7 @@ describe("DeploymentService over Connect", () => {
       try {
         const projectId = await projectIn(session.organization.id, "event-prod");
 
-        const error = await connectClient(session.token)
+        const error = await serviceClient(DeploymentService, session.token)
           .recordEnvironmentEvent({
             projectId,
             event: {
@@ -451,7 +455,7 @@ describe("DeploymentService over Connect", () => {
       try {
         const foreign = await projectIn(other.organization.id, "shop");
 
-        const error = await connectClient(session.token)
+        const error = await serviceClient(DeploymentService, session.token)
           .recordEnvironmentEvent({
             projectId: foreign,
             event: {

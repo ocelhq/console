@@ -37,10 +37,6 @@ export function serviceClient<S extends DescService>(service: S, bearer: string 
   );
 }
 
-export function connectClient(bearer: string | null) {
-  return serviceClient(DeploymentService, bearer);
-}
-
 export async function projectIn(organizationId: string, slug: string): Promise<string> {
   const id = crypto.randomUUID();
   await db.insert(project).values({ id, organizationId, name: "My Project", slug });
