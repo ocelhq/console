@@ -17,6 +17,7 @@ function postgresBinding(name: string, url: string): string {
 export default defineConfig({
   test: {
     environment: "node",
+    fileParallelism: false,
     env: {
       BETTER_AUTH_SECRET: "test-secret-at-least-32-characters-long",
       BETTER_AUTH_URL: "http://localhost:3000",
