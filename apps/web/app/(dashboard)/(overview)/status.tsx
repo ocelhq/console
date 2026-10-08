@@ -1,10 +1,16 @@
-import type { LatestRun } from "@/lib/deployments";
-import { type RunStatus, runStatus } from "@/lib/runs";
+import { type DeploymentStatus, deploymentStatus } from "@/lib/deployment-view";
+import type { LatestDeployment } from "@/lib/deployments";
 import { cn } from "@/lib/utils";
 import { Stamp } from "../stamp";
 
-export function StatusLine({ run, now }: { run: LatestRun | undefined; now: string }) {
-  if (!run) {
+export function StatusLine({
+  deployment,
+  now,
+}: {
+  deployment: LatestDeployment | undefined;
+  now: string;
+}) {
+  if (!deployment) {
     return (
       <span className="flex items-center gap-2 text-muted-foreground">
         <span aria-hidden className="size-1.5 shrink-0 border border-dim" />
@@ -12,12 +18,12 @@ export function StatusLine({ run, now }: { run: LatestRun | undefined; now: stri
       </span>
     );
   }
-  const status: RunStatus = run.tornDownAt
+  const status: DeploymentStatus = deployment.tornDownAt
     ? { word: "Destroyed", tone: "faint" }
-    : run.outcome === "failed"
+    : deployment.outcome === "failed"
       ? { word: "Deploy failed", tone: "destructive" }
-      : runStatus(run);
-  const at = run.tornDownAt ?? run.deployedAt;
+      : deploymentStatus(deployment);
+  const at = deployment.tornDownAt ?? deployment.deployedAt;
   return (
     <span
       className={cn(

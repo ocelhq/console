@@ -3,7 +3,12 @@ import { deployment, environmentEvent, project } from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createTestSessionWithOrganization } from "@/test/auth-harness";
-import { findRun, latestDeployments, latestRuns, listRuns } from "./deployments";
+import {
+  findDeployment,
+  latestDeploymentByProject,
+  latestDeployments,
+  listDeployments,
+} from "./deployments";
 
 const PREVIEW = { tier: "preview", environmentIdentity: "pr-7" } as const;
 const PRODUCTION = { tier: "production", environmentIdentity: "" } as const;
@@ -47,7 +52,7 @@ async function tornDown(projectId: string, place: Place, at: string) {
   });
 }
 
-describe("active runs", () => {
+describe("active deployments", () => {
   beforeAll(async () => {
     await setupTestDatabase();
   });
@@ -59,9 +64,9 @@ describe("active runs", () => {
       const id = await deployed(projectId, PREVIEW, "2026-01-01T00:00:00.000Z");
       await tornDown(projectId, PREVIEW, "2026-01-02T00:00:00.000Z");
 
-      const runs = await listRuns([projectId], null, null);
-      expect(runs).toMatchObject({ error: false, rows: [{ id, active: false }] });
-      expect(await findRun(projectId, id)).toMatchObject({ error: false, active: null });
+      const listed = await listDeployments([projectId], null, null);
+      expect(listed).toMatchObject({ error: false, rows: [{ id, active: false }] });
+      expect(await findDeployment(projectId, id)).toMatchObject({ error: false, active: null });
     } finally {
       await session.cleanup();
     }
@@ -75,8 +80,8 @@ describe("active runs", () => {
       await tornDown(projectId, PREVIEW, "2026-01-02T00:00:00.000Z");
       const redeployed = await deployed(projectId, PREVIEW, "2026-01-03T00:00:00.000Z");
 
-      const runs = await listRuns([projectId], null, null);
-      expect(runs).toMatchObject({
+      const listed = await listDeployments([projectId], null, null);
+      expect(listed).toMatchObject({
         error: false,
         rows: [
           { id: redeployed, active: true },
@@ -128,7 +133,7 @@ describe("latestDeployments", () => {
   });
 });
 
-describe("latestRuns", () => {
+describe("latestDeploymentByProject", () => {
   beforeAll(async () => {
     await setupTestDatabase();
   });
@@ -140,8 +145,8 @@ describe("latestRuns", () => {
       await deployed(projectId, PRODUCTION, "2026-01-01T00:00:00.000Z");
       await tornDown(projectId, PRODUCTION, "2026-01-02T00:00:00.000Z");
 
-      const runs = await latestRuns([projectId]);
-      expect(runs.get(projectId)).toMatchObject({
+      const listed = await latestDeploymentByProject([projectId]);
+      expect(listed.get(projectId)).toMatchObject({
         tornDownAt: new Date("2026-01-02T00:00:00.000Z"),
       });
     } finally {
@@ -157,8 +162,8 @@ describe("latestRuns", () => {
       await tornDown(projectId, PRODUCTION, "2026-01-02T00:00:00.000Z");
       await deployed(projectId, PRODUCTION, "2026-01-03T00:00:00.000Z");
 
-      const runs = await latestRuns([projectId]);
-      expect(runs.get(projectId)).toMatchObject({ tornDownAt: null });
+      const listed = await latestDeploymentByProject([projectId]);
+      expect(listed.get(projectId)).toMatchObject({ tornDownAt: null });
     } finally {
       await session.cleanup();
     }

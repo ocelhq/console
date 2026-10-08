@@ -11,8 +11,9 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import type { Tone } from "@/lib/deployment-view";
+import { initials } from "@/lib/initials";
 import { absoluteTime } from "@/lib/relative-time";
-import { initials, type Tone } from "@/lib/runs";
 import { AppMark } from "../../../marks";
 
 const tones: Record<Tone, string> = {

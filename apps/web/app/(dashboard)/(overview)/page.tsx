@@ -4,7 +4,7 @@ import { ArrowUpRightIcon } from "@phosphor-icons/react/dist/ssr";
 import { desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { requireOrganization } from "@/lib/access";
-import { type LatestRun, latestRuns } from "@/lib/deployments";
+import { type LatestDeployment, latestDeploymentByProject } from "@/lib/deployments";
 import { FrameworkStack } from "../framework-stack";
 import { ProviderMark } from "../marks";
 import { EmptyProjects } from "./empty";
@@ -16,15 +16,17 @@ const createdFormat = new Intl.DateTimeFormat("en", {
   timeZone: "UTC",
 });
 
-function Provider({ run }: { run: LatestRun | undefined }) {
-  if (!run) {
+function Provider({ deployment }: { deployment: LatestDeployment | undefined }) {
+  if (!deployment) {
     return null;
   }
   return (
     <p className="flex shrink-0 items-center gap-1.5">
-      <ProviderMark provider={run.providerName} size={14} />
-      <span className="sr-only">{run.providerName}</span>
-      {run.providerRegion && <span className="tabular-nums">{run.providerRegion}</span>}
+      <ProviderMark provider={deployment.providerName} size={14} />
+      <span className="sr-only">{deployment.providerName}</span>
+      {deployment.providerRegion && (
+        <span className="tabular-nums">{deployment.providerRegion}</span>
+      )}
     </p>
   );
 }
@@ -42,7 +44,7 @@ export default async function OverviewPage() {
     .from(project)
     .where(eq(project.organizationId, session.activeOrganizationId))
     .orderBy(desc(project.createdAt));
-  const runs = await latestRuns(projects.map((item) => item.id));
+  const latest = await latestDeploymentByProject(projects.map((item) => item.id));
   const now = new Date().toISOString();
 
   return (
@@ -71,7 +73,7 @@ export default async function OverviewPage() {
                   <h2 className="truncate font-sans text-base/6 font-semibold tracking-normal">
                     {item.name}
                   </h2>
-                  <StatusLine run={runs.get(item.id)} now={now} />
+                  <StatusLine deployment={latest.get(item.id)} now={now} />
                   <div className="mt-0.5 flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground">
                     <p className="flex min-w-0 items-center gap-2">
                       <span className="truncate">{item.slug}</span>
@@ -85,7 +87,7 @@ export default async function OverviewPage() {
                         </time>
                       </span>
                     </p>
-                    <Provider run={runs.get(item.id)} />
+                    <Provider deployment={latest.get(item.id)} />
                   </div>
                 </div>
               </Link>

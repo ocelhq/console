@@ -20,14 +20,22 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { requireOrganization } from "@/lib/access";
-import { findRun } from "@/lib/deployments";
+import {
+  authorOf,
+  commandOf,
+  deploymentHref,
+  deploymentStatus,
+  duration,
+  kindVerbs,
+  shortId,
+} from "@/lib/deployment-view";
+import { findDeployment } from "@/lib/deployments";
 import { absoluteTime } from "@/lib/relative-time";
-import { authorOf, commandOf, duration, kindVerbs, runHref, runStatus, shortId } from "@/lib/runs";
 import { labelType } from "@/lib/type";
 import { EdgeMark, ProviderMark } from "../../../../marks";
 import { Stamp } from "../../../../stamp";
 import { Author, EnvironmentBadge, StatusDot, Trigger } from "../cells";
-import { RunActions } from "./actions";
+import { DeploymentActions } from "./actions";
 import {
   AppList,
   BuildLog,
@@ -66,7 +74,7 @@ function countOf(n: number, noun: string) {
   return n === 0 ? "None" : `${n} ${noun}${n === 1 ? "" : "s"}`;
 }
 
-export default async function RunPage({
+export default async function DeploymentPage({
   params,
 }: {
   params: Promise<{ slug: string; id: string }>;
@@ -81,30 +89,30 @@ export default async function RunPage({
     notFound();
   }
 
-  const load = await findRun(found.id, id);
+  const load = await findDeployment(found.id, id);
   const now = new Date().toISOString();
   const back = `/projects/${slug}/deployments`;
 
   if (load.error) {
-    return <LoadError href={runHref(slug, id)} back={back} />;
+    return <LoadError href={deploymentHref(slug, id)} back={back} />;
   }
-  if (!load.run) {
+  if (!load.deployment) {
     return <NotFound back={back} />;
   }
 
-  const { run, active } = load;
-  const status = runStatus(run);
-  const isActive = active?.id === run.id;
-  const superseded = !isActive && run.outcome === "succeeded" && active;
-  const took = duration(run);
-  const url = run.topology.apps.flatMap((app) => app.urls)[0] ?? null;
+  const { deployment, active } = load;
+  const status = deploymentStatus(deployment);
+  const isActive = active?.id === deployment.id;
+  const superseded = !isActive && deployment.outcome === "succeeded" && active;
+  const took = duration(deployment);
+  const url = deployment.topology.apps.flatMap((app) => app.urls)[0] ?? null;
   const title =
-    shortId(run.promotionId) ??
-    (run.outcome === "failed" ? `Failed ${kindVerbs[run.kind]}` : status.word);
-  const stageCount = run.trace.length;
-  const EnvironmentIcon = run.tier === "production" ? GlobeSimpleIcon : GitPullRequestIcon;
-  const hostnames = hostnamesOf(run.topology.apps).length;
-  const checks = checksOf(run.topology.apps).length;
+    shortId(deployment.promotionId) ??
+    (deployment.outcome === "failed" ? `Failed ${kindVerbs[deployment.kind]}` : status.word);
+  const stageCount = deployment.trace.length;
+  const EnvironmentIcon = deployment.tier === "production" ? GlobeSimpleIcon : GitPullRequestIcon;
+  const hostnames = hostnamesOf(deployment.topology.apps).length;
+  const checks = checksOf(deployment.topology.apps).length;
 
   return (
     <div className="flex flex-1 flex-col gap-6 px-5 pt-8 pb-12 md:px-8">
@@ -119,8 +127,8 @@ export default async function RunPage({
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
           <div className="flex flex-col gap-3">
             <h1
-              title={run.promotionId ?? undefined}
-              className={`text-2xl font-semibold tracking-tight ${run.promotionId ? "font-mono" : ""}`}
+              title={deployment.promotionId ?? undefined}
+              className={`text-2xl font-semibold tracking-tight ${deployment.promotionId ? "font-mono" : ""}`}
             >
               {title}
             </h1>
@@ -132,19 +140,19 @@ export default async function RunPage({
                 </span>
               </span>
               <span className="text-muted-foreground">
-                <Stamp at={run.deployedAt.toISOString()} now={now} />
+                <Stamp at={deployment.deployedAt.toISOString()} now={now} />
               </span>
-              <EnvironmentBadge tier={run.tier} active={isActive} />
-              {run.environmentIdentity && (
-                <span className="text-muted-foreground">{run.environmentIdentity}</span>
+              <EnvironmentBadge tier={deployment.tier} active={isActive} />
+              {deployment.environmentIdentity && (
+                <span className="text-muted-foreground">{deployment.environmentIdentity}</span>
               )}
-              {run.tag && <span className="text-muted-foreground">{run.tag}</span>}
+              {deployment.tag && <span className="text-muted-foreground">{deployment.tag}</span>}
             </div>
             {superseded && active.promotionId && (
               <p className="text-sm text-muted-foreground">
                 Superseded by{" "}
                 <Link
-                  href={runHref(slug, active.id)}
+                  href={deploymentHref(slug, active.id)}
                   className="font-mono text-[13px] text-foreground underline-offset-4 outline-none hover:underline focus-visible:underline"
                 >
                   {shortId(active.promotionId)}
@@ -152,21 +160,21 @@ export default async function RunPage({
                 <Stamp at={active.deployedAt.toISOString()} now={now} />.
               </p>
             )}
-            {run.error && (
+            {deployment.error && (
               <p
                 role="alert"
                 className="max-w-xl border border-destructive p-3 font-mono text-xs text-destructive"
               >
-                {run.error}
+                {deployment.error}
               </p>
             )}
           </div>
-          <RunActions
+          <DeploymentActions
             url={url}
-            outcome={run.outcome}
-            promotionId={run.promotionId}
-            tier={run.tier}
-            environmentIdentity={run.environmentIdentity}
+            outcome={deployment.outcome}
+            promotionId={deployment.promotionId}
+            tier={deployment.tier}
+            environmentIdentity={deployment.environmentIdentity}
             active={isActive}
           />
         </div>
@@ -176,54 +184,54 @@ export default async function RunPage({
         <Field name="Environment">
           <span className="inline-flex items-center gap-1.5">
             <EnvironmentIcon aria-hidden className="size-4 text-muted-foreground" />
-            {run.tier}
-            {run.environmentIdentity ? ` · ${run.environmentIdentity}` : ""}
+            {deployment.tier}
+            {deployment.environmentIdentity ? ` · ${deployment.environmentIdentity}` : ""}
           </span>
         </Field>
         <Field name="Provider">
           <span className="inline-flex items-center gap-2">
-            <ProviderMark provider={run.providerName} size={18} />
-            {[run.providerName, run.providerRegion].filter(Boolean).join(" · ")}
+            <ProviderMark provider={deployment.providerName} size={18} />
+            {[deployment.providerName, deployment.providerRegion].filter(Boolean).join(" · ")}
           </span>
         </Field>
         <Field name="Edge">
-          {run.edgeKind ? (
+          {deployment.edgeKind ? (
             <span className="inline-flex items-center gap-2">
-              <EdgeMark edge={run.edgeKind} size={16} />
-              {run.edgeKind}
+              <EdgeMark edge={deployment.edgeKind} size={16} />
+              {deployment.edgeKind}
             </span>
           ) : (
             <NotReported />
           )}
         </Field>
         <Field name="Author">
-          <Author name={authorOf(run.trigger)} />
+          <Author name={authorOf(deployment.trigger)} />
         </Field>
         <Field name="Trigger">
-          <Trigger trigger={run.trigger} command={commandOf(run)} />
+          <Trigger trigger={deployment.trigger} command={commandOf(deployment)} />
         </Field>
         <Field name="Source">
-          {run.git ? (
+          {deployment.git ? (
             <span className="flex flex-col gap-1">
               <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                {run.git.branch && (
+                {deployment.git.branch && (
                   <span className="inline-flex items-center gap-1.5">
                     <GitBranchIcon aria-hidden className="size-4 text-muted-foreground" />
-                    {run.git.branch}
+                    {deployment.git.branch}
                   </span>
                 )}
-                {run.git.sha && (
+                {deployment.git.sha && (
                   <span className="inline-flex items-center gap-1.5">
                     <GitCommitIcon aria-hidden className="size-4 text-muted-foreground" />
-                    <span className="font-mono text-xs">{run.git.sha.slice(0, 7)}</span>
+                    <span className="font-mono text-xs">{deployment.git.sha.slice(0, 7)}</span>
                   </span>
                 )}
-                {run.git.dirty && (
+                {deployment.git.dirty && (
                   <span className="text-xs text-muted-foreground">uncommitted changes</span>
                 )}
               </span>
-              {run.git.message && (
-                <span className="line-clamp-2 text-muted-foreground">{run.git.message}</span>
+              {deployment.git.message && (
+                <span className="line-clamp-2 text-muted-foreground">{deployment.git.message}</span>
               )}
             </span>
           ) : (
@@ -231,14 +239,14 @@ export default async function RunPage({
           )}
         </Field>
         <Field name="Started">
-          {run.startedAt ? absoluteTime(run.startedAt) : <NotReported />}
+          {deployment.startedAt ? absoluteTime(deployment.startedAt) : <NotReported />}
         </Field>
         <Field name="Duration">{took ?? <NotReported />}</Field>
         <Field name="CLI">
           <span className="flex flex-col gap-0.5">
-            <span>{run.cliVersion ? `ocel ${run.cliVersion}` : <NotReported />}</span>
+            <span>{deployment.cliVersion ? `ocel ${deployment.cliVersion}` : <NotReported />}</span>
             <span className="font-mono text-xs text-muted-foreground">
-              deployment {run.deploymentId}
+              deployment {deployment.deploymentId}
             </span>
           </span>
         </Field>
@@ -246,13 +254,13 @@ export default async function RunPage({
 
       <Joined>
         <Panel heading="Apps">
-          <AppList apps={run.topology.apps} />
+          <AppList apps={deployment.topology.apps} />
         </Panel>
         <Panel heading="Resources">
           <ResourceList
-            resources={run.topology.resources}
-            readers={readersOf(run)}
-            provider={run.providerName}
+            resources={deployment.topology.resources}
+            readers={readersOf(deployment)}
+            provider={deployment.providerName}
           />
         </Panel>
       </Joined>
@@ -268,7 +276,7 @@ export default async function RunPage({
             </span>
           </AccordionTrigger>
           <AccordionContent className={panel}>
-            <BuildLog stages={run.trace} />
+            <BuildLog stages={deployment.trace} />
           </AccordionContent>
         </AccordionItem>
         <AccordionItem value="domains">
@@ -279,7 +287,7 @@ export default async function RunPage({
             <span className={aside}>{countOf(hostnames, "hostname")}</span>
           </AccordionTrigger>
           <AccordionContent className={panel}>
-            <Domains apps={run.topology.apps} />
+            <Domains apps={deployment.topology.apps} />
           </AccordionContent>
         </AccordionItem>
         <AccordionItem value="checks">
@@ -290,7 +298,7 @@ export default async function RunPage({
             <span className={aside}>{countOf(checks, "check")}</span>
           </AccordionTrigger>
           <AccordionContent className={panel}>
-            <Checks apps={run.topology.apps} />
+            <Checks apps={deployment.topology.apps} />
           </AccordionContent>
         </AccordionItem>
       </Accordion>

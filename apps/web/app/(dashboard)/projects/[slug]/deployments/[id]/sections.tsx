@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { spanOf } from "@/lib/runs";
+import { spanOf } from "@/lib/deployment-view";
 import { labelType } from "@/lib/type";
 import { cn } from "@/lib/utils";
 import { CommandPane } from "../../../../command-pane";
@@ -60,7 +60,9 @@ const row =
 
 export function AppList({ apps }: { apps: DeploymentApp[] }) {
   if (apps.length === 0) {
-    return <p className="px-4 pb-4 text-sm text-muted-foreground">This run included no apps.</p>;
+    return (
+      <p className="px-4 pb-4 text-sm text-muted-foreground">This deployment included no apps.</p>
+    );
   }
   return (
     <ul>
@@ -114,7 +116,9 @@ export function ResourceList({
 }) {
   if (resources.length === 0) {
     return (
-      <p className="px-4 pb-4 text-sm text-muted-foreground">This run declared no resources.</p>
+      <p className="px-4 pb-4 text-sm text-muted-foreground">
+        This deployment declared no resources.
+      </p>
     );
   }
   return (
@@ -145,7 +149,9 @@ export function ResourceList({
 
 export function BuildLog({ stages }: { stages: DeploymentStage[] }) {
   if (stages.length === 0) {
-    return <p className="p-4 text-sm text-muted-foreground">This run reported no build log.</p>;
+    return (
+      <p className="p-4 text-sm text-muted-foreground">This deployment reported no build log.</p>
+    );
   }
   return (
     <pre className="max-h-[32rem] overflow-auto bg-terminal px-4 py-3 font-mono text-xs leading-5 text-terminal-foreground">
@@ -257,9 +263,9 @@ export function Checks({ apps }: { apps: DeploymentApp[] }) {
   );
 }
 
-export function readersOf(run: Deployment): Map<string, string[]> {
+export function readersOf(deployment: Deployment): Map<string, string[]> {
   const readers = new Map<string, string[]>();
-  for (const usage of run.topology.usages) {
+  for (const usage of deployment.topology.usages) {
     readers.set(usage.resource, [...(readers.get(usage.resource) ?? []), usage.app]);
   }
   return readers;

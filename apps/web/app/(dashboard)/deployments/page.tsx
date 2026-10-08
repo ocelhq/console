@@ -2,13 +2,16 @@ import { db } from "@console/db";
 import { project } from "@console/db/schema";
 import { eq } from "drizzle-orm";
 import { requireOrganization } from "@/lib/access";
-import type { RunProject } from "../projects/[slug]/deployments/columns";
-import { RunsPage, type RunsQuery } from "../projects/[slug]/deployments/runs-page";
+import type { DeploymentProject } from "../projects/[slug]/deployments/columns";
+import {
+  type DeploymentsQuery,
+  DeploymentsView,
+} from "../projects/[slug]/deployments/deployments-view";
 
 export default async function OrganizationDeploymentsPage({
   searchParams,
 }: {
-  searchParams: Promise<RunsQuery>;
+  searchParams: Promise<DeploymentsQuery>;
 }) {
   const [query, session] = await Promise.all([searchParams, requireOrganization()]);
   const rows = await db
@@ -16,10 +19,10 @@ export default async function OrganizationDeploymentsPage({
     .from(project)
     .where(eq(project.organizationId, session.activeOrganizationId));
 
-  const projects: Record<string, RunProject> = {};
+  const projects: Record<string, DeploymentProject> = {};
   for (const row of rows) {
     projects[row.id] = { slug: row.slug, name: row.name };
   }
 
-  return <RunsPage base="/deployments" projects={projects} query={query} />;
+  return <DeploymentsView base="/deployments" projects={projects} query={query} />;
 }

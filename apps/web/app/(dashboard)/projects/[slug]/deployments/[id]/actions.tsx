@@ -48,7 +48,7 @@ function Deferred({
   );
 }
 
-export function RunActions({
+export function DeploymentActions({
   url,
   outcome,
   promotionId,
@@ -70,7 +70,7 @@ export function RunActions({
       <Button
         variant="outline"
         disabled={!url}
-        title={url ? undefined : "This run reported no url"}
+        title={url ? undefined : "This deployment reported no url"}
         nativeButton={!url}
         render={
           // biome-ignore lint/a11y/useAnchorContent: Base UI renders the button children inside the anchor
@@ -85,7 +85,7 @@ export function RunActions({
           label="Roll back to this"
           Icon={ArrowCounterClockwiseIcon}
           command={`ocel rollback ${promotionId}`}
-          why="Points production at this promotion again, without a rebuild. The rollback reports here as its own run."
+          why="Points production at this promotion again, without a rebuild. The rollback reports here as its own deployment."
         />
       )}
       <Deferred

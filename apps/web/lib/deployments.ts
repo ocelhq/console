@@ -6,7 +6,7 @@ export function environmentKey(row: Pick<Deployment, "tier" | "environmentIdenti
   return `${row.tier}/${row.environmentIdentity}`;
 }
 
-export type ActiveRun = Pick<
+export type ActiveDeployment = Pick<
   Deployment,
   | "id"
   | "projectId"
@@ -18,7 +18,7 @@ export type ActiveRun = Pick<
   | "deployedAt"
 >;
 
-function runKey(row: Pick<Deployment, "projectId" | "tier" | "environmentIdentity">) {
+function placeKey(row: Pick<Deployment, "projectId" | "tier" | "environmentIdentity">) {
   return `${row.projectId}/${environmentKey(row)}`;
 }
 
@@ -41,27 +41,30 @@ async function teardowns(projectIds: string[]): Promise<Map<string, Date>> {
       environmentEvent.environmentIdentity,
       desc(environmentEvent.occurredAt),
     );
-  return new Map(rows.map((row) => [runKey(row), row.occurredAt]));
+  return new Map(rows.map((row) => [placeKey(row), row.occurredAt]));
 }
 
 type Placed = Pick<Deployment, "projectId" | "tier" | "environmentIdentity" | "deployedAt">;
 
-function tornDownAfter(tornDown: Map<string, Date>, run: Placed): Date | null {
-  const at = tornDown.get(runKey(run));
-  return at && at > run.deployedAt ? at : null;
+function tornDownAfter(tornDown: Map<string, Date>, placed: Placed): Date | null {
+  const at = tornDown.get(placeKey(placed));
+  return at && at > placed.deployedAt ? at : null;
 }
 
-async function activeRuns(projectIds: string[]): Promise<Map<string, ActiveRun>> {
+async function activeDeployments(projectIds: string[]): Promise<Map<string, ActiveDeployment>> {
   if (projectIds.length === 0) {
     return new Map();
   }
-  const [rows, tornDown] = await Promise.all([succeededRuns(projectIds), teardowns(projectIds)]);
+  const [rows, tornDown] = await Promise.all([
+    succeededDeployments(projectIds),
+    teardowns(projectIds),
+  ]);
   return new Map(
-    rows.filter((row) => !tornDownAfter(tornDown, row)).map((row) => [runKey(row), row]),
+    rows.filter((row) => !tornDownAfter(tornDown, row)).map((row) => [placeKey(row), row]),
   );
 }
 
-async function succeededRuns(projectIds: string[]): Promise<ActiveRun[]> {
+async function succeededDeployments(projectIds: string[]): Promise<ActiveDeployment[]> {
   return db
     .selectDistinctOn([deployment.projectId, deployment.tier, deployment.environmentIdentity], {
       id: deployment.id,
@@ -118,20 +121,22 @@ export async function latestDeployments(projectId: string, tier: Tier): Promise<
   }
 }
 
-export type RunRow = Omit<Deployment, "trace" | "topology"> & {
+export type DeploymentRow = Omit<Deployment, "trace" | "topology"> & {
   apps: Deployment["topology"]["apps"];
   active: boolean;
 };
 
-export type RunsLoad = { error: true } | { error: false; rows: RunRow[]; more: boolean };
+export type DeploymentsLoad =
+  | { error: true }
+  | { error: false; rows: DeploymentRow[]; more: boolean };
 
-export const RUNS_PAGE = 50;
+export const DEPLOYMENTS_PAGE = 50;
 
-export async function listRuns(
+export async function listDeployments(
   projectIds: string[],
   tier: Tier | null,
   before: Date | null,
-): Promise<RunsLoad> {
+): Promise<DeploymentsLoad> {
   if (projectIds.length === 0) {
     return { error: false, rows: [], more: false };
   }
@@ -150,56 +155,58 @@ export async function listRuns(
         .from(deployment)
         .where(and(...filters))
         .orderBy(desc(deployment.deployedAt))
-        .limit(RUNS_PAGE + 1),
-      activeRuns(projectIds),
+        .limit(DEPLOYMENTS_PAGE + 1),
+      activeDeployments(projectIds),
     ]);
 
-    const page = rows.slice(0, RUNS_PAGE).map(({ trace: _trace, topology, ...row }) => ({
+    const page = rows.slice(0, DEPLOYMENTS_PAGE).map(({ trace: _trace, topology, ...row }) => ({
       ...row,
       apps: topology.apps,
-      active: active.get(runKey(row))?.id === row.id,
+      active: active.get(placeKey(row))?.id === row.id,
     }));
 
-    return { error: false, rows: page, more: rows.length > RUNS_PAGE };
+    return { error: false, rows: page, more: rows.length > DEPLOYMENTS_PAGE };
   } catch {
     return { error: true };
   }
 }
 
-export type RunLoad =
+export type DeploymentLoad =
   | { error: true }
-  | { error: false; run: null }
-  | { error: false; run: Deployment; active: ActiveRun | null };
+  | { error: false; deployment: null }
+  | { error: false; deployment: Deployment; active: ActiveDeployment | null };
 
-export async function findRun(projectId: string, id: string): Promise<RunLoad> {
+export async function findDeployment(projectId: string, id: string): Promise<DeploymentLoad> {
   try {
-    const [[run], active] = await Promise.all([
+    const [[found], active] = await Promise.all([
       db
         .select()
         .from(deployment)
         .where(and(eq(deployment.projectId, projectId), eq(deployment.id, id))),
-      activeRuns([projectId]),
+      activeDeployments([projectId]),
     ]);
-    if (!run) {
-      return { error: false, run: null };
+    if (!found) {
+      return { error: false, deployment: null };
     }
-    return { error: false, run, active: active.get(runKey(run)) ?? null };
+    return { error: false, deployment: found, active: active.get(placeKey(found)) ?? null };
   } catch {
     return { error: true };
   }
 }
 
-export type LatestRun = Pick<
+export type LatestDeployment = Pick<
   Deployment,
   "projectId" | "kind" | "outcome" | "deployedAt" | "providerName" | "providerRegion"
 > & { tornDownAt: Date | null };
 
-export async function latestRuns(projectIds: string[]): Promise<Map<string, LatestRun>> {
+export async function latestDeploymentByProject(
+  projectIds: string[],
+): Promise<Map<string, LatestDeployment>> {
   if (projectIds.length === 0) {
     return new Map();
   }
   const [rows, tornDown] = await Promise.all([
-    latestProductionRuns(projectIds),
+    latestProductionDeployments(projectIds),
     teardowns(projectIds),
   ]);
   return new Map(
@@ -217,7 +224,7 @@ export async function latestRuns(projectIds: string[]): Promise<Map<string, Late
   );
 }
 
-async function latestProductionRuns(projectIds: string[]) {
+async function latestProductionDeployments(projectIds: string[]) {
   return db
     .selectDistinctOn([deployment.projectId], {
       projectId: deployment.projectId,

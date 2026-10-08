@@ -3,30 +3,37 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { TableBody, TableCell, TableRow } from "@/components/ui/table";
-import type { RunRow } from "@/lib/deployments";
-import { authorOf, commandOf, duration, runHref, runStatus, shortId } from "@/lib/runs";
+import {
+  authorOf,
+  commandOf,
+  deploymentHref,
+  deploymentStatus,
+  duration,
+  shortId,
+} from "@/lib/deployment-view";
+import type { DeploymentRow } from "@/lib/deployments";
 import { Stamp } from "../../../stamp";
 import { AppMarks, AuthorMark, EnvironmentBadge, StatusDot, Trigger } from "./cells";
-import type { RunProject } from "./columns";
+import type { DeploymentProject } from "./columns";
 
 const cell = "h-14 px-5 first:pl-5 last:pr-5";
 
 function Row({
-  run,
+  deployment,
   project,
   withProject,
   now,
 }: {
-  run: RunRow;
-  project: RunProject;
+  deployment: DeploymentRow;
+  project: DeploymentProject;
   withProject: boolean;
   now: string;
 }) {
   const router = useRouter();
-  const href = runHref(project.slug, run.id);
-  const status = runStatus(run);
-  const took = duration(run);
-  const author = authorOf(run.trigger);
+  const href = deploymentHref(project.slug, deployment.id);
+  const status = deploymentStatus(deployment);
+  const took = duration(deployment);
+  const author = authorOf(deployment.trigger);
 
   return (
     <TableRow
@@ -54,9 +61,9 @@ function Row({
             href={href}
             className="font-medium text-foreground underline-offset-4 outline-none group-hover:underline focus-visible:underline"
           >
-            {shortId(run.promotionId) ?? "—"}
+            {shortId(deployment.promotionId) ?? "—"}
           </Link>
-          {run.tag && <span className="text-muted-foreground">{run.tag}</span>}
+          {deployment.tag && <span className="text-muted-foreground">{deployment.tag}</span>}
         </span>
       </TableCell>
       <TableCell className={cell}>
@@ -73,22 +80,22 @@ function Row({
         </span>
       </TableCell>
       <TableCell className={cell}>
-        <EnvironmentBadge tier={run.tier} active={run.active} />
+        <EnvironmentBadge tier={deployment.tier} active={deployment.active} />
       </TableCell>
       <TableCell className={cell}>
-        <AppMarks apps={run.apps} />
+        <AppMarks apps={deployment.apps} />
       </TableCell>
       <TableCell className={cell}>
-        <Trigger trigger={run.trigger} command={commandOf(run)} />
+        <Trigger trigger={deployment.trigger} command={commandOf(deployment)} />
       </TableCell>
       <TableCell className={`${cell} text-right text-muted-foreground`}>
         <span className="inline-flex items-center gap-2">
-          <Stamp at={run.deployedAt.toISOString()} now={now} />
+          <Stamp at={deployment.deployedAt.toISOString()} now={now} />
           {author && (
             <AuthorMark
               name={author}
-              trigger={run.trigger}
-              deployedAt={run.deployedAt.toISOString()}
+              trigger={deployment.trigger}
+              deployedAt={deployment.deployedAt.toISOString()}
             />
           )}
         </span>
@@ -97,24 +104,24 @@ function Row({
   );
 }
 
-export function RunRows({
+export function DeploymentRows({
   rows,
   projects,
   withProject,
   now,
 }: {
-  rows: RunRow[];
-  projects: Record<string, RunProject>;
+  rows: DeploymentRow[];
+  projects: Record<string, DeploymentProject>;
   withProject: boolean;
   now: string;
 }) {
   return (
     <TableBody>
-      {rows.map((run) => (
+      {rows.map((deployment) => (
         <Row
-          key={run.id}
-          run={run}
-          project={projects[run.projectId]}
+          key={deployment.id}
+          deployment={deployment}
+          project={projects[deployment.projectId]}
           withProject={withProject}
           now={now}
         />

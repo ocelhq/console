@@ -1,6 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function RunLoading() {
+export default function DeploymentLoading() {
   return (
     <div className="flex flex-1 flex-col gap-6 px-5 pt-8 pb-12 md:px-8">
       <div className="flex flex-col gap-4">

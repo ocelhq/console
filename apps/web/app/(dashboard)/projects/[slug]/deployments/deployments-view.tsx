@@ -1,25 +1,25 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { listRuns } from "@/lib/deployments";
-import { runScopeOf } from "@/lib/tier";
+import { listDeployments } from "@/lib/deployments";
+import { tierScopeOf } from "@/lib/tier";
 import { PageShell } from "../../../page-shell";
-import type { RunProject } from "./columns";
-import { RunFilter } from "./filter";
+import type { DeploymentProject } from "./columns";
+import { DeploymentFilter } from "./filter";
 import { Frame, LoadError, NeverDeployed, NothingOlder } from "./states";
-import { RunRows } from "./table";
+import { DeploymentRows } from "./table";
 
-export type RunsQuery = { [key: string]: string | string[] | undefined };
+export type DeploymentsQuery = { [key: string]: string | string[] | undefined };
 
-export async function RunsPage({
+export async function DeploymentsView({
   base,
   projects,
   query,
 }: {
   base: string;
-  projects: Record<string, RunProject>;
-  query: RunsQuery;
+  projects: Record<string, DeploymentProject>;
+  query: DeploymentsQuery;
 }) {
-  const scope = runScopeOf(typeof query.env === "string" ? query.env : null);
+  const scope = tierScopeOf(typeof query.env === "string" ? query.env : null);
   const beforeMs = typeof query.before === "string" ? Number(query.before) : Number.NaN;
   const before = Number.isFinite(beforeMs) ? new Date(beforeMs) : null;
   const withProject = base === "/deployments";
@@ -36,13 +36,13 @@ export async function RunsPage({
     return `${base}${search ? `?${search}` : ""}`;
   };
 
-  const load = await listRuns(Object.keys(projects), scope === "all" ? null : scope, before);
+  const load = await listDeployments(Object.keys(projects), scope === "all" ? null : scope, before);
   const now = new Date().toISOString();
 
   return (
     <PageShell title="Deployments">
       <div className="flex flex-col gap-3">
-        <RunFilter />
+        <DeploymentFilter />
         <Frame withProject={withProject}>
           {load.error ? (
             <LoadError href={href(before?.getTime())} withProject={withProject} />
@@ -53,7 +53,12 @@ export async function RunsPage({
               <NeverDeployed scope={scope} withProject={withProject} />
             )
           ) : (
-            <RunRows rows={load.rows} projects={projects} withProject={withProject} now={now} />
+            <DeploymentRows
+              rows={load.rows}
+              projects={projects}
+              withProject={withProject}
+              now={now}
+            />
           )}
         </Frame>
         {!load.error && (before || load.more) && (
