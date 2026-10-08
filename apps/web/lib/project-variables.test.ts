@@ -1,6 +1,7 @@
-import { connect, upsertConnector } from "@console/api";
+import { connect } from "@console/api";
 import { VariableClass } from "@console/connectors/gen/app/resources/v1/variables_pb";
 import { Lifecycle, Tier } from "@console/connectors/gen/common/environment/v1/environment_pb";
+import { ConnectorReach } from "@console/connectors/gen/console/v1/connector_pb";
 import {
   AppOutcome,
   ComputeKind,
@@ -58,6 +59,14 @@ function reportRequest(token: string, projectId: string): Request {
   });
 }
 
+function upsertConnectorRequest(token: string): Request {
+  return new Request("http://localhost/api/connect/console.v1.ConnectorService/Upsert", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ target: TARGET, vendor: "aws", reach: ConnectorReach.DIAL }),
+  });
+}
+
 describe("a deployment reported over Connect", () => {
   beforeAll(async () => {
     await setupTestDatabase();
@@ -74,13 +83,7 @@ describe("a deployment reported over Connect", () => {
 
       const reported = await connect(reportRequest(session.token, projectId));
       expect(reported.status).toBe(200);
-      const upserted = await upsertConnector(
-        new Request("http://localhost/api/connectors", {
-          method: "PUT",
-          headers: { ...Object.fromEntries(session.headers), "Content-Type": "application/json" },
-          body: JSON.stringify({ target: TARGET, vendor: "aws" }),
-        }),
-      );
+      const upserted = await connect(upsertConnectorRequest(session.token));
       expect(upserted.status).toBe(200);
 
       const latest = await latestTopology(projectId, "production");
