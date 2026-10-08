@@ -6,7 +6,11 @@ export const computeKinds: Partial<Record<ComputeKind, ComputeKindName>> = {
   [ComputeKind.CONTAINER]: "container",
 };
 
+const computeKindsByName: Record<ComputeKindName, ComputeKind> = {
+  serverless: ComputeKind.SERVERLESS,
+  container: ComputeKind.CONTAINER,
+};
+
 export function computeKindOf(name: ComputeKindName | null): ComputeKind {
-  const found = Object.entries(computeKinds).find(([, known]) => known === name);
-  return found ? (Number(found[0]) as ComputeKind) : ComputeKind.UNSPECIFIED;
+  return name === null ? ComputeKind.UNSPECIFIED : computeKindsByName[name];
 }
