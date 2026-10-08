@@ -11,4 +11,5 @@ export {
   type OpenedApp,
   SYSTEM_APP_ID,
 } from "./store";
+export { syncSystemApp } from "./system-app";
 export { type GitEventContext, type GitEventHandler, webhookHandler } from "./webhook";
