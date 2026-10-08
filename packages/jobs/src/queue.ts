@@ -59,6 +59,17 @@ export async function reportAll(rows: Job[], notify: (changed: Job) => Promise<v
 export function jobQueue(options: JobQueueOptions = {}) {
   const notify = options.notify ?? (async () => {});
 
+  // The change is committed and the runner acts on it; a report lost here is sent again by resync.
+  async function reported(row: Job | undefined): Promise<Job | undefined> {
+    if (!row) return row;
+    try {
+      await notify(row);
+    } catch (error) {
+      console.error("jobs: a job change went unreported until resync", { id: row.id, error });
+    }
+    return row;
+  }
+
   const heldBy = (id: string, runnerId: string, ...statuses: Job["status"][]) =>
     and(eq(job.id, id), eq(job.runnerId, runnerId), inArray(job.status, statuses));
 
@@ -123,9 +134,7 @@ export function jobQueue(options: JobQueueOptions = {}) {
 
       for (let attempt = 0; attempt < CLAIM_ATTEMPTS; attempt++) {
         try {
-          const claimed = await tryClaim(held);
-          if (claimed) await notify(claimed);
-          return claimed;
+          return await reported(await tryClaim(held));
         } catch (error) {
           if (!isUniqueViolation(error)) throw error;
         }
@@ -139,8 +148,7 @@ export function jobQueue(options: JobQueueOptions = {}) {
         .set({ status: "running", startedAt: sql`now()`, ...changed() })
         .where(heldBy(id, runnerId, "claimed"))
         .returning();
-      if (running) await notify(running);
-      return running;
+      return reported(running);
     },
 
     async heartbeat(
@@ -171,8 +179,7 @@ export function jobQueue(options: JobQueueOptions = {}) {
         })
         .where(heldBy(id, runnerId, ...HELD_STATUSES))
         .returning();
-      if (finished) await notify(finished);
-      return finished;
+      return reported(finished);
     },
 
     async sweep(): Promise<Job[]> {

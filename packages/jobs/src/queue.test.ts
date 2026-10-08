@@ -387,6 +387,22 @@ describe("sweep", () => {
   });
 });
 
+describe("a report that fails", () => {
+  it("leaves the runner the claim, start and finish it made, for resync to report", async () => {
+    const queued = await enqueued({ projectId: projA });
+
+    refusals = 1;
+    expect((await queue.claim(selfA))?.id).toBe(queued.id);
+    refusals = 1;
+    expect((await queue.start(queued.id, selfA))?.status).toBe("running");
+    refusals = 1;
+    expect((await queue.finish(queued.id, selfA, { outcome: "succeeded" }))?.status).toBe("done");
+
+    const after = await stored(queued.id);
+    expect(after.syncedRevision).toBeLessThan(after.revision);
+  });
+});
+
 describe("resync", () => {
   it("reports again a change whose report was lost, and not one already reported", async () => {
     const lost = await enqueued({ projectId: projA });
