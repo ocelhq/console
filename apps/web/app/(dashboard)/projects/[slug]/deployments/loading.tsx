@@ -1,11 +1,11 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { PageShell } from "../../../page-shell";
-import { runColumns } from "./columns";
+import { deploymentColumns } from "./columns";
 import { Frame } from "./states";
 
-export function RunsSkeleton({ withProject }: { withProject: boolean }) {
-  const columns = runColumns(withProject);
+export function DeploymentsSkeleton({ withProject }: { withProject: boolean }) {
+  const columns = deploymentColumns(withProject);
   return (
     <PageShell title="Deployments">
       <div className="flex flex-col gap-3">
@@ -31,5 +31,5 @@ export function RunsSkeleton({ withProject }: { withProject: boolean }) {
 }
 
 export default function DeploymentsLoading() {
-  return <RunsSkeleton withProject={false} />;
+  return <DeploymentsSkeleton withProject={false} />;
 }

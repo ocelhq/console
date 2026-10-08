@@ -93,7 +93,7 @@ describe("DeploymentService over Connect", () => {
       }
     });
 
-    it("stores a repeated run once", async () => {
+    it("stores a repeated deployment once", async () => {
       const session = await createTestSessionWithOrganization();
       try {
         const projectId = await projectIn(session.organization.id, "report-twice");
@@ -293,7 +293,7 @@ describe("DeploymentService over Connect", () => {
       }
     });
 
-    it("stores the spans as the run's trace", async () => {
+    it("stores the spans as the deployment's trace", async () => {
       const session = await createTestSessionWithOrganization();
       try {
         const projectId = await projectIn(session.organization.id, "report-spans");

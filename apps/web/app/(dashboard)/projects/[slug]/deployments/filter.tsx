@@ -9,19 +9,19 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { type RunScope, runScopeOf, runScopes } from "@/lib/tier";
+import { type TierScope, tierScopeOf, tierScopes } from "@/lib/tier";
 
-const labels: Record<RunScope, string> = {
+const labels: Record<TierScope, string> = {
   all: "All environments",
   production: "Production",
   preview: "Preview",
 };
 
-export function RunFilter() {
+export function DeploymentFilter() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const scope = runScopeOf(searchParams.get("env"));
+  const scope = tierScopeOf(searchParams.get("env"));
 
   return (
     <DropdownMenu>
@@ -35,7 +35,7 @@ export function RunFilter() {
       <DropdownMenuContent className="w-44 p-1">
         <DropdownMenuRadioGroup
           value={scope}
-          onValueChange={(next: RunScope) => {
+          onValueChange={(next: TierScope) => {
             const params = new URLSearchParams(searchParams);
             params.delete("before");
             if (next === "all") {
@@ -47,7 +47,7 @@ export function RunFilter() {
             router.push(query ? `${pathname}?${query}` : pathname);
           }}
         >
-          {runScopes.map((item) => (
+          {tierScopes.map((item) => (
             <DropdownMenuRadioItem key={item} value={item} className="px-2.5 py-2 text-sm">
               {labels[item]}
             </DropdownMenuRadioItem>

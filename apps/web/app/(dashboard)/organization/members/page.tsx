@@ -9,8 +9,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireOrganization } from "@/lib/access";
+import { initials } from "@/lib/initials";
 import { invitationsOf, membersOf, organizationOf } from "@/lib/organization";
-import { initials } from "@/lib/runs";
 import { labelType } from "@/lib/type";
 import { PageShell } from "../../page-shell";
 import { Stamp } from "../../stamp";

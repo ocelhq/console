@@ -7,7 +7,7 @@ import type {
 
 export type Tone = "go" | "faint" | "destructive";
 
-export type RunStatus = { word: string; tone: Tone };
+export type DeploymentStatus = { word: string; tone: Tone };
 
 const kindWords: Record<DeploymentKind, string> = {
   deploy: "Deployed",
@@ -15,11 +15,14 @@ const kindWords: Record<DeploymentKind, string> = {
   rollback: "Rolled back",
 };
 
-export function runStatus(run: { kind: DeploymentKind; outcome: DeploymentOutcome }): RunStatus {
-  if (run.outcome === "failed") {
+export function deploymentStatus(deployment: {
+  kind: DeploymentKind;
+  outcome: DeploymentOutcome;
+}): DeploymentStatus {
+  if (deployment.outcome === "failed") {
     return { word: "Failed", tone: "destructive" };
   }
-  return { word: kindWords[run.kind], tone: "go" };
+  return { word: kindWords[deployment.kind], tone: "go" };
 }
 
 export const kindVerbs: Record<DeploymentKind, string> = {
@@ -32,11 +35,11 @@ export function shortId(id: string | null): string | null {
   return id ? id.slice(0, 7) : null;
 }
 
-export function duration(run: Pick<Deployment, "startedAt" | "deployedAt">): string | null {
-  if (!run.startedAt) {
+export function duration(deployment: Pick<Deployment, "startedAt" | "deployedAt">): string | null {
+  if (!deployment.startedAt) {
     return null;
   }
-  return spanOf(run.startedAt.getTime(), run.deployedAt.getTime());
+  return spanOf(deployment.startedAt.getTime(), deployment.deployedAt.getTime());
 }
 
 export function spanOf(from: number, to: number): string {
@@ -51,32 +54,23 @@ export function spanOf(from: number, to: number): string {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
-export function runHref(slug: string, id: string): string {
+export function deploymentHref(slug: string, id: string): string {
   return `/projects/${slug}/deployments/${id}`;
 }
 
-export function commandOf(run: {
+export function commandOf(deployment: {
   kind: DeploymentKind;
   environmentIdentity: string;
   promotionId: string | null;
 }): string {
-  switch (run.kind) {
+  switch (deployment.kind) {
     case "deploy":
       return "ocel deploy";
     case "preview-up":
-      return `ocel preview up ${run.environmentIdentity}`.trim();
+      return `ocel preview up ${deployment.environmentIdentity}`.trim();
     case "rollback":
-      return `ocel rollback ${shortId(run.promotionId) ?? ""}`.trim();
+      return `ocel rollback ${shortId(deployment.promotionId) ?? ""}`.trim();
   }
-}
-
-export function initials(name: string): string {
-  return name
-    .split(/[\s._-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
 }
 
 export function authorOf(trigger: DeploymentTrigger): string | null {

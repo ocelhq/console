@@ -3,14 +3,14 @@ import { project } from "@console/db/schema";
 import { and, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { requireOrganization } from "@/lib/access";
-import { RunsPage, type RunsQuery } from "./runs-page";
+import { type DeploymentsQuery, DeploymentsView } from "./deployments-view";
 
 export default async function DeploymentsPage({
   params,
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<RunsQuery>;
+  searchParams: Promise<DeploymentsQuery>;
 }) {
   const [{ slug }, query, session] = await Promise.all([
     params,
@@ -27,7 +27,7 @@ export default async function DeploymentsPage({
   }
 
   return (
-    <RunsPage
+    <DeploymentsView
       base={`/projects/${slug}/deployments`}
       projects={{ [found.id]: { slug, name: found.name } }}
       query={query}

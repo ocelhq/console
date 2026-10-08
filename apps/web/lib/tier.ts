@@ -14,10 +14,10 @@ export function withTier(path: string, tier: Tier): string {
   return tier === "production" ? path : `${path}?env=${tier}`;
 }
 
-export const runScopes = ["all", ...tiers] as const;
+export const tierScopes = ["all", ...tiers] as const;
 
-export type RunScope = (typeof runScopes)[number];
+export type TierScope = (typeof tierScopes)[number];
 
-export function runScopeOf(value: string | null | undefined): RunScope {
-  return runScopes.includes(value as RunScope) ? (value as RunScope) : "all";
+export function tierScopeOf(value: string | null | undefined): TierScope {
+  return tierScopes.includes(value as TierScope) ? (value as TierScope) : "all";
 }

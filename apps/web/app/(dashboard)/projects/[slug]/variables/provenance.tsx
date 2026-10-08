@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { shortId } from "@/lib/runs";
+import { shortId } from "@/lib/deployment-view";
 import { labelType } from "@/lib/type";
 import { Stamp } from "../../../stamp";
 

@@ -1,5 +1,5 @@
-import { RunsSkeleton } from "../projects/[slug]/deployments/loading";
+import { DeploymentsSkeleton } from "../projects/[slug]/deployments/loading";
 
 export default function OrganizationDeploymentsLoading() {
-  return <RunsSkeleton withProject />;
+  return <DeploymentsSkeleton withProject />;
 }

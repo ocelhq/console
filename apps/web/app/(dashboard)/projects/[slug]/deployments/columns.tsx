@@ -1,9 +1,9 @@
 import { TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { labelType } from "@/lib/type";
 
-export type RunProject = { slug: string; name: string };
+export type DeploymentProject = { slug: string; name: string };
 
-export function runColumns(withProject: boolean) {
+export function deploymentColumns(withProject: boolean) {
   return [
     ...(withProject ? [{ key: "project", label: "Project", className: "w-44" }] : []),
     { key: "promotion", label: "Promotion", className: "w-40" },
@@ -15,11 +15,11 @@ export function runColumns(withProject: boolean) {
   ];
 }
 
-export function RunsHead({ withProject }: { withProject: boolean }) {
+export function DeploymentsHead({ withProject }: { withProject: boolean }) {
   return (
     <TableHeader>
       <TableRow className="hover:bg-transparent">
-        {runColumns(withProject).map((column) => (
+        {deploymentColumns(withProject).map((column) => (
           <TableHead
             key={column.key}
             className={`h-9 px-5 first:pl-5 last:pr-5 ${labelType} ${column.className}`}
