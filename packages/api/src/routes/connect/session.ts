@@ -5,23 +5,27 @@ import {
   type HandlerContext,
   type Interceptor,
 } from "@connectrpc/connect";
-import { getActiveOrganizationSession } from "@console/auth";
+import { type ActiveOrganizationSession, getActiveOrganizationSession } from "@console/auth";
 
-const organizationKey = createContextKey<string | null>(null);
+const sessionKey = createContextKey<ActiveOrganizationSession | null>(null);
 
 export const sessionInterceptor: Interceptor = (next) => async (request) => {
   const session = await getActiveOrganizationSession(request.header);
   if (!session) {
     throw new ConnectError("A session is required", Code.Unauthenticated);
   }
-  request.contextValues.set(organizationKey, session.activeOrganizationId);
+  request.contextValues.set(sessionKey, session);
   return next(request);
 };
 
-export function organizationOf(context: HandlerContext): string {
-  const organizationId = context.values.get(organizationKey);
-  if (organizationId === null) {
+export function sessionOf(context: HandlerContext): ActiveOrganizationSession {
+  const session = context.values.get(sessionKey);
+  if (session === null) {
     throw new Error("a handler ran without sessionInterceptor");
   }
-  return organizationId;
+  return session;
+}
+
+export function organizationOf(context: HandlerContext): string {
+  return sessionOf(context).activeOrganizationId;
 }

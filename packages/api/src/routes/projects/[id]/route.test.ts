@@ -1,11 +1,12 @@
 import { auth } from "@console/auth/next";
+import { ProjectService } from "@console/connectors/gen/console/v1/project_pb";
 import { db } from "@console/db";
 import { deployment, project } from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createTestSessionWithOrganization } from "../../../../test/auth-harness";
-import { createProject } from "../route";
+import { serviceClient } from "../../../../test/connect-harness";
 import { deleteProject, getProjectById, updateProject } from "./route";
 
 function getRequest(headers: Headers) {
@@ -16,21 +17,15 @@ function getRequest(headers: Headers) {
 
 async function createProjectFor(
   session: {
-    headers: Headers;
+    token: string;
   },
   slug: string,
 ): Promise<{ id: string; slug: string }> {
-  const response = await createProject(
-    new Request("http://localhost/api/projects", {
-      method: "POST",
-      headers: {
-        ...Object.fromEntries(session.headers),
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ name: "My Project", slug }),
-    }),
-  );
-  return response.json() as Promise<{ id: string; slug: string }>;
+  const { project } = await serviceClient(ProjectService, session.token).create({
+    name: "My Project",
+    slug,
+  });
+  return { id: project?.id ?? "", slug };
 }
 
 describe("getProjectById", () => {
