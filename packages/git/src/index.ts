@@ -10,6 +10,7 @@ export {
   type GitAppSummary,
   type GitStore,
   gitStore,
+  type ProjectRepo,
   type StoredApp,
   systemAppId,
 } from "./store";

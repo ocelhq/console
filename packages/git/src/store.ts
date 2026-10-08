@@ -3,20 +3,25 @@ import {
   type GitInstallation,
   type GitKind,
   gitApp,
-  gitDelivery,
   gitInstallation,
   project,
   projectRepo,
 } from "@console/db/schema";
-import { and, eq, isNull, lt, ne, or } from "drizzle-orm";
+import { and, eq, isNull, ne, or } from "drizzle-orm";
 import type { KeyStore } from "./keystore";
+import type { Repo } from "./provider";
 import { openSecret, sealSecret } from "./secrets";
 
 export type AppSecret = "privateKey" | "webhookSecret" | "clientSecret";
 
-export const systemAppId = (kind: GitKind) => `system-${kind}`;
+export interface ProjectRepo {
+  id: string;
+  organizationId: string;
+  productionBranch: string;
+  jobLabels: string[];
+}
 
-const DELIVERY_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+export const systemAppId = (kind: GitKind) => `system-${kind}`;
 
 export interface AppCredentials {
   appId: string;
@@ -211,7 +216,9 @@ export function gitStore(keys: KeyStore) {
       projectId: string;
       organizationId: string;
       installationId: string;
-      repo: { id: string; fullName: string };
+      repo: Repo;
+      productionBranch?: string;
+      jobLabels?: string[];
     }): Promise<void> {
       await db.transaction(async (tx) => {
         const [installation] = await tx
@@ -238,6 +245,8 @@ export function gitStore(keys: KeyStore) {
           installationId: input.installationId,
           repoId: input.repo.id,
           fullName: input.repo.fullName,
+          productionBranch: input.productionBranch ?? input.repo.defaultBranch,
+          jobLabels: input.jobLabels ?? [],
         };
         await tx
           .insert(projectRepo)
@@ -246,30 +255,17 @@ export function gitStore(keys: KeyStore) {
       });
     },
 
-    async projectsForRepo(installationId: string, repoId: string) {
+    async projectsForRepo(installationId: string, repoId: string): Promise<ProjectRepo[]> {
       return db
-        .select({ id: project.id, organizationId: project.organizationId })
+        .select({
+          id: project.id,
+          organizationId: project.organizationId,
+          productionBranch: projectRepo.productionBranch,
+          jobLabels: projectRepo.jobLabels,
+        })
         .from(projectRepo)
         .innerJoin(project, eq(project.id, projectRepo.projectId))
         .where(and(eq(projectRepo.installationId, installationId), eq(projectRepo.repoId, repoId)));
-    },
-
-    async recordDelivery(gitAppId: string, deliveryId: string, now = new Date()): Promise<boolean> {
-      await db
-        .delete(gitDelivery)
-        .where(lt(gitDelivery.receivedAt, new Date(now.getTime() - DELIVERY_RETENTION_MS)));
-      const recorded = await db
-        .insert(gitDelivery)
-        .values({ gitAppId, deliveryId, receivedAt: now })
-        .onConflictDoNothing()
-        .returning({ deliveryId: gitDelivery.deliveryId });
-      return recorded.length > 0;
-    },
-
-    async forgetDelivery(gitAppId: string, deliveryId: string): Promise<void> {
-      await db
-        .delete(gitDelivery)
-        .where(and(eq(gitDelivery.gitAppId, gitAppId), eq(gitDelivery.deliveryId, deliveryId)));
     },
   };
 }

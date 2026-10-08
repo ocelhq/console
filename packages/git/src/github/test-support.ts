@@ -66,7 +66,7 @@ export function fakeGithub() {
   const calls: Call[] = [];
   const deployments: FakeDeployment[] = [];
   const comments: FakeComment[] = [];
-  const repositories: { id: number; full_name: string }[] = [];
+  const repositories: { id: number; full_name: string; default_branch: string }[] = [];
   const oauth = {
     codes: new Map<string, string>(),
     revoked: [] as string[],

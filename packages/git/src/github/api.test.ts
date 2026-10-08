@@ -40,13 +40,13 @@ describe("listRepos", () => {
   it("returns every repository the installation reaches, across pages", async () => {
     const { github, provider } = setup();
     for (let id = 1; id <= 150; id++) {
-      github.repositories.push({ id, full_name: `acme/repo-${id}` });
+      github.repositories.push({ id, full_name: `acme/repo-${id}`, default_branch: "trunk" });
     }
 
     const repos = await provider.listRepos(installation);
 
     expect(repos).toHaveLength(150);
-    expect(repos[0]).toEqual({ id: "1", fullName: "acme/repo-1" });
+    expect(repos[0]).toEqual({ id: "1", fullName: "acme/repo-1", defaultBranch: "trunk" });
   });
 });
 

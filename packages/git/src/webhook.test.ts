@@ -1,6 +1,6 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { db } from "@console/db";
-import { gitApp, organization, project } from "@console/db/schema";
+import { gitApp, organization } from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
 import { pg } from "@console/infra";
 import { eq } from "drizzle-orm";
@@ -50,7 +50,10 @@ function pullRequestOpened(secret = webhookSecret) {
       number: 7,
       installation,
       repository,
-      pull_request: { head: { sha: "a".repeat(40), ref: "feature/x", repo: { id: 1234 } } },
+      pull_request: {
+        head: { sha: "a".repeat(40), ref: "feature/x", repo: { id: 1234 } },
+        updated_at: "2026-10-08T10:00:00Z",
+      },
     },
     secret,
   );
@@ -79,15 +82,6 @@ beforeAll(async () => {
     account: "acme",
   });
   if (bound === "claimed") throw new Error("claimed");
-  await db
-    .insert(project)
-    .values({ id: `p-${suffix}`, organizationId: orgId, name: "P", slug: "p" });
-  await store.linkProjectRepo({
-    projectId: `p-${suffix}`,
-    organizationId: orgId,
-    installationId: bound.id,
-    repo: { id: "1234", fullName: "acme/web" },
-  });
 });
 
 afterAll(async () => {
@@ -136,7 +130,7 @@ describe("webhookHandler", () => {
     expect(seen).toEqual([]);
   });
 
-  it("tells the handler which projects build from the repo an event is about", async () => {
+  it("hands the handler the event and the app it came to", async () => {
     const { post, seen } = setup();
 
     expect((await post(pullRequestOpened(), appRowId)).status).toBe(202);
@@ -144,43 +138,21 @@ describe("webhookHandler", () => {
     expect(seen).toHaveLength(1);
     expect(seen[0]?.event).toMatchObject({ type: "pr_opened", pr: 7, installation: "556" });
     expect(seen[0]?.context.app).toMatchObject({ id: appRowId, organizationId: orgId });
-    expect(seen[0]?.context.installation).toMatchObject({ organizationId: orgId });
-    expect(seen[0]?.context.projects).toEqual([{ id: `p-${suffix}`, organizationId: orgId }]);
   });
 
-  it("acts on a delivery once, however often it arrives", async () => {
+  it("hands the handler the delivery's id, so it can deduplicate a redelivery itself", async () => {
     const { post, seen } = setup();
     const request = pullRequestOpened();
 
     expect((await post(request, appRowId)).status).toBe(202);
-    expect((await post(request, appRowId)).status).toBe(202);
 
-    expect(seen).toHaveLength(1);
+    expect(seen[0]?.context.deliveryId).toBe(request.headers.get("x-github-delivery"));
   });
 
-  it("takes a delivery again when acting on it failed, so GitHub's redelivery works", async () => {
-    const request = pullRequestOpened();
-    await expect(setup(new Error("boom")).post(request, appRowId)).rejects.toThrow("boom");
-
-    const { post, seen } = setup();
-    expect((await post(request, appRowId)).status).toBe(202);
-    expect(seen).toHaveLength(1);
-  });
-
-  it("drops an event from an installation no organization bound", async () => {
-    const { post, seen } = setup();
-    const request = delivery(
-      "push",
-      {
-        ref: "refs/heads/main",
-        after: "a".repeat(40),
-        installation: { id: 999 },
-        repository,
-      },
-      webhookSecret,
+  it("passes the handler's failure on, so GitHub's redelivery works", async () => {
+    await expect(setup(new Error("boom")).post(pullRequestOpened(), appRowId)).rejects.toThrow(
+      "boom",
     );
-    expect((await post(request, appRowId)).status).toBe(202);
-    expect(seen).toEqual([]);
   });
 
   it("forgets an installation that was removed", async () => {
