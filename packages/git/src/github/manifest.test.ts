@@ -39,6 +39,7 @@ describe("githubManifest", () => {
       issues: "write",
       statuses: "write",
       deployments: "write",
+      administration: "write",
     });
     expect(manifest.default_events).toEqual(["push", "pull_request"]);
     expect(manifest.public).toBe(false);

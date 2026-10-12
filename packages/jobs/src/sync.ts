@@ -137,7 +137,7 @@ async function report(synced: Job, deps: SyncDeps): Promise<void> {
   const environment = previewEnvironment(synced.pr, found.slug);
   if (own.job.kind === "preview-rm") {
     if (own.job.status === "done")
-      await provider.upsertDeployment(installation, repo, { environment, state: "inactive" });
+      await provider.removeEnvironment(installation, repo, environment);
     return;
   }
   const state = DEPLOYMENT_STATES[own.job.status];

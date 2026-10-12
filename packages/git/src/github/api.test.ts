@@ -187,8 +187,13 @@ describe("upsertDeployment", () => {
 
     expect(github.deployments).toHaveLength(2);
   });
+});
 
-  it("inactivates then deletes every deployment of the environment when no commit is named", async () => {
+describe("removeEnvironment", () => {
+  const sha = "a".repeat(40);
+  const environment = "preview/pr-7/web";
+
+  it("removes the environment and every deployment in it", async () => {
     const { github, provider } = setup();
     await provider.upsertDeployment(installation, repo, { environment, sha, state: "in_progress" });
     await provider.upsertDeployment(installation, repo, {
@@ -196,23 +201,20 @@ describe("upsertDeployment", () => {
       sha: "b".repeat(40),
       state: "in_progress",
     });
-    const [first, second] = [...github.deployments];
 
-    await provider.upsertDeployment(installation, repo, { environment, state: "inactive" });
+    await provider.removeEnvironment(installation, repo, environment);
 
-    const inactive = github.callsTo("POST", /deployments\/\d+\/statuses$/).slice(-2);
-    expect(inactive.map((call) => [call.path, call.body])).toEqual([
-      [`/repos/acme/web/deployments/${first?.id}/statuses`, { state: "inactive" }],
-      [`/repos/acme/web/deployments/${second?.id}/statuses`, { state: "inactive" }],
+    expect(github.callsTo("DELETE", /\/environments\//).map((call) => call.path)).toEqual([
+      `/repos/acme/web/environments/${encodeURIComponent(environment)}`,
     ]);
     expect(github.deployments).toHaveLength(0);
   });
 
-  it("refuses to open a deployment without a commit to deploy", async () => {
+  it("counts an environment that never existed as removed", async () => {
     const { provider } = setup();
     await expect(
-      provider.upsertDeployment(installation, repo, { environment, state: "success" }),
-    ).rejects.toThrow(/commit/);
+      provider.removeEnvironment(installation, repo, environment),
+    ).resolves.toBeUndefined();
   });
 });
 
