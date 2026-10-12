@@ -53,7 +53,7 @@ export type GitEvent =
 
 export type CommitState = "pending" | "success" | "failure" | "error";
 
-export type DeploymentState = "queued" | "in_progress" | "success" | "failure" | "inactive";
+export type DeploymentState = "queued" | "in_progress" | "success" | "failure";
 
 export interface RepoToken {
   token: string;
@@ -98,9 +98,14 @@ export interface GitProvider {
     deployment: {
       environment: string;
       state: DeploymentState;
-      sha?: string;
+      sha: string;
       logUrl?: string;
       environmentUrl?: string;
     },
+  ): Promise<void>;
+  removeEnvironment(
+    installation: InstallationRef,
+    repo: RepoRef,
+    environment: string,
   ): Promise<void>;
 }

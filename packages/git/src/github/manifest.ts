@@ -28,6 +28,7 @@ export function githubManifest(input: { origin: string; appRowId: string; name: 
       issues: "write",
       statuses: "write",
       deployments: "write",
+      administration: "write",
     },
     default_events: ["push", "pull_request"],
   };

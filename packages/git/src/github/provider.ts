@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { App } from "@octokit/app";
 import { Octokit } from "@octokit/core";
+import { RequestError } from "@octokit/request-error";
 import type {
   DeploymentState,
   GitProvider,
@@ -236,18 +237,6 @@ export function githubProvider(github: GithubApp, options: GithubOptions = {}): 
           ...status,
         });
 
-      if (deployment.state === "inactive" && !deployment.sha) {
-        for (const existing of await deploymentsOf(octokit, target, deployment.environment)) {
-          await report(Number(existing.id), { state: "inactive" });
-          await octokit.request("DELETE /repos/{owner}/{repo}/deployments/{deployment_id}", {
-            ...target,
-            deployment_id: Number(existing.id),
-          });
-        }
-        return;
-      }
-
-      if (!deployment.sha) throw new Error("a deployment needs the commit it deploys");
       const sha = deployment.sha;
       const existing = (await deploymentsOf(octokit, target, deployment.environment, sha)).find(
         (candidate) => candidate.sha === sha,
@@ -256,6 +245,19 @@ export function githubProvider(github: GithubApp, options: GithubOptions = {}): 
         ? Number(existing.id)
         : await createDeployment(octokit, target, deployment.environment, sha);
       await report(id, statusFor(deployment));
+    },
+
+    async removeEnvironment(installation, repo, environment) {
+      const octokit = await installationClient(installation);
+      try {
+        await octokit.request("DELETE /repos/{owner}/{repo}/environments/{environment_name}", {
+          ...ownerAndName(repo),
+          environment_name: environment,
+        });
+      } catch (error) {
+        if (error instanceof RequestError && error.status === 404) return;
+        throw error;
+      }
     },
   };
 }

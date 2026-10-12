@@ -65,7 +65,6 @@ interface FakeDeployment {
 export function fakeGithub() {
   const calls: Call[] = [];
   const deployments: FakeDeployment[] = [];
-  const inactive = new Set<number>();
   const comments: FakeComment[] = [];
   const repositories: { id: number; full_name: string; default_branch: string }[] = [];
   const oauth = {
@@ -176,21 +175,18 @@ export function fakeGithub() {
       deployments.push(deployment);
       return reply(deployment, 201);
     }
-    const reported = at.match(/^POST \/repos\/[^/]+\/[^/]+\/deployments\/(\d+)\/statuses$/);
-    if (reported) {
-      if (body.state === "inactive") inactive.add(Number(reported[1]));
+    if (/^POST \/repos\/[^/]+\/[^/]+\/deployments\/\d+\/statuses$/.test(at)) {
       return reply({ id: nextId++ }, 201);
     }
-    const removed = at.match(/^DELETE \/repos\/[^/]+\/[^/]+\/deployments\/(\d+)$/);
-    if (removed) {
-      const id = Number(removed[1]);
-      if (!inactive.has(id)) {
-        return reply({ message: "We cannot delete an active deployment" }, 422);
+    const environmentPath = at.match(/^DELETE \/repos\/[^/]+\/[^/]+\/environments\/([^/]+)$/);
+    if (environmentPath?.[1]) {
+      const name = decodeURIComponent(environmentPath[1]);
+      if (!deployments.some((deployment) => deployment.environment === name)) {
+        return reply({ message: "Not Found" }, 404);
       }
-      deployments.splice(
-        deployments.findIndex((deployment) => deployment.id === id),
-        1,
-      );
+      for (let index = deployments.length - 1; index >= 0; index--) {
+        if (deployments[index]?.environment === name) deployments.splice(index, 1);
+      }
       return new Response(null, { status: 204 });
     }
     if (/^GET \/repos\/[^/]+\/[^/]+\/issues\/\d+\/comments$/.test(at)) {

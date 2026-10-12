@@ -32,6 +32,9 @@ const provider = {
   async upsertDeployment(...args: unknown[]) {
     calls.push(["upsertDeployment", ...args]);
   },
+  async removeEnvironment(...args: unknown[]) {
+    calls.push(["removeEnvironment", ...args]);
+  },
 } as unknown as GitProvider;
 const deps = { store, providerFor: () => provider };
 
@@ -256,7 +259,7 @@ describe("a preview", () => {
     expect(calls[2]?.[3]).toMatchObject({ state: "in_progress", sha: sha("2") });
   });
 
-  it("marks the environment inactive and the comment removed once the preview is removed", async () => {
+  it("removes the environment and marks the comment removed once the preview is removed", async () => {
     const row = await queued({
       projectId: web,
       kind: "preview-rm",
@@ -267,19 +270,19 @@ describe("a preview", () => {
 
     await syncJob(row.id, deps);
 
-    expect(calls.map((call) => call[0])).toEqual(["upsertComment", "upsertDeployment"]);
-    expect(calls[1]?.[3]).toEqual({ environment: "preview/pr-7/web", state: "inactive" });
+    expect(calls.map((call) => call[0])).toEqual(["upsertComment", "removeEnvironment"]);
+    expect(calls[1]?.[3]).toBe("preview/pr-7/web");
     expect(arg<{ body: string }>(calls[0]).body).toContain("Removed");
   });
 
-  it("says a pull request closed before its preview ran is closed, and its environment inactive", async () => {
+  it("says a pull request closed before its preview ran is closed, and removes its environment", async () => {
     await queued({ projectId: web, status: "canceled" });
     const row = await queued({ projectId: web, kind: "preview-rm", sha: null, status: "done" });
 
     await syncJob(row.id, deps);
 
     expect(arg<{ body: string }>(calls[0]).body).toContain("Closed");
-    expect(calls[1]?.[3]).toEqual({ environment: "preview/pr-7/web", state: "inactive" });
+    expect(calls[1]).toEqual(["removeEnvironment", installation, repoRef, "preview/pr-7/web"]);
   });
 
   it("ends a canceled preview's commit status, and reports the job that replaced it", async () => {
