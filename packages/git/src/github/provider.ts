@@ -239,6 +239,10 @@ export function githubProvider(github: GithubApp, options: GithubOptions = {}): 
       if (deployment.state === "inactive" && !deployment.sha) {
         for (const existing of await deploymentsOf(octokit, target, deployment.environment)) {
           await report(Number(existing.id), { state: "inactive" });
+          await octokit.request("DELETE /repos/{owner}/{repo}/deployments/{deployment_id}", {
+            ...target,
+            deployment_id: Number(existing.id),
+          });
         }
         return;
       }

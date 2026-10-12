@@ -65,6 +65,7 @@ interface FakeDeployment {
 export function fakeGithub() {
   const calls: Call[] = [];
   const deployments: FakeDeployment[] = [];
+  const inactive = new Set<number>();
   const comments: FakeComment[] = [];
   const repositories: { id: number; full_name: string; default_branch: string }[] = [];
   const oauth = {
@@ -175,8 +176,22 @@ export function fakeGithub() {
       deployments.push(deployment);
       return reply(deployment, 201);
     }
-    if (/^POST \/repos\/[^/]+\/[^/]+\/deployments\/\d+\/statuses$/.test(at)) {
+    const reported = at.match(/^POST \/repos\/[^/]+\/[^/]+\/deployments\/(\d+)\/statuses$/);
+    if (reported) {
+      if (body.state === "inactive") inactive.add(Number(reported[1]));
       return reply({ id: nextId++ }, 201);
+    }
+    const removed = at.match(/^DELETE \/repos\/[^/]+\/[^/]+\/deployments\/(\d+)$/);
+    if (removed) {
+      const id = Number(removed[1]);
+      if (!inactive.has(id)) {
+        return reply({ message: "We cannot delete an active deployment" }, 422);
+      }
+      deployments.splice(
+        deployments.findIndex((deployment) => deployment.id === id),
+        1,
+      );
+      return new Response(null, { status: 204 });
     }
     if (/^GET \/repos\/[^/]+\/[^/]+\/issues\/\d+\/comments$/.test(at)) {
       const page = Number(url.searchParams.get("page") ?? "1");

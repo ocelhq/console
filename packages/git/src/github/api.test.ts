@@ -188,7 +188,7 @@ describe("upsertDeployment", () => {
     expect(github.deployments).toHaveLength(2);
   });
 
-  it("inactivates every deployment of the environment when no commit is named", async () => {
+  it("inactivates then deletes every deployment of the environment when no commit is named", async () => {
     const { github, provider } = setup();
     await provider.upsertDeployment(installation, repo, { environment, sha, state: "in_progress" });
     await provider.upsertDeployment(installation, repo, {
@@ -196,16 +196,16 @@ describe("upsertDeployment", () => {
       sha: "b".repeat(40),
       state: "in_progress",
     });
+    const [first, second] = [...github.deployments];
 
     await provider.upsertDeployment(installation, repo, { environment, state: "inactive" });
 
     const inactive = github.callsTo("POST", /deployments\/\d+\/statuses$/).slice(-2);
-    const [first, second] = github.deployments;
     expect(inactive.map((call) => [call.path, call.body])).toEqual([
       [`/repos/acme/web/deployments/${first?.id}/statuses`, { state: "inactive" }],
       [`/repos/acme/web/deployments/${second?.id}/statuses`, { state: "inactive" }],
     ]);
-    expect(github.deployments).toHaveLength(2);
+    expect(github.deployments).toHaveLength(0);
   });
 
   it("refuses to open a deployment without a commit to deploy", async () => {
