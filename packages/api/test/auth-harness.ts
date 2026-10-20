@@ -23,6 +23,16 @@ async function signUpTestUser(suffix: string) {
   };
 }
 
+export async function createTestSessionWithoutOrganization() {
+  const signedUp = await signUpTestUser(crypto.randomUUID());
+  return {
+    ...signedUp,
+    async cleanup() {
+      await db.delete(user).where(eq(user.id, signedUp.user.id));
+    },
+  };
+}
+
 export async function createTestSessionWithRole(
   organizationId: string,
   role: "member" | "admin" | "owner",

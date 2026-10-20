@@ -1,16 +1,10 @@
-import { generateKeyPairSync, type KeyObject } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { auth } from "@console/auth/next";
-import { ConnectorReach, ConnectorService } from "@console/connectors/gen/console/v1/connector_pb";
-import { ComputeKind } from "@console/connectors/gen/console/v1/deployment_pb";
 import { setupTestDatabase } from "@console/db/testing";
-import { SignJWT } from "jose";
-import { uuidv7 } from "uuidv7";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createTestSessionWithOrganization } from "../test/auth-harness";
-import { serviceClient } from "../test/connect-harness";
-import { connectorHeartbeat } from "./routes/connectors/[id]/heartbeat/route";
+import { CONNECT_PREFIX, connect } from "./routes/connect/route";
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
@@ -38,18 +32,10 @@ function route(request: Request): Promise<Response> {
   if (pathname.startsWith("/api/auth/")) {
     return auth.handler(request);
   }
-  const [, api, resource, id, action] = pathname.split("/");
-  const handlers: Record<string, ((request: Request) => Promise<Response>) | undefined> =
-    api !== "api"
-      ? {}
-      : resource === "connectors" && action === "heartbeat"
-        ? { POST: (request) => connectorHeartbeat(request, id) }
-        : {};
-  const handler = handlers[request.method];
-  if (!handler) {
-    throw new Error(`the console routes no ${request.method} ${pathname}`);
+  if (pathname.startsWith(`${CONNECT_PREFIX}/`) && request.method === "POST") {
+    return connect(request);
   }
-  return handler(request);
+  throw new Error(`the console routes no ${request.method} ${pathname}`);
 }
 
 function substitute(text: string, binding: Binding): string {
@@ -114,23 +100,6 @@ function mismatches(path: string, want: Json, got: unknown, dynamic: Set<string>
   return want === got ? [] : [`${path} is ${JSON.stringify(got)}, want ${JSON.stringify(want)}`];
 }
 
-function keyPair() {
-  const { publicKey, privateKey } = generateKeyPairSync("ed25519");
-  const { x } = publicKey.export({ format: "jwk" }) as { x: string };
-  return { privateKey, publicKey: Buffer.from(x, "base64url").toString("base64") };
-}
-
-function mintHeartbeatToken(privateKey: KeyObject, id: string) {
-  return new SignJWT({})
-    .setProtectedHeader({ alg: "EdDSA" })
-    .setIssuer(id)
-    .setSubject(id)
-    .setAudience(origin)
-    .setIssuedAt()
-    .setExpirationTime("5m")
-    .sign(privateKey);
-}
-
 async function send(
   method: string,
   path: string,
@@ -167,26 +136,11 @@ async function requestDeviceCode() {
   return sendOk("POST", "/api/auth/device/code", null, { client_id: "ocel-cli" });
 }
 
-async function registerConnector(session: Session): Promise<string> {
-  const { connector: registered } = await serviceClient(ConnectorService, session.token).upsert({
-    target: "vps/sha256:abc/ocel",
-    vendor: "vps",
-    reach: ConnectorReach.DIAL,
-  });
-  return registered?.id ?? "";
-}
-
-async function registerAddressedConnector(session: Session) {
-  const id = await registerConnector(session);
-  const keys = keyPair();
-  await serviceClient(ConnectorService, session.token).setAddress({
-    id,
-    url: "https://connector.example.test",
-    publicKey: keys.publicKey,
-    compute: ComputeKind.CONTAINER,
-  });
-  return { id, keys };
-}
+const cloud = {
+  "cloud.api_url": "https://cloud.example.test",
+  "cloud.provider_url": "https://provider.cloud.example.test",
+  "cloud.audience": "ocel-cloud",
+};
 
 const setups: Record<string, (session: Session) => Promise<Binding>> = {
   "device-code": async () => ({}),
@@ -201,25 +155,21 @@ const setups: Record<string, (session: Session) => Promise<Binding>> = {
   "organization-list": async () => ({}),
   "organization-set-active": async () => ({}),
   "sign-out": async () => ({}),
-  "connector-heartbeat": async (session) => {
-    const { id, keys } = await registerAddressedConnector(session);
-    return {
-      "connector.id": id,
-      "connector.token": await mintHeartbeatToken(keys.privateKey, id),
-    };
-  },
-  "connector-heartbeat-unknown": async () => {
-    const id = uuidv7();
-    return {
-      "connector.id": id,
-      "connector.token": await mintHeartbeatToken(keyPair().privateKey, id),
-    };
-  },
+  "console-describe": async () => cloud,
+  "cloud-token": async () => ({}),
+  "cloud-token-without-session": async () => ({}),
 };
 
-describe("the requests the ocel CLI and connector send", () => {
+describe("the requests the ocel CLI sends", () => {
   beforeAll(async () => {
+    vi.stubEnv("CONSOLE_CLOUD_URL", cloud["cloud.api_url"]);
+    vi.stubEnv("CONSOLE_CLOUD_PROVIDER_URL", cloud["cloud.provider_url"]);
+    vi.stubEnv("CONSOLE_CLOUD_AUDIENCE", cloud["cloud.audience"]);
     await setupTestDatabase();
+  });
+
+  afterAll(() => {
+    vi.unstubAllEnvs();
   });
 
   it("are pinned at an ocel commit, each with a setup here", () => {

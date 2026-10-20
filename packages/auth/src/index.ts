@@ -9,3 +9,4 @@ export {
   roleOf,
   verifyOrganizationMembership,
 } from "./session";
+export { type OrganizationGrant, type OrganizationToken, signOrganizationToken } from "./token";

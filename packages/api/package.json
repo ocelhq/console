@@ -20,6 +20,7 @@
     "@console/connectors": "workspace:*",
     "@console/db": "workspace:*",
     "@console/git": "workspace:*",
+    "@console/infra": "workspace:*",
     "drizzle-orm": "catalog:",
     "jose": "^6.2.12",
     "pg": "^8.22.0",
