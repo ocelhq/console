@@ -88,7 +88,13 @@ export default async function VariablesPage({
         live={dialled !== null && refusal === null}
       />
       {dialled === null && <NoConnector vendor={latest.row.providerName} />}
-      {refusal !== null && <Refused reason={refusal.reason} message={refusal.message} />}
+      {refusal !== null && (
+        <Refused
+          reason={refusal.reason}
+          message={refusal.message}
+          provider={latest.row.providerName}
+        />
+      )}
       <VariablesTable projectId={found.id} environment={tier} initial={state} readOnly={readOnly} />
     </PageShell>
   );

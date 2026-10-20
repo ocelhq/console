@@ -203,8 +203,18 @@ export function hostnamesOf(apps: DeploymentApp[]) {
   return apps.flatMap((app) => app.hostnames.map((hostname) => ({ app: app.name, hostname })));
 }
 
-export function Domains({ apps }: { apps: DeploymentApp[] }) {
+export function Domains({ apps, ocelCloud }: { apps: DeploymentApp[]; ocelCloud: boolean }) {
   const rows = hostnamesOf(apps);
+  if (rows.length === 0 && ocelCloud) {
+    return (
+      <div className="flex flex-col items-start gap-3 p-4">
+        <p className="text-sm text-muted-foreground">
+          No hostnames declared. Apps answer on the urls Ocel Cloud assigned; hostnames of your own
+          don’t run on Ocel Cloud yet.
+        </p>
+      </div>
+    );
+  }
   if (rows.length === 0) {
     return (
       <div className="flex flex-col items-start gap-3 p-4">

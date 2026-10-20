@@ -30,6 +30,7 @@ import {
   shortId,
 } from "@/lib/deployment-view";
 import { findDeployment } from "@/lib/deployments";
+import { edgeLabel, isOcelCloud, providerLabel } from "@/lib/providers";
 import { absoluteTime } from "@/lib/relative-time";
 import { labelType } from "@/lib/type";
 import { EdgeMark, ProviderMark } from "../../../../marks";
@@ -176,6 +177,7 @@ export default async function DeploymentPage({
             tier={deployment.tier}
             environmentIdentity={deployment.environmentIdentity}
             active={isActive}
+            ocelCloud={isOcelCloud(deployment.providerName)}
           />
         </div>
       </header>
@@ -191,14 +193,16 @@ export default async function DeploymentPage({
         <Field name="Provider">
           <span className="inline-flex items-center gap-2">
             <ProviderMark provider={deployment.providerName} size={18} />
-            {[deployment.providerName, deployment.providerRegion].filter(Boolean).join(" · ")}
+            {[providerLabel(deployment.providerName), deployment.providerRegion]
+              .filter(Boolean)
+              .join(" · ")}
           </span>
         </Field>
         <Field name="Edge">
           {deployment.edgeKind ? (
             <span className="inline-flex items-center gap-2">
               <EdgeMark edge={deployment.edgeKind} size={16} />
-              {deployment.edgeKind}
+              {edgeLabel(deployment.edgeKind)}
             </span>
           ) : (
             <NotReported />
@@ -287,7 +291,10 @@ export default async function DeploymentPage({
             <span className={aside}>{countOf(hostnames, "hostname")}</span>
           </AccordionTrigger>
           <AccordionContent className={panel}>
-            <Domains apps={deployment.topology.apps} />
+            <Domains
+              apps={deployment.topology.apps}
+              ocelCloud={isOcelCloud(deployment.providerName)}
+            />
           </AccordionContent>
         </AccordionItem>
         <AccordionItem value="checks">
