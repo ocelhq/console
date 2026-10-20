@@ -26,7 +26,6 @@ export { cancelCloudJob } from "./routes/cloud/jobs/[id]/cancel/route";
 export { listCloudJobEvents } from "./routes/cloud/jobs/[id]/events/route";
 export { RESPOND_BODY_LIMIT, respondCloudJob } from "./routes/cloud/jobs/[id]/respond/route";
 export { CONNECT_PREFIX, connect } from "./routes/connect/route";
-export { connectorHeartbeat } from "./routes/connectors/[id]/heartbeat/route";
 export { type Liveness, liveness } from "./routes/connectors/liveness";
 export { githubAuthorized } from "./routes/git/github/[appId]/authorized/route";
 export { githubSetup } from "./routes/git/github/[appId]/setup/route";

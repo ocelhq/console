@@ -40,7 +40,7 @@ const validator = createValidator({
 
 const handlers = createConnectRouter({
   interceptors: [
-    sessionInterceptor([ConsoleService.method.describe]),
+    sessionInterceptor([ConsoleService.method.describe, ConnectorService.method.heartbeat]),
     createValidateInterceptor({ validator }),
   ],
 })

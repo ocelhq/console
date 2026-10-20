@@ -1,13 +1,14 @@
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError, type HandlerContext, type ServiceImpl } from "@connectrpc/connect";
-import { administers, roleOf } from "@console/auth";
+import { administers, consoleOrigin, roleOf } from "@console/auth";
 import {
   ConnectorReach,
   type ConnectorService,
 } from "@console/connectors/gen/console/v1/connector_pb";
 import { db } from "@console/db";
 import { type Connector, connector } from "@console/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
+import { importJWK, jwtVerify } from "jose";
 import { uuidv7 } from "uuidv7";
 import { liveness } from "../connectors/liveness";
 import { computeKindOf, computeKinds } from "./compute";
@@ -58,6 +59,43 @@ async function ownedConnectorId(organizationId: string, id: string): Promise<str
   return found.id;
 }
 
+function verifying(publicKey: string) {
+  return importJWK(
+    { kty: "OKP", crv: "Ed25519", x: Buffer.from(publicKey, "base64").toString("base64url") },
+    "EdDSA",
+  );
+}
+
+async function requireConnectorSigned(context: HandlerContext, id: string): Promise<string> {
+  const [found] = await db
+    .select({ id: connector.id, publicKey: connector.publicKey })
+    .from(connector)
+    .where(eq(connector.id, id));
+  if (!found) {
+    throw new ConnectError(`The console has no connector ${id}`, Code.NotFound);
+  }
+  if (found.publicKey === null) {
+    throw new ConnectError("This connector has published no key", Code.Unauthenticated);
+  }
+  const bearer = context.requestHeader.get("Authorization")?.match(/^Bearer (.+)$/)?.[1];
+  if (!bearer) {
+    throw new ConnectError("A token the connector signed is required", Code.Unauthenticated);
+  }
+  try {
+    await jwtVerify(bearer, await verifying(found.publicKey), {
+      issuer: found.id,
+      subject: found.id,
+      audience: consoleOrigin(),
+      algorithms: ["EdDSA"],
+      maxTokenAge: "5m",
+      clockTolerance: 30,
+    });
+  } catch {
+    throw new ConnectError("The token is not one this connector signed", Code.Unauthenticated);
+  }
+  return found.id;
+}
+
 function requireWritten<T>(row: T | undefined): T {
   if (!row) {
     throw new ConnectError("the write returned no connector", Code.Internal);
@@ -65,7 +103,7 @@ function requireWritten<T>(row: T | undefined): T {
   return row;
 }
 
-export const connectorService: Omit<ServiceImpl<typeof ConnectorService>, "heartbeat"> = {
+export const connectorService: ServiceImpl<typeof ConnectorService> = {
   async upsert(request, context) {
     const session = await requireAdministeringSession(context);
     const [saved] = await db
@@ -116,6 +154,21 @@ export const connectorService: Omit<ServiceImpl<typeof ConnectorService>, "heart
     const session = await requireAdministeringSession(context);
     const id = await ownedConnectorId(session.activeOrganizationId, request.id);
     await db.delete(connector).where(eq(connector.id, id));
+    return {};
+  },
+
+  async heartbeat(request, context) {
+    const id = await requireConnectorSigned(context, request.id);
+    const now = new Date();
+    await db
+      .update(connector)
+      .set({
+        connectedAt: sql`coalesce(${connector.connectedAt}, ${now})`,
+        lastSeenAt: now,
+        version: request.version || null,
+        capabilities: request.capabilities,
+      })
+      .where(eq(connector.id, id));
     return {};
   },
 };
