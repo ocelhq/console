@@ -163,8 +163,16 @@ export function OutcomeDot({ outcome }: { outcome: DeploymentApp["outcome"] }) {
   );
 }
 
-export function EdgeMark({ edge, size = 14 }: { edge: string; size?: number }) {
-  if (isOcelCloudEdge(edge)) {
+export function EdgeMark({
+  edge,
+  provider,
+  size = 14,
+}: {
+  edge: string;
+  provider?: string | null;
+  size?: number;
+}) {
+  if (isOcelCloudEdge(edge, provider)) {
     return <OcelIcon className="shrink-0" style={{ width: size, height: size }} />;
   }
   const mark = providerMarks[edge.toLowerCase()];

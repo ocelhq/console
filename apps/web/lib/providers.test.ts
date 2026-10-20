@@ -18,6 +18,12 @@ describe("providerLabel", () => {
     expect(edgeLabel("ocel-cloud")).toBe("Ocel Cloud");
     expect(edgeLabel("cloudfront")).toBe("cloudfront");
   });
+
+  it("names the edge an Ocel Cloud deployment reports, none, Ocel Cloud", () => {
+    expect(edgeLabel("none", "ocel")).toBe("Ocel Cloud");
+    expect(edgeLabel("none", "vps")).toBe("none");
+    expect(edgeLabel("none")).toBe("none");
+  });
 });
 
 describe("connectorLabel", () => {
