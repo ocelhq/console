@@ -1,4 +1,22 @@
+export {
+  type CloudAnswer,
+  type CloudJobs,
+  type CloudRefusal,
+  cloudJobsFor,
+  JOB_ID,
+  type JobEvents,
+} from "./cloud/jobs";
+export type {
+  CloudJob,
+  CloudJobEvent,
+  JobCommandName,
+  JobEventLevelName,
+  JobPhaseName,
+  JobStateName,
+} from "./cloud/view";
 export { authHandler } from "./routes/auth/route";
+export { cancelCloudJob } from "./routes/cloud/jobs/[id]/cancel/route";
+export { listCloudJobEvents } from "./routes/cloud/jobs/[id]/events/route";
 export { CONNECT_PREFIX, connect } from "./routes/connect/route";
 export { connectorHeartbeat } from "./routes/connectors/[id]/heartbeat/route";
 export { type Liveness, liveness } from "./routes/connectors/liveness";

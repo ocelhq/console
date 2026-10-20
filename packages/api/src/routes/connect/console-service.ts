@@ -1,16 +1,14 @@
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError, type ServiceImpl } from "@connectrpc/connect";
-import { signOrganizationToken } from "@console/auth";
 import type { ConsoleService } from "@console/connectors/gen/console/v1/console_pb";
 import { version } from "../../../package.json";
+import { CLOUD_SCOPES, type CloudScope, signCloudToken } from "../../cloud/token";
 import { readCloudOffer } from "./cloud";
 import { sessionOf } from "./session";
 
-const CLOUD_SCOPES = ["cloud.apps.read", "cloud.apps.write"] as const;
-
 const cloudTokenLifetime = 5 * 60;
 
-function cloudScopes(asked: readonly string[]): string[] {
+function cloudScopes(asked: readonly string[]): CloudScope[] {
   if (asked.length === 0) {
     return [...CLOUD_SCOPES];
   }
@@ -22,7 +20,7 @@ function cloudScopes(asked: readonly string[]): string[] {
       Code.InvalidArgument,
     );
   }
-  return [...asked];
+  return [...asked] as CloudScope[];
 }
 
 export const consoleService: ServiceImpl<typeof ConsoleService> = {
@@ -41,13 +39,12 @@ export const consoleService: ServiceImpl<typeof ConsoleService> = {
     if (!cloud) {
       throw new ConnectError("This console offers no Ocel Cloud", Code.FailedPrecondition);
     }
-    const { token, expiresAt } = await signOrganizationToken({
-      audience: cloud.audience,
-      organizationId: session.activeOrganizationId,
-      userId: session.userId,
-      scope: cloudScopes(request.scopes),
-      lifetimeSeconds: cloudTokenLifetime,
-    });
+    const { token, expiresAt } = await signCloudToken(
+      cloud,
+      session,
+      cloudScopes(request.scopes),
+      cloudTokenLifetime,
+    );
     return { token, expiresAt: timestampFromDate(expiresAt) };
   },
 };
