@@ -1,27 +1,19 @@
-import { isDeepStrictEqual } from "node:util";
 import { Code, ConnectError, type HandlerContext, type ServiceImpl } from "@connectrpc/connect";
 import type { DeploymentService } from "@console/connectors/gen/console/v1/deployment_pb";
 import { db } from "@console/db";
-import { deployment, environmentEvent, project } from "@console/db/schema";
+import { environmentEvent } from "@console/db/schema";
 import { and, eq } from "drizzle-orm";
 import { uuidv7 } from "uuidv7";
-import { deploymentValues, environmentEventValues } from "./record";
+import { environmentEventValues } from "./record";
+import { projectInOrganization, type Recording, recordDeployment, recordOnce } from "./report";
 import { sessionOf } from "./session";
 
 async function ownedProject(context: HandlerContext, projectId: string): Promise<string> {
-  const [found] = await db
-    .select({ id: project.id })
-    .from(project)
-    .where(
-      and(
-        eq(project.organizationId, sessionOf(context).activeOrganizationId),
-        eq(project.id, projectId),
-      ),
-    );
+  const found = await projectInOrganization(sessionOf(context).activeOrganizationId, projectId);
   if (!found) {
     throw new ConnectError(`No project ${projectId} in the session's organization`, Code.NotFound);
   }
-  return found.id;
+  return found;
 }
 
 function required<T>(record: T | undefined, what: string): T {
@@ -31,37 +23,18 @@ function required<T>(record: T | undefined, what: string): T {
   return record;
 }
 
-type Recorded = { id: string; createdAt?: Date };
-
-function contentOf<Row extends Recorded>({
-  id: _id,
-  createdAt: _createdAt,
-  ...content
-}: Row): unknown {
-  return JSON.parse(JSON.stringify(content));
-}
-
-async function recordOnce<Row extends Recorded>(
-  what: string,
-  values: Row,
-  insert: (values: Row) => Promise<unknown[]>,
-  stored: () => Promise<Recorded | undefined>,
-): Promise<void> {
-  if ((await insert(values)).length > 0) {
-    return;
-  }
-  const first = await stored();
-  if (!first) {
-    throw new ConnectError(
-      `${what} conflicted with a record that is no longer stored`,
-      Code.NotFound,
-    );
-  }
-  if (!isDeepStrictEqual(contentOf(first), contentOf(values))) {
-    throw new ConnectError(
-      `${what} is already recorded with different content`,
-      Code.AlreadyExists,
-    );
+function accepted(what: string, recording: Recording): void {
+  switch (recording) {
+    case "gone":
+      throw new ConnectError(
+        `${what} conflicted with a record that is no longer stored`,
+        Code.NotFound,
+      );
+    case "differs":
+      throw new ConnectError(
+        `${what} is already recorded with different content`,
+        Code.AlreadyExists,
+      );
   }
 }
 
@@ -69,25 +42,8 @@ export const deploymentService: ServiceImpl<typeof DeploymentService> = {
   async report(request, context) {
     const reported = required(request.deployment, "deployment");
     const projectId = await ownedProject(context, request.projectId);
-    const values = deploymentValues(projectId, uuidv7(), reported);
-    await recordOnce(
-      `Deployment ${values.deploymentId}`,
-      values,
-      (row) =>
-        db.insert(deployment).values(row).onConflictDoNothing().returning({ id: deployment.id }),
-      async () => {
-        const [row] = await db
-          .select()
-          .from(deployment)
-          .where(
-            and(
-              eq(deployment.projectId, projectId),
-              eq(deployment.deploymentId, values.deploymentId),
-            ),
-          );
-        return row;
-      },
-    );
+    const { deploymentId, recording } = await recordDeployment(projectId, reported);
+    accepted(`Deployment ${deploymentId}`, recording);
     return {};
   },
 
@@ -95,8 +51,7 @@ export const deploymentService: ServiceImpl<typeof DeploymentService> = {
     const event = required(request.event, "event");
     const projectId = await ownedProject(context, request.projectId);
     const values = environmentEventValues(projectId, uuidv7(), event);
-    await recordOnce(
-      `Environment event ${values.deploymentId}`,
+    const recording = await recordOnce(
       values,
       (row) =>
         db
@@ -117,6 +72,7 @@ export const deploymentService: ServiceImpl<typeof DeploymentService> = {
         return row;
       },
     );
+    accepted(`Environment event ${values.deploymentId}`, recording);
     return {};
   },
 };
