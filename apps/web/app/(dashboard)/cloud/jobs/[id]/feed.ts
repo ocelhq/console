@@ -22,7 +22,12 @@ async function troubleOf(response: Response): Promise<string> {
   return body?.error ?? `The console answered ${response.status}`;
 }
 
-export function useJobFeed(initial: JobEvents): Feed & { show(job: CloudJob): void } {
+export interface FeedControls {
+  show(job: CloudJob): void;
+  refresh(): void;
+}
+
+export function useJobFeed(initial: JobEvents): Feed & FeedControls {
   const router = useRouter();
   const start = useRef(initial);
   const [job, setJob] = useState(initial.job);
@@ -30,6 +35,7 @@ export function useJobFeed(initial: JobEvents): Feed & { show(job: CloudJob): vo
   const [polling, setPolling] = useState(shouldPoll(initial.job, initial.more));
   const [trouble, setTrouble] = useState<string | null>(null);
   const [gone, setGone] = useState(false);
+  const poke = useRef<() => void>(() => {});
 
   useEffect(() => {
     const { job: first, events: shown, more: firstMore } = start.current;
@@ -40,8 +46,11 @@ export function useJobFeed(initial: JobEvents): Feed & { show(job: CloudJob): vo
     let failures = 0;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let busy = false;
+    let again = false;
 
     async function tick() {
+      busy = true;
       try {
         const response = await fetch(eventsURL(id, after), { cache: "no-store" });
         if (stopped) return;
@@ -71,12 +80,25 @@ export function useJobFeed(initial: JobEvents): Feed & { show(job: CloudJob): vo
         failures += 1;
         setTrouble(thrown instanceof Error ? thrown.message : String(thrown));
       }
+      busy = false;
+      if (stopped) return;
       if (!shouldPoll({ state }, more)) {
         setPolling(false);
         return;
       }
-      timer = setTimeout(tick, pollDelay(failures, more));
+      timer = setTimeout(tick, again ? 0 : pollDelay(failures, more));
+      again = false;
     }
+
+    poke.current = () => {
+      if (stopped || !shouldPoll({ state }, more)) return;
+      if (busy) {
+        again = true;
+        return;
+      }
+      clearTimeout(timer);
+      void tick();
+    };
 
     if (shouldPoll(first, firstMore)) {
       timer = setTimeout(tick, pollDelay(0, firstMore));
@@ -84,8 +106,9 @@ export function useJobFeed(initial: JobEvents): Feed & { show(job: CloudJob): vo
     return () => {
       stopped = true;
       clearTimeout(timer);
+      poke.current = () => {};
     };
   }, [router]);
 
-  return { job, events, polling, trouble, gone, show: setJob };
+  return { job, events, polling, trouble, gone, show: setJob, refresh: () => poke.current() };
 }

@@ -1,12 +1,7 @@
 "use client";
 
 import type { CloudJob, JobEvents } from "@console/api";
-import {
-  ArrowLeftIcon,
-  ArrowSquareOutIcon,
-  HandPalmIcon,
-  TerminalIcon,
-} from "@phosphor-icons/react";
+import { ArrowLeftIcon, ArrowSquareOutIcon, TerminalIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { commandOf, isTerminal, type JobTone, phaseWord, stateOf, titleOf } from "@/lib/cloud-job";
@@ -25,6 +20,7 @@ import {
 import { Stamp } from "../../../stamp";
 import { CancelJob } from "./cancel";
 import { useJobFeed } from "./feed";
+import { InputRequired } from "./input";
 import { JobLog } from "./log";
 import { JobGone } from "./states";
 
@@ -67,36 +63,6 @@ export function JobStatus({ job }: { job: Pick<CloudJob, "state"> }) {
       />
       <span className={words[state.tone]}>{state.word}</span>
     </span>
-  );
-}
-
-export function InputRequired() {
-  return (
-    <section
-      aria-labelledby="job-input"
-      className="flex flex-col gap-4 border border-border bg-warn/10 p-4"
-    >
-      <div className="flex flex-col gap-1">
-        <h2 id="job-input" className="inline-flex items-center gap-2 text-sm font-semibold">
-          <HandPalmIcon aria-hidden className="size-4 text-warn" />
-          This job needs your input
-        </h2>
-        <p className="max-w-prose text-sm text-muted-foreground">
-          It is paused until someone answers. Whatever it is waiting for is in the last lines of the
-          log.
-        </p>
-      </div>
-      <div
-        data-slot="job-input"
-        className="flex min-h-24 flex-col items-start justify-center gap-1 border border-dashed border-steel/60 bg-background px-4 py-3"
-      >
-        <span className={labelType}>Planned</span>
-        <p className="max-w-prose text-sm text-muted-foreground">
-          Filling in missing variables and approving a plan will happen here. Until then, cancel the
-          job, settle it from your terminal and run the command again.
-        </p>
-      </div>
-    </section>
   );
 }
 
@@ -183,6 +149,7 @@ export function JobView({
 }) {
   const feed = useJobFeed(initial);
   const { job } = feed;
+  const [answered, setAnswered] = useState<ReadonlySet<string>>(new Set());
   const ended = isTerminal(job.state);
   const at = useNow(!ended && job.startedAt !== null, now);
   const command = commandOf(job.command);
@@ -251,7 +218,18 @@ export function JobView({
         </div>
       </header>
 
-      {job.state === "input-required" && <InputRequired />}
+      {job.state === "input-required" && (
+        <InputRequired
+          job={job}
+          sent={job.input !== null && answered.has(job.input.id)}
+          onAnswered={(inputId, next) => {
+            setAnswered((current) => new Set(current).add(inputId));
+            feed.show(next);
+            feed.refresh();
+          }}
+          onStale={feed.refresh}
+        />
+      )}
 
       <Joined className="sm:grid-cols-2 lg:grid-cols-3">
         <Field name="Command">
