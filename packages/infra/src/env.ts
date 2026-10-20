@@ -53,4 +53,28 @@ export const env = defineEnv({
         "A GitHub App every organization can install. The console stores it as the system git app at start.",
     },
   ),
+  ocelCloud: group(
+    {
+      CONSOLE_CLOUD_URL: {
+        class: "plain",
+        schema: z.url(),
+        description: "The Ocel Cloud API the CLI deploys to.",
+      },
+      CONSOLE_CLOUD_PROVIDER_URL: {
+        class: "plain",
+        schema: z.url().optional(),
+        description: "The hosted provider the CLI reaches for day-2 commands.",
+      },
+      CONSOLE_CLOUD_AUDIENCE: {
+        class: "plain",
+        schema: z.string().min(1).optional(),
+        description:
+          "The aud of the tokens the console signs for Ocel Cloud; the origin of CONSOLE_CLOUD_URL when unset.",
+      },
+    },
+    {
+      optional: true,
+      description: "Offers Ocel Cloud as the target of a project that names no provider.",
+    },
+  ),
 });

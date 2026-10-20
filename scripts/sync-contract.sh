@@ -6,7 +6,7 @@ ref="${1:?usage: scripts/sync-contract.sh <ocel-ref> [destination]}"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 destination="${2:-$root/packages/api/test/contract}"
 repository="${OCEL_REPOSITORY:-https://github.com/ocelhq/ocel.git}"
-directories=(cli/internal/console/testdata/contract pkg/connectorserver/testdata/contract)
+directories=(cli/internal/console/testdata/contract)
 
 checkout="$(mktemp -d)"
 trap 'rm -rf "$checkout"' EXIT

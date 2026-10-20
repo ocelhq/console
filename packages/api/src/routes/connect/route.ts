@@ -9,6 +9,10 @@ import {
   file_console_v1_connector,
 } from "@console/connectors/gen/console/v1/connector_pb";
 import {
+  ConsoleService,
+  file_console_v1_console,
+} from "@console/connectors/gen/console/v1/console_pb";
+import {
   DeploymentService,
   file_console_v1_deployment,
 } from "@console/connectors/gen/console/v1/deployment_pb";
@@ -17,6 +21,7 @@ import {
   ProjectService,
 } from "@console/connectors/gen/console/v1/project_pb";
 import { connectorService } from "./connector-service";
+import { consoleService } from "./console-service";
 import { deploymentService } from "./deployment-service";
 import { projectService } from "./project-service";
 import { sessionInterceptor } from "./session";
@@ -28,16 +33,21 @@ const validator = createValidator({
     file_console_v1_deployment,
     file_console_v1_project,
     file_console_v1_connector,
+    file_console_v1_console,
     file_common_environment_v1_environment,
   ),
 });
 
 const handlers = createConnectRouter({
-  interceptors: [sessionInterceptor, createValidateInterceptor({ validator })],
+  interceptors: [
+    sessionInterceptor([ConsoleService.method.describe]),
+    createValidateInterceptor({ validator }),
+  ],
 })
   .service(DeploymentService, deploymentService)
   .service(ProjectService, projectService)
   .service(ConnectorService, connectorService)
+  .service(ConsoleService, consoleService)
   .handlers.map((handler) => ({
     path: handler.requestPath,
     handle: createFetchHandler(handler),

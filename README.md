@@ -124,6 +124,21 @@ put these requirements on the target you deploy to:
 - VPS: run `ocel bootstrap` again if the box's agent predates the ocel you deploy with. The console
   already runs on container compute there, which tasks support.
 
+A console can offer an Ocel Cloud as the target of projects that name no provider. These
+variables configure the offer; with `CONSOLE_CLOUD_URL` unset the console offers none:
+
+| Variable                     | Default                           | Effect                                                   |
+| ---------------------------- | --------------------------------- | -------------------------------------------------------- |
+| `CONSOLE_CLOUD_URL`          | unset                             | The Ocel Cloud API the CLI deploys to                    |
+| `CONSOLE_CLOUD_PROVIDER_URL` | unset                             | The hosted provider the CLI reaches for day-2 commands   |
+| `CONSOLE_CLOUD_AUDIENCE`     | the origin of `CONSOLE_CLOUD_URL` | The `aud` of the tokens the console signs for Ocel Cloud |
+
+`ocel login` asks the console what it offers (`console.v1.ConsoleService.Describe`, no session
+needed), then trades the session for five-minute Ocel Cloud tokens
+(`ConsoleService.IssueCloudToken`) signed for the session's active organization. Ocel Cloud
+verifies them against `{origin}/api/auth/jwks`, so it must trust this console's origin and
+expect the same audience.
+
 Then point the CLI at your console:
 `OCEL_CONSOLE_URL=https://console.example.com ocel login`,
 `ocel link`, `ocel connector add`.
