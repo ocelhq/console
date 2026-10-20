@@ -5,6 +5,7 @@ import { desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { requireOrganization } from "@/lib/access";
 import { type LatestDeployment, latestDeploymentByProject } from "@/lib/deployments";
+import { providerLabel } from "@/lib/providers";
 import { FrameworkStack } from "../framework-stack";
 import { ProviderMark } from "../marks";
 import { EmptyProjects } from "./empty";
@@ -23,7 +24,7 @@ function Provider({ deployment }: { deployment: LatestDeployment | undefined }) 
   return (
     <p className="flex shrink-0 items-center gap-1.5">
       <ProviderMark provider={deployment.providerName} size={14} />
-      <span className="sr-only">{deployment.providerName}</span>
+      <span className="sr-only">{providerLabel(deployment.providerName)}</span>
       {deployment.providerRegion && (
         <span className="tabular-nums">{deployment.providerRegion}</span>
       )}

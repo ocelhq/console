@@ -1,4 +1,5 @@
 import type { RefusalReason } from "@console/connectors";
+import { isOcelCloud } from "@/lib/providers";
 import { CommandPane } from "../../../command-pane";
 import { PageNotice as Notice, noticeBody } from "../../../page-shell";
 
@@ -16,6 +17,18 @@ export function NeverDeployed() {
 }
 
 export function NoConnector({ vendor }: { vendor: string | null }) {
+  if (isOcelCloud(vendor)) {
+    return (
+      <Notice heading="Values live in Ocel Cloud">
+        <p className={noticeBody}>
+          The keys below are what your last deploy reported. The values themselves are stored in
+          Ocel Cloud, and the console reads them through Ocel Cloud’s connector, which this console
+          has no record of yet. The terminal reads them directly.
+        </p>
+        <CommandPane command="ocel env ls" />
+      </Notice>
+    );
+  }
   return (
     <Notice heading="Values live in your own cloud">
       <p className={noticeBody}>
@@ -59,13 +72,22 @@ const refusals: Record<RefusalReason, { heading: string; body: string; command?:
   },
 };
 
-export function Refused({ reason, message }: { reason: RefusalReason; message: string }) {
+export function Refused({
+  reason,
+  message,
+  provider,
+}: {
+  reason: RefusalReason;
+  message: string;
+  provider: string | null;
+}) {
   const refusal = refusals[reason];
+  const command = isOcelCloud(provider) ? undefined : refusal.command;
   return (
     <Notice heading={refusal.heading} role="alert">
       <p className={noticeBody}>{refusal.body}</p>
       <p className="max-w-prose font-mono text-xs break-words text-muted-foreground">{message}</p>
-      {refusal.command && <CommandPane command={refusal.command} />}
+      {command && <CommandPane command={command} />}
     </Notice>
   );
 }

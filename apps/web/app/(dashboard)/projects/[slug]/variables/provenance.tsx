@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { shortId } from "@/lib/deployment-view";
+import { isOcelCloud, OCEL_CLOUD, providerLabel } from "@/lib/providers";
 import { labelType } from "@/lib/type";
 import { Stamp } from "../../../stamp";
 
@@ -41,13 +42,13 @@ export function Provenance({
       )}
       {provider && (
         <Fact term="provider">
-          {provider}
+          {providerLabel(provider)}
           {region && <span className="text-muted-foreground"> · {region}</span>}
         </Fact>
       )}
       <Fact term="values">
         <span className={live ? "text-go" : "text-muted-foreground"}>
-          {live ? "live from your cloud" : "not readable"}
+          {live ? `live from ${isOcelCloud(provider) ? OCEL_CLOUD : "your cloud"}` : "not readable"}
         </span>
       </Fact>
     </dl>

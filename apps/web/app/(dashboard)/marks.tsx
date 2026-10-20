@@ -17,8 +17,10 @@ import {
   siRust,
 } from "simple-icons";
 import { AwsIcon, RdsIcon, S3Icon } from "@/components/marks/aws";
+import { OcelIcon } from "@/components/marks/ocel";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { frameworkCatalog } from "@/lib/frameworks";
+import { isOcelCloud, isOcelCloudEdge } from "@/lib/providers";
 
 const runtimeMarks: Record<string, SimpleIcon> = {
   node: siNodedotjs,
@@ -126,6 +128,9 @@ export function ProviderMark({
     }
     return <AwsIcon className="shrink-0 object-contain" style={style} />;
   }
+  if (isOcelCloud(name)) {
+    return <OcelIcon className="shrink-0" style={style} />;
+  }
 
   const mark = providerMarks[name];
   if (mark) {
@@ -159,6 +164,9 @@ export function OutcomeDot({ outcome }: { outcome: DeploymentApp["outcome"] }) {
 }
 
 export function EdgeMark({ edge, size = 14 }: { edge: string; size?: number }) {
+  if (isOcelCloudEdge(edge)) {
+    return <OcelIcon className="shrink-0" style={{ width: size, height: size }} />;
+  }
   const mark = providerMarks[edge.toLowerCase()];
   if (mark) {
     return <Glyph icon={mark} size={size} />;
