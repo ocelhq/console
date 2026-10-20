@@ -201,8 +201,8 @@ export default async function DeploymentPage({
         <Field name="Edge">
           {deployment.edgeKind ? (
             <span className="inline-flex items-center gap-2">
-              <EdgeMark edge={deployment.edgeKind} size={16} />
-              {edgeLabel(deployment.edgeKind)}
+              <EdgeMark edge={deployment.edgeKind} provider={deployment.providerName} size={16} />
+              {edgeLabel(deployment.edgeKind, deployment.providerName)}
             </span>
           ) : (
             <NotReported />

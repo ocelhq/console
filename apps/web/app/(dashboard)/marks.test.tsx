@@ -24,5 +24,7 @@ describe("EdgeMark", () => {
   it("draws the Ocel mark for Ocel Cloud's edge", () => {
     expect(renderToStaticMarkup(<EdgeMark edge="ocel-cloud" />)).toContain(cutRing);
     expect(renderToStaticMarkup(<EdgeMark edge="cloudfront" />)).not.toContain(cutRing);
+    expect(renderToStaticMarkup(<EdgeMark edge="none" provider="ocel" />)).toContain(cutRing);
+    expect(renderToStaticMarkup(<EdgeMark edge="none" provider="vps" />)).not.toContain(cutRing);
   });
 });
