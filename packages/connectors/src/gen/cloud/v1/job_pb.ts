@@ -5,6 +5,8 @@
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../buf/validate/validate_pb";
+import type { Tier } from "../../common/environment/v1/environment_pb";
+import { file_common_environment_v1_environment } from "../../common/environment/v1/environment_pb";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
@@ -13,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cloud/v1/job.proto.
  */
 export const file_cloud_v1_job: GenFile = /*@__PURE__*/
-  fileDesc("ChJjbG91ZC92MS9qb2IucHJvdG8SCGNsb3VkLnYxIowBCgpHaXRDb250ZXh0EioKBmNvbW1pdBgBIAEoCUIaukgX2AEBchIyEF5bMC05YS1mXXs3LDY0fSQSLQoGYnJhbmNoGAIgASgJQh26SBpyGBiAAjITXlteXHgwMC1ceDFmXHg3Zl0qJBINCgVkaXJ0eRgDIAEoCBIUCgxwdWxsX3JlcXVlc3QYBCABKA0ikwEKDVByZXZpZXdUYXJnZXQSNAoEbmFtZRgBIAEoCUImukgjciEYPzIdXlthLXpdW2EtejAtOV0qKC1bYS16MC05XSspKiQSEgoKcGVyc2lzdGVudBgCIAEoCBI4CgVsYWJlbBgDIAEoCUIpukgm2AEBciEYPzIdXlthLXpdW2EtejAtOV0qKC1bYS16MC05XSspKiQiuAgKD1N0YXJ0Sm9iUmVxdWVzdBIwCgpwcm9qZWN0X2lkGAEgASgJQhy6SBlyFxABGIABMhBeW0EtWmEtejAtOV8tXSskEi8KBHNsdWcYAiABKAlCIbpIHnIcGD8yGF5bYS16MC05XSsoLVthLXowLTldKykqJBIxCgdjb21tYW5kGAMgASgOMhQuY2xvdWQudjEuSm9iQ29tbWFuZEIKukgHggEEEAEgABIoCglzb3VyY2VfaWQYBCABKAlCFbpIEnIQMg5eWzAtOWEtZl17NjR9JBI8CgtjbGlfdmVyc2lvbhgFIAEoCUInukgkciIYgAEyHV5bMC05QS1aYS16XVswLTlBLVphLXouK18tXSokEiEKA2dpdBgGIAEoCzIULmNsb3VkLnYxLkdpdENvbnRleHQSJwoDdGFnGAcgASgJQhq6SBdyFRhAMhFeW0EtWmEtejAtOS5fLV0qJBIoCgdwcmV2aWV3GAggASgLMhcuY2xvdWQudjEuUHJldmlld1RhcmdldBKnAwoMcHJvamVjdF9wYXRoGAkgASgJQpADukiMA7oBgwMKFnN0YXJ0X2pvYi5wcm9qZWN0X3BhdGgSxgFhIHByb2plY3QgcGF0aCBpcyBlbXB0eSBmb3IgdGhlIHNvdXJjZSByb290LCBvciByZWxhdGl2ZSBhbmQgc2xhc2gtc2VwYXJhdGVkOiBldmVyeSBzZWdtZW50IG11c3QgYmUgbm9uLWVtcHR5IGFuZCBuZWl0aGVyICIuIiBub3IgIi4uIiwgYW5kIHRoZSBwYXRoIG1heSBjb250YWluIG5vIGJhY2tzbGFzaCBhbmQgbm8gY29udHJvbCBjaGFyYWN0ZXIanwF0aGlzID09ICcnIHx8ICh0aGlzLnNwbGl0KCcvJykuYWxsKHNlZ21lbnQsIHNlZ21lbnQgIT0gJycgJiYgc2VnbWVudCAhPSAnLicgJiYgc2VnbWVudCAhPSAnLi4nKSAmJiAhdGhpcy5jb250YWlucygnXFwnKSAmJiAhdGhpcy5tYXRjaGVzKCdbXFx4MDAtXFx4MWZcXHg3Zl0nKSlyAxiAIDqGArpIggIakwEKJXN0YXJ0X2pvYi5wcmV2aWV3X29ubHlfZm9yX3ByZXZpZXdfdXASQGEgcHJldmlldyB0YXJnZXQgaXMgZ2l2ZW4gZm9yIGEgcHJldmlldyB1cCBqb2IsIGFuZCBvbmx5IGZvciBvbmUaKGhhcyh0aGlzLnByZXZpZXcpID09ICh0aGlzLmNvbW1hbmQgPT0gMykaagodc3RhcnRfam9iLnRhZ19vbmx5X2Zvcl9kZXBsb3kSJGEgdGFnIGlzIGdpdmVuIG9ubHkgZm9yIGEgZGVwbG95IGpvYhojdGhpcy50YWcgPT0gJycgfHwgdGhpcy5jb21tYW5kID09IDIiLgoQU3RhcnRKb2JSZXNwb25zZRIaCgNqb2IYASABKAsyDS5jbG91ZC52MS5Kb2IiPQoNR2V0Sm9iUmVxdWVzdBIsCgZqb2JfaWQYASABKAlCHLpIGXIXEAEYgAEyEF5bQS1aYS16MC05Xy1dKyQiLAoOR2V0Sm9iUmVzcG9uc2USGgoDam9iGAEgASgLMg0uY2xvdWQudjEuSm9iIkAKEENhbmNlbEpvYlJlcXVlc3QSLAoGam9iX2lkGAEgASgJQhy6SBlyFxABGIABMhBeW0EtWmEtejAtOV8tXSskIi8KEUNhbmNlbEpvYlJlc3BvbnNlEhoKA2pvYhgBIAEoCzINLmNsb3VkLnYxLkpvYiJwChRMaXN0Sm9iRXZlbnRzUmVxdWVzdBIsCgZqb2JfaWQYASABKAlCHLpIGXIXEAEYgAEyEF5bQS1aYS16MC05Xy1dKyQSEQoJYWZ0ZXJfc2VxGAIgASgEEhcKBWxpbWl0GAMgASgNQgi6SAUqAxjoByJlChVMaXN0Sm9iRXZlbnRzUmVzcG9uc2USIgoGZXZlbnRzGAEgAygLMhIuY2xvdWQudjEuSm9iRXZlbnQSDAoEbW9yZRgCIAEoCBIaCgNqb2IYAyABKAsyDS5jbG91ZC52MS5Kb2IiiQMKA0pvYhIKCgJpZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEiUKB2NvbW1hbmQYAyABKA4yFC5jbG91ZC52MS5Kb2JDb21tYW5kEiEKBXN0YXRlGAQgASgOMhIuY2xvdWQudjEuSm9iU3RhdGUSIQoFcGhhc2UYBSABKA4yEi5jbG91ZC52MS5Kb2JQaGFzZRIMCgRzdGVwGAYgASgJEi4KCmNyZWF0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnN0YXJ0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiwKCGVuZGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIhCgVlcnJvchgKIAEoCzISLmNsb3VkLnYxLkpvYkVycm9yEiMKBnJlc3VsdBgLIAEoCzITLmNsb3VkLnYxLkpvYlJlc3VsdBIRCglzb3VyY2VfaWQYDCABKAkiKQoISm9iRXJyb3ISDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJIlQKCUpvYlJlc3VsdBIMCgR1cmxzGAEgAygJEhUKDWRlcGxveW1lbnRfaWQYAiABKAkSIgoGYnVpbGRzGAMgAygLMhIuY2xvdWQudjEuQXBwQnVpbGQiKQoIQXBwQnVpbGQSCwoDYXBwGAEgASgJEhAKCGJ1aWxkX2lkGAIgASgJIp0BCghKb2JFdmVudBILCgNzZXEYASABKAQSKAoEdGltZRgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJgoFbGV2ZWwYAyABKA4yFy5jbG91ZC52MS5Kb2JFdmVudExldmVsEiEKBXBoYXNlGAQgASgOMhIuY2xvdWQudjEuSm9iUGhhc2USDwoHbWVzc2FnZRgFIAEoCSp0CgpKb2JDb21tYW5kEhsKF0pPQl9DT01NQU5EX1VOU1BFQ0lGSUVEEAASFQoRSk9CX0NPTU1BTkRfQlVJTEQQARIWChJKT0JfQ09NTUFORF9ERVBMT1kQAhIaChZKT0JfQ09NTUFORF9QUkVWSUVXX1VQEAMqtwEKCEpvYlN0YXRlEhkKFUpPQl9TVEFURV9VTlNQRUNJRklFRBAAEhQKEEpPQl9TVEFURV9RVUVVRUQQARIVChFKT0JfU1RBVEVfUlVOTklORxACEhwKGEpPQl9TVEFURV9JTlBVVF9SRVFVSVJFRBADEhcKE0pPQl9TVEFURV9TVUNDRUVERUQQBBIUChBKT0JfU1RBVEVfRkFJTEVEEAUSFgoSSk9CX1NUQVRFX0NBTkNFTEVEEAYqqQEKCEpvYlBoYXNlEhkKFUpPQl9QSEFTRV9VTlNQRUNJRklFRBAAEhMKD0pPQl9QSEFTRV9DSEVDSxABEhMKD0pPQl9QSEFTRV9CVUlMRBACEhIKDkpPQl9QSEFTRV9QTEFOEAMSFwoTSk9CX1BIQVNFX1BST1ZJU0lPThAEEhQKEEpPQl9QSEFTRV9ERVBMT1kQBRIVChFKT0JfUEhBU0VfUFJPTU9URRAGKpoBCg1Kb2JFdmVudExldmVsEh8KG0pPQl9FVkVOVF9MRVZFTF9VTlNQRUNJRklFRBAAEhkKFUpPQl9FVkVOVF9MRVZFTF9ERUJVRxABEhgKFEpPQl9FVkVOVF9MRVZFTF9JTkZPEAISGAoUSk9CX0VWRU5UX0xFVkVMX1dBUk4QAxIZChVKT0JfRVZFTlRfTEVWRUxfRVJST1IQBDKkAgoKSm9iU2VydmljZRJBCghTdGFydEpvYhIZLmNsb3VkLnYxLlN0YXJ0Sm9iUmVxdWVzdBoaLmNsb3VkLnYxLlN0YXJ0Sm9iUmVzcG9uc2USOwoGR2V0Sm9iEhcuY2xvdWQudjEuR2V0Sm9iUmVxdWVzdBoYLmNsb3VkLnYxLkdldEpvYlJlc3BvbnNlEkQKCUNhbmNlbEpvYhIaLmNsb3VkLnYxLkNhbmNlbEpvYlJlcXVlc3QaGy5jbG91ZC52MS5DYW5jZWxKb2JSZXNwb25zZRJQCg1MaXN0Sm9iRXZlbnRzEh4uY2xvdWQudjEuTGlzdEpvYkV2ZW50c1JlcXVlc3QaHy5jbG91ZC52MS5MaXN0Sm9iRXZlbnRzUmVzcG9uc2VCM1oxZ2l0aHViLmNvbS9vY2VsaHEvb2NlbC9wa2cvcHJvdG8vY2xvdWQvdjE7Y2xvdWR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("ChJjbG91ZC92MS9qb2IucHJvdG8SCGNsb3VkLnYxIowBCgpHaXRDb250ZXh0EioKBmNvbW1pdBgBIAEoCUIaukgX2AEBchIyEF5bMC05YS1mXXs3LDY0fSQSLQoGYnJhbmNoGAIgASgJQh26SBpyGBiAAjITXlteXHgwMC1ceDFmXHg3Zl0qJBINCgVkaXJ0eRgDIAEoCBIUCgxwdWxsX3JlcXVlc3QYBCABKA0ikwEKDVByZXZpZXdUYXJnZXQSNAoEbmFtZRgBIAEoCUImukgjciEYPzIdXlthLXpdW2EtejAtOV0qKC1bYS16MC05XSspKiQSEgoKcGVyc2lzdGVudBgCIAEoCBI4CgVsYWJlbBgDIAEoCUIpukgm2AEBciEYPzIdXlthLXpdW2EtejAtOV0qKC1bYS16MC05XSspKiQiuAgKD1N0YXJ0Sm9iUmVxdWVzdBIwCgpwcm9qZWN0X2lkGAEgASgJQhy6SBlyFxABGIABMhBeW0EtWmEtejAtOV8tXSskEi8KBHNsdWcYAiABKAlCIbpIHnIcGD8yGF5bYS16MC05XSsoLVthLXowLTldKykqJBIxCgdjb21tYW5kGAMgASgOMhQuY2xvdWQudjEuSm9iQ29tbWFuZEIKukgHggEEEAEgABIoCglzb3VyY2VfaWQYBCABKAlCFbpIEnIQMg5eWzAtOWEtZl17NjR9JBI8CgtjbGlfdmVyc2lvbhgFIAEoCUInukgkciIYgAEyHV5bMC05QS1aYS16XVswLTlBLVphLXouK18tXSokEiEKA2dpdBgGIAEoCzIULmNsb3VkLnYxLkdpdENvbnRleHQSJwoDdGFnGAcgASgJQhq6SBdyFRhAMhFeW0EtWmEtejAtOS5fLV0qJBIoCgdwcmV2aWV3GAggASgLMhcuY2xvdWQudjEuUHJldmlld1RhcmdldBKnAwoMcHJvamVjdF9wYXRoGAkgASgJQpADukiMA7oBgwMKFnN0YXJ0X2pvYi5wcm9qZWN0X3BhdGgSxgFhIHByb2plY3QgcGF0aCBpcyBlbXB0eSBmb3IgdGhlIHNvdXJjZSByb290LCBvciByZWxhdGl2ZSBhbmQgc2xhc2gtc2VwYXJhdGVkOiBldmVyeSBzZWdtZW50IG11c3QgYmUgbm9uLWVtcHR5IGFuZCBuZWl0aGVyICIuIiBub3IgIi4uIiwgYW5kIHRoZSBwYXRoIG1heSBjb250YWluIG5vIGJhY2tzbGFzaCBhbmQgbm8gY29udHJvbCBjaGFyYWN0ZXIanwF0aGlzID09ICcnIHx8ICh0aGlzLnNwbGl0KCcvJykuYWxsKHNlZ21lbnQsIHNlZ21lbnQgIT0gJycgJiYgc2VnbWVudCAhPSAnLicgJiYgc2VnbWVudCAhPSAnLi4nKSAmJiAhdGhpcy5jb250YWlucygnXFwnKSAmJiAhdGhpcy5tYXRjaGVzKCdbXFx4MDAtXFx4MWZcXHg3Zl0nKSlyAxiAIDqGArpIggIakwEKJXN0YXJ0X2pvYi5wcmV2aWV3X29ubHlfZm9yX3ByZXZpZXdfdXASQGEgcHJldmlldyB0YXJnZXQgaXMgZ2l2ZW4gZm9yIGEgcHJldmlldyB1cCBqb2IsIGFuZCBvbmx5IGZvciBvbmUaKGhhcyh0aGlzLnByZXZpZXcpID09ICh0aGlzLmNvbW1hbmQgPT0gMykaagodc3RhcnRfam9iLnRhZ19vbmx5X2Zvcl9kZXBsb3kSJGEgdGFnIGlzIGdpdmVuIG9ubHkgZm9yIGEgZGVwbG95IGpvYhojdGhpcy50YWcgPT0gJycgfHwgdGhpcy5jb21tYW5kID09IDIiLgoQU3RhcnRKb2JSZXNwb25zZRIaCgNqb2IYASABKAsyDS5jbG91ZC52MS5Kb2IiPQoNR2V0Sm9iUmVxdWVzdBIsCgZqb2JfaWQYASABKAlCHLpIGXIXEAEYgAEyEF5bQS1aYS16MC05Xy1dKyQiLAoOR2V0Sm9iUmVzcG9uc2USGgoDam9iGAEgASgLMg0uY2xvdWQudjEuSm9iIkAKEENhbmNlbEpvYlJlcXVlc3QSLAoGam9iX2lkGAEgASgJQhy6SBlyFxABGIABMhBeW0EtWmEtejAtOV8tXSskIi8KEUNhbmNlbEpvYlJlc3BvbnNlEhoKA2pvYhgBIAEoCzINLmNsb3VkLnYxLkpvYiJwChRMaXN0Sm9iRXZlbnRzUmVxdWVzdBIsCgZqb2JfaWQYASABKAlCHLpIGXIXEAEYgAEyEF5bQS1aYS16MC05Xy1dKyQSEQoJYWZ0ZXJfc2VxGAIgASgEEhcKBWxpbWl0GAMgASgNQgi6SAUqAxjoByJlChVMaXN0Sm9iRXZlbnRzUmVzcG9uc2USIgoGZXZlbnRzGAEgAygLMhIuY2xvdWQudjEuSm9iRXZlbnQSDAoEbW9yZRgCIAEoCBIaCgNqb2IYAyABKAsyDS5jbG91ZC52MS5Kb2IirAMKA0pvYhIKCgJpZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEiUKB2NvbW1hbmQYAyABKA4yFC5jbG91ZC52MS5Kb2JDb21tYW5kEiEKBXN0YXRlGAQgASgOMhIuY2xvdWQudjEuSm9iU3RhdGUSIQoFcGhhc2UYBSABKA4yEi5jbG91ZC52MS5Kb2JQaGFzZRIMCgRzdGVwGAYgASgJEi4KCmNyZWF0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnN0YXJ0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiwKCGVuZGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIhCgVlcnJvchgKIAEoCzISLmNsb3VkLnYxLkpvYkVycm9yEiMKBnJlc3VsdBgLIAEoCzITLmNsb3VkLnYxLkpvYlJlc3VsdBIRCglzb3VyY2VfaWQYDCABKAkSIQoFaW5wdXQYDSABKAsyEi5jbG91ZC52MS5Kb2JJbnB1dCKjAQoISm9iSW5wdXQSKAoCaWQYASABKAlCHLpIGXIXEAEYgAEyEF5bQS1aYS16MC05Xy1dKyQSLgoJdmFyaWFibGVzGAIgASgLMhkuY2xvdWQudjEuVmFyaWFibGVzTmVlZGVkSAASLgoMY29uZmlybWF0aW9uGAMgASgLMhYuY2xvdWQudjEuQ29uZmlybWF0aW9uSABCDQoEbmVlZBIFukgCCAEipgEKD1ZhcmlhYmxlc05lZWRlZBI1CgR0aWVyGAEgASgOMhsuY29tbW9uLmVudmlyb25tZW50LnYxLlRpZXJCCrpIB4IBBBABIAASNQoJdmFyaWFibGVzGAIgAygLMhguY2xvdWQudjEuTmVlZGVkVmFyaWFibGVCCLpIBZIBAggBEiUKBmdyb3VwcxgDIAMoCzIVLmNsb3VkLnYxLk5lZWRlZEdyb3VwIs8BCg5OZWVkZWRWYXJpYWJsZRIqCgNrZXkYASABKAlCHbpIGnIYEAEyFF5bXiNceDAwLVx4MWZceDdmXSokEjAKBmZvbGRlchgCIAEoCUIgukgdchsyGV4oL1teLyNceDAwLVx4MWZceDdmXSspKiQSDgoGc2VjcmV0GAMgASgIEhMKC2Rlc2NyaXB0aW9uGAQgASgJEg4KBnJlYXNvbhgFIAEoCRIqCgVncm91cBgGIAEoCUIbukgYchYyFF5bXiNceDAwLVx4MWZceDdmXSokIk4KC05lZWRlZEdyb3VwEioKA2tleRgBIAEoCUIdukgachgQATIUXlteI1x4MDAtXHgxZlx4N2ZdKiQSEwoLZGVzY3JpcHRpb24YAiABKAkiOgoMQ29uZmlybWF0aW9uEg8KB2ZpbmRpbmcYASABKAkSGQoIcXVlc3Rpb24YAiABKAlCB7pIBHICEAEixgEKEVJlc3BvbmRKb2JSZXF1ZXN0EiwKBmpvYl9pZBgBIAEoCUIcukgZchcQARiAATIQXltBLVphLXowLTlfLV0rJBIuCghpbnB1dF9pZBgCIAEoCUIcukgZchcQARiAATIQXltBLVphLXowLTlfLV0rJBItCgl2YXJpYWJsZXMYAyABKAsyGC5jbG91ZC52MS5WYXJpYWJsZVZhbHVlc0gAEhMKCWNvbmZpcm1lZBgEIAEoCEgAQg8KBmFuc3dlchIFukgCCAEiQwoOVmFyaWFibGVWYWx1ZXMSMQoGdmFsdWVzGAEgAygLMhcuY2xvdWQudjEuVmFyaWFibGVWYWx1ZUIIukgFkgECCAEigQEKDVZhcmlhYmxlVmFsdWUSKgoDa2V5GAEgASgJQh26SBpyGBABMhReW14jXHgwMC1ceDFmXHg3Zl0qJBIwCgZmb2xkZXIYAiABKAlCILpIHXIbMhleKC9bXi8jXHgwMC1ceDFmXHg3Zl0rKSokEhIKBXZhbHVlGAMgASgJQgOAAQEiMAoSUmVzcG9uZEpvYlJlc3BvbnNlEhoKA2pvYhgBIAEoCzINLmNsb3VkLnYxLkpvYiIpCghKb2JFcnJvchIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkiVAoJSm9iUmVzdWx0EgwKBHVybHMYASADKAkSFQoNZGVwbG95bWVudF9pZBgCIAEoCRIiCgZidWlsZHMYAyADKAsyEi5jbG91ZC52MS5BcHBCdWlsZCIpCghBcHBCdWlsZBILCgNhcHAYASABKAkSEAoIYnVpbGRfaWQYAiABKAkinQEKCEpvYkV2ZW50EgsKA3NlcRgBIAEoBBIoCgR0aW1lGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBImCgVsZXZlbBgDIAEoDjIXLmNsb3VkLnYxLkpvYkV2ZW50TGV2ZWwSIQoFcGhhc2UYBCABKA4yEi5jbG91ZC52MS5Kb2JQaGFzZRIPCgdtZXNzYWdlGAUgASgJKnQKCkpvYkNvbW1hbmQSGwoXSk9CX0NPTU1BTkRfVU5TUEVDSUZJRUQQABIVChFKT0JfQ09NTUFORF9CVUlMRBABEhYKEkpPQl9DT01NQU5EX0RFUExPWRACEhoKFkpPQl9DT01NQU5EX1BSRVZJRVdfVVAQAyq3AQoISm9iU3RhdGUSGQoVSk9CX1NUQVRFX1VOU1BFQ0lGSUVEEAASFAoQSk9CX1NUQVRFX1FVRVVFRBABEhUKEUpPQl9TVEFURV9SVU5OSU5HEAISHAoYSk9CX1NUQVRFX0lOUFVUX1JFUVVJUkVEEAMSFwoTSk9CX1NUQVRFX1NVQ0NFRURFRBAEEhQKEEpPQl9TVEFURV9GQUlMRUQQBRIWChJKT0JfU1RBVEVfQ0FOQ0VMRUQQBiqpAQoISm9iUGhhc2USGQoVSk9CX1BIQVNFX1VOU1BFQ0lGSUVEEAASEwoPSk9CX1BIQVNFX0NIRUNLEAESEwoPSk9CX1BIQVNFX0JVSUxEEAISEgoOSk9CX1BIQVNFX1BMQU4QAxIXChNKT0JfUEhBU0VfUFJPVklTSU9OEAQSFAoQSk9CX1BIQVNFX0RFUExPWRAFEhUKEUpPQl9QSEFTRV9QUk9NT1RFEAYqmgEKDUpvYkV2ZW50TGV2ZWwSHwobSk9CX0VWRU5UX0xFVkVMX1VOU1BFQ0lGSUVEEAASGQoVSk9CX0VWRU5UX0xFVkVMX0RFQlVHEAESGAoUSk9CX0VWRU5UX0xFVkVMX0lORk8QAhIYChRKT0JfRVZFTlRfTEVWRUxfV0FSThADEhkKFUpPQl9FVkVOVF9MRVZFTF9FUlJPUhAEMu0CCgpKb2JTZXJ2aWNlEkEKCFN0YXJ0Sm9iEhkuY2xvdWQudjEuU3RhcnRKb2JSZXF1ZXN0GhouY2xvdWQudjEuU3RhcnRKb2JSZXNwb25zZRI7CgZHZXRKb2ISFy5jbG91ZC52MS5HZXRKb2JSZXF1ZXN0GhguY2xvdWQudjEuR2V0Sm9iUmVzcG9uc2USRAoJQ2FuY2VsSm9iEhouY2xvdWQudjEuQ2FuY2VsSm9iUmVxdWVzdBobLmNsb3VkLnYxLkNhbmNlbEpvYlJlc3BvbnNlElAKDUxpc3RKb2JFdmVudHMSHi5jbG91ZC52MS5MaXN0Sm9iRXZlbnRzUmVxdWVzdBofLmNsb3VkLnYxLkxpc3RKb2JFdmVudHNSZXNwb25zZRJHCgpSZXNwb25kSm9iEhsuY2xvdWQudjEuUmVzcG9uZEpvYlJlcXVlc3QaHC5jbG91ZC52MS5SZXNwb25kSm9iUmVzcG9uc2VCM1oxZ2l0aHViLmNvbS9vY2VsaHEvb2NlbC9wa2cvcHJvdG8vY2xvdWQvdjE7Y2xvdWR2MWIGcHJvdG8z", [file_buf_validate_validate, file_common_environment_v1_environment, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message cloud.v1.GitContext
@@ -333,6 +335,11 @@ export type Job = Message<"cloud.v1.Job"> & {
    * @generated from field: string source_id = 12;
    */
   sourceId: string;
+
+  /**
+   * @generated from field: cloud.v1.JobInput input = 13;
+   */
+  input?: JobInput | undefined;
 };
 
 /**
@@ -341,6 +348,253 @@ export type Job = Message<"cloud.v1.Job"> & {
  */
 export const JobSchema: GenMessage<Job> = /*@__PURE__*/
   messageDesc(file_cloud_v1_job, 10);
+
+/**
+ * @generated from message cloud.v1.JobInput
+ */
+export type JobInput = Message<"cloud.v1.JobInput"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from oneof cloud.v1.JobInput.need
+   */
+  need: {
+    /**
+     * @generated from field: cloud.v1.VariablesNeeded variables = 2;
+     */
+    value: VariablesNeeded;
+    case: "variables";
+  } | {
+    /**
+     * @generated from field: cloud.v1.Confirmation confirmation = 3;
+     */
+    value: Confirmation;
+    case: "confirmation";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message cloud.v1.JobInput.
+ * Use `create(JobInputSchema)` to create a new message.
+ */
+export const JobInputSchema: GenMessage<JobInput> = /*@__PURE__*/
+  messageDesc(file_cloud_v1_job, 11);
+
+/**
+ * @generated from message cloud.v1.VariablesNeeded
+ */
+export type VariablesNeeded = Message<"cloud.v1.VariablesNeeded"> & {
+  /**
+   * @generated from field: common.environment.v1.Tier tier = 1;
+   */
+  tier: Tier;
+
+  /**
+   * @generated from field: repeated cloud.v1.NeededVariable variables = 2;
+   */
+  variables: NeededVariable[];
+
+  /**
+   * @generated from field: repeated cloud.v1.NeededGroup groups = 3;
+   */
+  groups: NeededGroup[];
+};
+
+/**
+ * Describes the message cloud.v1.VariablesNeeded.
+ * Use `create(VariablesNeededSchema)` to create a new message.
+ */
+export const VariablesNeededSchema: GenMessage<VariablesNeeded> = /*@__PURE__*/
+  messageDesc(file_cloud_v1_job, 12);
+
+/**
+ * @generated from message cloud.v1.NeededVariable
+ */
+export type NeededVariable = Message<"cloud.v1.NeededVariable"> & {
+  /**
+   * @generated from field: string key = 1;
+   */
+  key: string;
+
+  /**
+   * @generated from field: string folder = 2;
+   */
+  folder: string;
+
+  /**
+   * @generated from field: bool secret = 3;
+   */
+  secret: boolean;
+
+  /**
+   * @generated from field: string description = 4;
+   */
+  description: string;
+
+  /**
+   * @generated from field: string reason = 5;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: string group = 6;
+   */
+  group: string;
+};
+
+/**
+ * Describes the message cloud.v1.NeededVariable.
+ * Use `create(NeededVariableSchema)` to create a new message.
+ */
+export const NeededVariableSchema: GenMessage<NeededVariable> = /*@__PURE__*/
+  messageDesc(file_cloud_v1_job, 13);
+
+/**
+ * @generated from message cloud.v1.NeededGroup
+ */
+export type NeededGroup = Message<"cloud.v1.NeededGroup"> & {
+  /**
+   * @generated from field: string key = 1;
+   */
+  key: string;
+
+  /**
+   * @generated from field: string description = 2;
+   */
+  description: string;
+};
+
+/**
+ * Describes the message cloud.v1.NeededGroup.
+ * Use `create(NeededGroupSchema)` to create a new message.
+ */
+export const NeededGroupSchema: GenMessage<NeededGroup> = /*@__PURE__*/
+  messageDesc(file_cloud_v1_job, 14);
+
+/**
+ * @generated from message cloud.v1.Confirmation
+ */
+export type Confirmation = Message<"cloud.v1.Confirmation"> & {
+  /**
+   * @generated from field: string finding = 1;
+   */
+  finding: string;
+
+  /**
+   * @generated from field: string question = 2;
+   */
+  question: string;
+};
+
+/**
+ * Describes the message cloud.v1.Confirmation.
+ * Use `create(ConfirmationSchema)` to create a new message.
+ */
+export const ConfirmationSchema: GenMessage<Confirmation> = /*@__PURE__*/
+  messageDesc(file_cloud_v1_job, 15);
+
+/**
+ * @generated from message cloud.v1.RespondJobRequest
+ */
+export type RespondJobRequest = Message<"cloud.v1.RespondJobRequest"> & {
+  /**
+   * @generated from field: string job_id = 1;
+   */
+  jobId: string;
+
+  /**
+   * @generated from field: string input_id = 2;
+   */
+  inputId: string;
+
+  /**
+   * @generated from oneof cloud.v1.RespondJobRequest.answer
+   */
+  answer: {
+    /**
+     * @generated from field: cloud.v1.VariableValues variables = 3;
+     */
+    value: VariableValues;
+    case: "variables";
+  } | {
+    /**
+     * @generated from field: bool confirmed = 4;
+     */
+    value: boolean;
+    case: "confirmed";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message cloud.v1.RespondJobRequest.
+ * Use `create(RespondJobRequestSchema)` to create a new message.
+ */
+export const RespondJobRequestSchema: GenMessage<RespondJobRequest> = /*@__PURE__*/
+  messageDesc(file_cloud_v1_job, 16);
+
+/**
+ * @generated from message cloud.v1.VariableValues
+ */
+export type VariableValues = Message<"cloud.v1.VariableValues"> & {
+  /**
+   * @generated from field: repeated cloud.v1.VariableValue values = 1;
+   */
+  values: VariableValue[];
+};
+
+/**
+ * Describes the message cloud.v1.VariableValues.
+ * Use `create(VariableValuesSchema)` to create a new message.
+ */
+export const VariableValuesSchema: GenMessage<VariableValues> = /*@__PURE__*/
+  messageDesc(file_cloud_v1_job, 17);
+
+/**
+ * @generated from message cloud.v1.VariableValue
+ */
+export type VariableValue = Message<"cloud.v1.VariableValue"> & {
+  /**
+   * @generated from field: string key = 1;
+   */
+  key: string;
+
+  /**
+   * @generated from field: string folder = 2;
+   */
+  folder: string;
+
+  /**
+   * @generated from field: string value = 3;
+   */
+  value: string;
+};
+
+/**
+ * Describes the message cloud.v1.VariableValue.
+ * Use `create(VariableValueSchema)` to create a new message.
+ */
+export const VariableValueSchema: GenMessage<VariableValue> = /*@__PURE__*/
+  messageDesc(file_cloud_v1_job, 18);
+
+/**
+ * @generated from message cloud.v1.RespondJobResponse
+ */
+export type RespondJobResponse = Message<"cloud.v1.RespondJobResponse"> & {
+  /**
+   * @generated from field: cloud.v1.Job job = 1;
+   */
+  job?: Job | undefined;
+};
+
+/**
+ * Describes the message cloud.v1.RespondJobResponse.
+ * Use `create(RespondJobResponseSchema)` to create a new message.
+ */
+export const RespondJobResponseSchema: GenMessage<RespondJobResponse> = /*@__PURE__*/
+  messageDesc(file_cloud_v1_job, 19);
 
 /**
  * @generated from message cloud.v1.JobError
@@ -362,7 +616,7 @@ export type JobError = Message<"cloud.v1.JobError"> & {
  * Use `create(JobErrorSchema)` to create a new message.
  */
 export const JobErrorSchema: GenMessage<JobError> = /*@__PURE__*/
-  messageDesc(file_cloud_v1_job, 11);
+  messageDesc(file_cloud_v1_job, 20);
 
 /**
  * @generated from message cloud.v1.JobResult
@@ -389,7 +643,7 @@ export type JobResult = Message<"cloud.v1.JobResult"> & {
  * Use `create(JobResultSchema)` to create a new message.
  */
 export const JobResultSchema: GenMessage<JobResult> = /*@__PURE__*/
-  messageDesc(file_cloud_v1_job, 12);
+  messageDesc(file_cloud_v1_job, 21);
 
 /**
  * @generated from message cloud.v1.AppBuild
@@ -411,7 +665,7 @@ export type AppBuild = Message<"cloud.v1.AppBuild"> & {
  * Use `create(AppBuildSchema)` to create a new message.
  */
 export const AppBuildSchema: GenMessage<AppBuild> = /*@__PURE__*/
-  messageDesc(file_cloud_v1_job, 13);
+  messageDesc(file_cloud_v1_job, 22);
 
 /**
  * The builder derives each event from the `--json` stream (cli.stream.v1.RunEvent) of the `ocel` run the job runs.
@@ -450,7 +704,7 @@ export type JobEvent = Message<"cloud.v1.JobEvent"> & {
  * Use `create(JobEventSchema)` to create a new message.
  */
 export const JobEventSchema: GenMessage<JobEvent> = /*@__PURE__*/
-  messageDesc(file_cloud_v1_job, 14);
+  messageDesc(file_cloud_v1_job, 23);
 
 /**
  * @generated from enum cloud.v1.JobCommand
@@ -646,6 +900,14 @@ export const JobService: GenService<{
     methodKind: "unary";
     input: typeof ListJobEventsRequestSchema;
     output: typeof ListJobEventsResponseSchema;
+  },
+  /**
+   * @generated from rpc cloud.v1.JobService.RespondJob
+   */
+  respondJob: {
+    methodKind: "unary";
+    input: typeof RespondJobRequestSchema;
+    output: typeof RespondJobResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_cloud_v1_job, 0);
