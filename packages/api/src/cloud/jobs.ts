@@ -15,6 +15,7 @@ import {
   VariableValuesSchema,
 } from "@console/connectors/gen/cloud/v1/job_pb";
 import { readCloudOffer } from "../routes/connect/cloud";
+import { recordJobReport } from "./report";
 import { type CloudScope, signCloudToken } from "./token";
 import { type CloudJob, type CloudJobEvent, cloudJobEventOf, cloudJobOf } from "./view";
 
@@ -109,17 +110,19 @@ function bearing(token: string): Interceptor {
   };
 }
 
-function jobOf(job: Job | undefined): CloudAnswer<CloudJob> {
-  return job
-    ? { ok: true, result: cloudJobOf(job) }
-    : refuse("unreachable", "Ocel Cloud answered without the job");
-}
-
 export function cloudJobsFor(session: ActiveOrganizationSession): CloudJobs | null {
   const cloud = readCloudOffer();
   if (!cloud) {
     return null;
   }
+
+  const jobOf = async (job: Job | undefined): Promise<CloudAnswer<CloudJob>> => {
+    if (!job) {
+      return refuse("unreachable", "Ocel Cloud answered without the job");
+    }
+    await recordJobReport(session.activeOrganizationId, job);
+    return { ok: true, result: cloudJobOf(job) };
+  };
 
   const call = async <T>(
     scope: CloudScope,
@@ -153,7 +156,7 @@ export function cloudJobsFor(session: ActiveOrganizationSession): CloudJobs | nu
           afterSeq: BigInt(afterSeq),
           limit: Math.min(limit, JOB_EVENTS_LIMIT),
         });
-        const job = jobOf(answer.job);
+        const job = await jobOf(answer.job);
         if (!job.ok) {
           return job;
         }
