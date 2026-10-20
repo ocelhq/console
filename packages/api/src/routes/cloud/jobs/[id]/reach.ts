@@ -1,0 +1,46 @@
+import { getActiveOrganizationSession } from "@console/auth";
+import {
+  type CloudAnswer,
+  type CloudJobs,
+  type CloudRefusal,
+  cloudJobsFor,
+  JOB_ID,
+} from "../../../../cloud/jobs";
+
+export type Reached = { ok: true; jobs: CloudJobs } | { ok: false; refusal: Response };
+
+export function notFound(): Response {
+  return Response.json({ error: "Not found" }, { status: 404 });
+}
+
+export async function reachJobs(request: Request, id: string): Promise<Reached> {
+  const session = await getActiveOrganizationSession(request.headers);
+  if (!session) {
+    return { ok: false, refusal: Response.json({ error: "Unauthorized" }, { status: 401 }) };
+  }
+  const jobs = cloudJobsFor(session);
+  if (!jobs || !JOB_ID.test(id)) {
+    return { ok: false, refusal: notFound() };
+  }
+  return { ok: true, jobs };
+}
+
+const statuses: Record<CloudRefusal, number> = {
+  "not-found": 404,
+  ended: 409,
+  refused: 502,
+  unreachable: 502,
+};
+
+export function answered<T>(answer: CloudAnswer<T>): Response {
+  if (answer.ok) {
+    return Response.json(answer.result, { status: 200 });
+  }
+  if (answer.reason === "not-found") {
+    return notFound();
+  }
+  return Response.json(
+    { error: answer.message, reason: answer.reason },
+    { status: statuses[answer.reason] },
+  );
+}

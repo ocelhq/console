@@ -1,0 +1,128 @@
+import {
+  type Client,
+  Code,
+  ConnectError,
+  createClient,
+  type Interceptor,
+} from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-node";
+import type { ActiveOrganizationSession } from "@console/auth";
+import { type Job, JobService } from "@console/connectors/gen/cloud/v1/job_pb";
+import { readCloudOffer } from "../routes/connect/cloud";
+import { type CloudScope, signCloudToken } from "./token";
+import { type CloudJob, type CloudJobEvent, cloudJobEventOf, cloudJobOf } from "./view";
+
+export const JOB_ID = /^[A-Za-z0-9_-]{1,128}$/;
+
+export const JOB_EVENTS_LIMIT = 1000;
+
+const tokenLifetime = 60;
+
+const callTimeout = 10_000;
+
+export type CloudRefusal = "not-found" | "ended" | "refused" | "unreachable";
+
+export type CloudAnswer<T> =
+  | { ok: true; result: T }
+  | { ok: false; reason: CloudRefusal; message: string };
+
+export interface JobEvents {
+  job: CloudJob;
+  events: CloudJobEvent[];
+  more: boolean;
+}
+
+export interface CloudJobs {
+  get(jobId: string): Promise<CloudAnswer<CloudJob>>;
+  events(jobId: string, afterSeq: number, limit?: number): Promise<CloudAnswer<JobEvents>>;
+  cancel(jobId: string): Promise<CloudAnswer<CloudJob>>;
+}
+
+function refuse(reason: CloudRefusal, message: string): CloudAnswer<never> {
+  return { ok: false, reason, message };
+}
+
+export function refusalOf(thrown: unknown): CloudAnswer<never> {
+  if (!(thrown instanceof ConnectError)) {
+    return refuse("unreachable", thrown instanceof Error ? thrown.message : String(thrown));
+  }
+  switch (thrown.code) {
+    case Code.NotFound:
+    case Code.PermissionDenied:
+      return refuse("not-found", thrown.rawMessage);
+    case Code.FailedPrecondition:
+      return refuse("ended", thrown.rawMessage);
+    case Code.Unauthenticated:
+      return refuse("refused", `Ocel Cloud refused the console's token: ${thrown.rawMessage}`);
+    default:
+      return refuse("unreachable", thrown.rawMessage);
+  }
+}
+
+function bearing(token: string): Interceptor {
+  return (next) => (request) => {
+    request.header.set("Authorization", `Bearer ${token}`);
+    return next(request);
+  };
+}
+
+function jobOf(job: Job | undefined): CloudAnswer<CloudJob> {
+  return job
+    ? { ok: true, result: cloudJobOf(job) }
+    : refuse("unreachable", "Ocel Cloud answered without the job");
+}
+
+export function cloudJobsFor(session: ActiveOrganizationSession): CloudJobs | null {
+  const cloud = readCloudOffer();
+  if (!cloud) {
+    return null;
+  }
+
+  const call = async <T>(
+    scope: CloudScope,
+    run: (client: Client<typeof JobService>) => Promise<CloudAnswer<T>>,
+  ): Promise<CloudAnswer<T>> => {
+    try {
+      const { token } = await signCloudToken(cloud, session, [scope], tokenLifetime);
+      const client = createClient(
+        JobService,
+        createConnectTransport({
+          baseUrl: cloud.apiUrl,
+          httpVersion: "1.1",
+          interceptors: [bearing(token)],
+          defaultTimeoutMs: callTimeout,
+        }),
+      );
+      return await run(client);
+    } catch (thrown) {
+      return refusalOf(thrown);
+    }
+  };
+
+  return {
+    get: (jobId) =>
+      call("cloud.apps.read", async (client) => jobOf((await client.getJob({ jobId })).job)),
+    events: (jobId, afterSeq, limit = JOB_EVENTS_LIMIT) =>
+      call("cloud.apps.read", async (client) => {
+        const answer = await client.listJobEvents({
+          jobId,
+          afterSeq: BigInt(afterSeq),
+          limit: Math.min(limit, JOB_EVENTS_LIMIT),
+        });
+        const job = jobOf(answer.job);
+        if (!job.ok) {
+          return job;
+        }
+        return {
+          ok: true,
+          result: {
+            job: job.result,
+            events: answer.events.map(cloudJobEventOf),
+            more: answer.more,
+          },
+        };
+      }),
+    cancel: (jobId) =>
+      call("cloud.apps.write", async (client) => jobOf((await client.cancelJob({ jobId })).job)),
+  };
+}
