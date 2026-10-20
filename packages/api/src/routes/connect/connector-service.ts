@@ -65,7 +65,7 @@ function requireWritten<T>(row: T | undefined): T {
   return row;
 }
 
-export const connectorService: ServiceImpl<typeof ConnectorService> = {
+export const connectorService: Omit<ServiceImpl<typeof ConnectorService>, "heartbeat"> = {
   async upsert(request, context) {
     const session = await requireAdministeringSession(context);
     const [saved] = await db
