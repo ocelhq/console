@@ -1,3 +1,4 @@
+import { generateKeyPairSync, type KeyObject } from "node:crypto";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { ConnectorReach, ConnectorService } from "@console/connectors/gen/console/v1/connector_pb";
@@ -6,6 +7,7 @@ import { db } from "@console/db";
 import { connector } from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
 import { eq } from "drizzle-orm";
+import { SignJWT } from "jose";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   createTestSessionWithOrganization,
@@ -32,6 +34,43 @@ async function registered(bearer: string): Promise<string> {
   const response = await connectors(bearer).upsert(dialled);
   return response.connector?.id ?? "";
 }
+
+const origin = "http://localhost:3000";
+
+function keyPair() {
+  const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+  const { x } = publicKey.export({ format: "jwk" }) as { x: string };
+  return { privateKey, publicKey: Buffer.from(x, "base64url").toString("base64") };
+}
+
+function signed(
+  privateKey: KeyObject,
+  id: string,
+  { audience = origin, issuer = id, issuedAt = Math.floor(Date.now() / 1000) } = {},
+) {
+  return new SignJWT({})
+    .setProtectedHeader({ alg: "EdDSA" })
+    .setIssuer(issuer)
+    .setSubject(id)
+    .setAudience(audience)
+    .setIssuedAt(issuedAt)
+    .setExpirationTime(issuedAt + 86_400)
+    .sign(privateKey);
+}
+
+async function paired(bearer: string) {
+  const id = await registered(bearer);
+  const keys = keyPair();
+  await db.update(connector).set({ publicKey: keys.publicKey }).where(eq(connector.id, id));
+  return { id, keys };
+}
+
+async function row(id: string) {
+  const [found] = await db.select().from(connector).where(eq(connector.id, id));
+  return found;
+}
+
+const beat = { version: "0.0.0-alpha", capabilities: ["variables.read"] };
 
 describe("ConnectorService over Connect", () => {
   beforeAll(async () => {
@@ -446,6 +485,80 @@ describe("ConnectorService over Connect", () => {
         expect(await db.select().from(connector).where(eq(connector.id, id))).toHaveLength(1);
       } finally {
         await plain.cleanup();
+        await session.cleanup();
+      }
+    });
+  });
+
+  describe("Heartbeat", () => {
+    it("moves the liveness columns for a token the connector signed, with no session", async () => {
+      const session = await createTestSessionWithOrganization();
+      try {
+        const { id, keys } = await paired(session.token);
+
+        await connectors(await signed(keys.privateKey, id)).heartbeat({ id, ...beat });
+
+        const first = await row(id);
+        expect(first.connectedAt).not.toBeNull();
+        expect(first.lastSeenAt).not.toBeNull();
+        expect(first.version).toBe("0.0.0-alpha");
+        expect(first.capabilities).toEqual(["variables.read"]);
+
+        await connectors(await signed(keys.privateKey, id)).heartbeat({ id, ...beat });
+        const again = await row(id);
+        expect(again.connectedAt?.getTime()).toBe(first.connectedAt?.getTime());
+        expect(again.lastSeenAt?.getTime()).toBeGreaterThanOrEqual(
+          first.lastSeenAt?.getTime() ?? 0,
+        );
+      } finally {
+        await session.cleanup();
+      }
+    });
+
+    it("returns NotFound for an id the console has no record of", async () => {
+      const id = crypto.randomUUID();
+      const keys = keyPair();
+      expect(
+        await codeOf(connectors(await signed(keys.privateKey, id)).heartbeat({ id, ...beat })),
+      ).toBe(Code.NotFound);
+    });
+
+    it("returns Unauthenticated, and moves nothing, for a token the connector did not sign as itself", async () => {
+      const session = await createTestSessionWithOrganization();
+      try {
+        const { id, keys } = await paired(session.token);
+        const stranger = keyPair();
+        const hourAgo = Math.floor(Date.now() / 1000) - 3600;
+        const refused = {
+          "no token": null,
+          "the user's session": session.token,
+          "another key": await signed(stranger.privateKey, id),
+          "another audience": await signed(keys.privateKey, id, {
+            audience: "https://elsewhere.test",
+          }),
+          "another issuer": await signed(keys.privateKey, id, { issuer: crypto.randomUUID() }),
+          "minted an hour ago": await signed(keys.privateKey, id, { issuedAt: hourAgo }),
+        };
+        for (const [name, bearer] of Object.entries(refused)) {
+          expect(await codeOf(connectors(bearer).heartbeat({ id, ...beat })), name).toBe(
+            Code.Unauthenticated,
+          );
+        }
+        expect((await row(id)).lastSeenAt).toBeNull();
+      } finally {
+        await session.cleanup();
+      }
+    });
+
+    it("returns Unauthenticated for a connector that has published no key", async () => {
+      const session = await createTestSessionWithOrganization();
+      try {
+        const id = await registered(session.token);
+        const keys = keyPair();
+        expect(
+          await codeOf(connectors(await signed(keys.privateKey, id)).heartbeat({ id, ...beat })),
+        ).toBe(Code.Unauthenticated);
+      } finally {
         await session.cleanup();
       }
     });
