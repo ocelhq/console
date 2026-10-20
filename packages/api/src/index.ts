@@ -4,19 +4,27 @@ export {
   type CloudRefusal,
   cloudJobsFor,
   JOB_ID,
+  type JobAnswer,
   type JobEvents,
+  STALE_INPUT,
+  type VariableAnswer,
 } from "./cloud/jobs";
 export type {
   CloudJob,
   CloudJobEvent,
+  CloudJobInput,
   JobCommandName,
   JobEventLevelName,
   JobPhaseName,
   JobStateName,
+  NeededGroup,
+  NeededVariable,
+  TierName,
 } from "./cloud/view";
 export { authHandler } from "./routes/auth/route";
 export { cancelCloudJob } from "./routes/cloud/jobs/[id]/cancel/route";
 export { listCloudJobEvents } from "./routes/cloud/jobs/[id]/events/route";
+export { RESPOND_BODY_LIMIT, respondCloudJob } from "./routes/cloud/jobs/[id]/respond/route";
 export { CONNECT_PREFIX, connect } from "./routes/connect/route";
 export { connectorHeartbeat } from "./routes/connectors/[id]/heartbeat/route";
 export { type Liveness, liveness } from "./routes/connectors/liveness";

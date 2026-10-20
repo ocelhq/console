@@ -5,9 +5,11 @@ import {
   JobCommand,
   type JobEvent,
   JobEventLevel,
+  type JobInput,
   JobPhase,
   JobState,
 } from "@console/connectors/gen/cloud/v1/job_pb";
+import { Tier } from "@console/connectors/gen/common/environment/v1/environment_pb";
 
 export type JobCommandName = "build" | "deploy" | "preview-up";
 
@@ -40,7 +42,35 @@ export interface CloudJob {
     builds: { app: string; buildId: string }[];
   } | null;
   sourceId: string;
+  input: CloudJobInput | null;
 }
+
+export type TierName = "production" | "preview";
+
+export interface NeededVariable {
+  key: string;
+  folder: string;
+  secret: boolean;
+  description: string;
+  reason: string;
+  group: string;
+}
+
+export interface NeededGroup {
+  key: string;
+  description: string;
+}
+
+export type CloudJobInput =
+  | {
+      id: string;
+      kind: "variables";
+      tier: TierName | null;
+      variables: NeededVariable[];
+      groups: NeededGroup[];
+    }
+  | { id: string; kind: "confirmation"; finding: string; question: string }
+  | { id: string; kind: "unknown" };
 
 export interface CloudJobEvent {
   seq: number;
@@ -81,6 +111,47 @@ const levels: Partial<Record<JobEventLevel, JobEventLevelName>> = {
   [JobEventLevel.ERROR]: "error",
 };
 
+const tiers: Partial<Record<Tier, TierName>> = {
+  [Tier.PRODUCTION]: "production",
+  [Tier.PREVIEW]: "preview",
+};
+
+export function cloudJobInputOf(input: JobInput | undefined): CloudJobInput | null {
+  if (!input) {
+    return null;
+  }
+  const { need } = input;
+  switch (need.case) {
+    case "variables":
+      return {
+        id: input.id,
+        kind: "variables",
+        tier: tiers[need.value.tier] ?? null,
+        variables: need.value.variables.map((variable) => ({
+          key: variable.key,
+          folder: variable.folder,
+          secret: variable.secret,
+          description: variable.description,
+          reason: variable.reason,
+          group: variable.group,
+        })),
+        groups: need.value.groups.map((group) => ({
+          key: group.key,
+          description: group.description,
+        })),
+      };
+    case "confirmation":
+      return {
+        id: input.id,
+        kind: "confirmation",
+        finding: need.value.finding,
+        question: need.value.question,
+      };
+    default:
+      return { id: input.id, kind: "unknown" };
+  }
+}
+
 function isoOf(at: Timestamp | undefined): string | null {
   return at ? timestampDate(at).toISOString() : null;
 }
@@ -105,6 +176,7 @@ export function cloudJobOf(job: Job): CloudJob {
         }
       : null,
     sourceId: job.sourceId,
+    input: cloudJobInputOf(job.input),
   };
 }
 
