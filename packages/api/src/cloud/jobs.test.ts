@@ -1,12 +1,13 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { auth } from "@console/auth";
 import { JobPhase, JobState } from "@console/connectors/gen/cloud/v1/job_pb";
+import { Tier } from "@console/connectors/gen/common/environment/v1/environment_pb";
 import { setupTestDatabase } from "@console/db/testing";
 import { createLocalJWKSet, jwtVerify } from "jose";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cloudEvent, cloudJob, type FakeCloud, startFakeCloud } from "../../test/cloud-harness";
 import type { CloudOffer } from "../routes/connect/cloud";
-import { cloudJobsFor, refusalOf } from "./jobs";
+import { cloudJobsFor, refusalOf, respondRefusalOf, STALE_INPUT } from "./jobs";
 
 const offered = vi.hoisted(() => ({ cloud: undefined as CloudOffer | undefined }));
 
@@ -127,6 +128,184 @@ describe("cloudJobsFor", () => {
     });
   });
 
+  function waitingForVariables(id: string) {
+    return cloudJob({
+      id,
+      state: JobState.INPUT_REQUIRED,
+      input: {
+        id: "input_1",
+        need: {
+          case: "variables",
+          value: {
+            tier: Tier.PRODUCTION,
+            variables: [
+              {
+                key: "DATABASE_URL",
+                folder: "",
+                secret: true,
+                description: "The primary database",
+                reason: "no value",
+                group: "",
+              },
+              { key: "STRIPE_KEY", folder: "/apps/web", reason: "no value", group: "stripe" },
+            ],
+            groups: [{ key: "stripe", description: "Payments" }],
+          },
+        },
+      },
+    });
+  }
+
+  it("reads what a paused job is waiting for", async () => {
+    offer();
+    cloud.add("org-1", waitingForVariables("job_waiting"));
+
+    const answer = await cloudJobsFor(session)?.get("job_waiting");
+
+    expect(answer).toMatchObject({
+      ok: true,
+      result: {
+        state: "input-required",
+        input: {
+          id: "input_1",
+          kind: "variables",
+          tier: "production",
+          variables: [
+            {
+              key: "DATABASE_URL",
+              folder: "",
+              secret: true,
+              description: "The primary database",
+              reason: "no value",
+              group: "",
+            },
+            {
+              key: "STRIPE_KEY",
+              folder: "/apps/web",
+              secret: false,
+              description: "",
+              reason: "no value",
+              group: "stripe",
+            },
+          ],
+          groups: [{ key: "stripe", description: "Payments" }],
+        },
+      },
+    });
+  });
+
+  it("reads a confirmation a paused job is waiting for, and no input on a running job", async () => {
+    offer();
+    cloud.add(
+      "org-1",
+      cloudJob({
+        id: "job_confirm_read",
+        state: JobState.INPUT_REQUIRED,
+        input: {
+          id: "input_c",
+          need: {
+            case: "confirmation",
+            value: { finding: "3 resources will be replaced", question: "Deploy anyway?" },
+          },
+        },
+      }),
+    );
+    cloud.add("org-1", cloudJob({ id: "job_no_input" }));
+
+    expect(await cloudJobsFor(session)?.get("job_confirm_read")).toMatchObject({
+      ok: true,
+      result: {
+        input: {
+          id: "input_c",
+          kind: "confirmation",
+          finding: "3 resources will be replaced",
+          question: "Deploy anyway?",
+        },
+      },
+    });
+    expect(await cloudJobsFor(session)?.get("job_no_input")).toMatchObject({
+      ok: true,
+      result: { input: null },
+    });
+  });
+
+  it("answers the variables a job asked for with a write token, and the job resumes", async () => {
+    offer();
+    cloud.add("org-1", waitingForVariables("job_respond"));
+
+    const answer = await cloudJobsFor(session)?.respond("job_respond", "input_1", {
+      kind: "variables",
+      values: [
+        { key: "DATABASE_URL", folder: "", value: "postgres://secret" },
+        { key: "STRIPE_KEY", folder: "/apps/web", value: "sk_live" },
+      ],
+    });
+
+    expect(answer).toMatchObject({ ok: true, result: { state: "running", input: null } });
+    expect(cloud.seen[0]).toMatchObject({
+      method: "RespondJob",
+      jobId: "job_respond",
+      inputId: "input_1",
+      answer: {
+        case: "variables",
+        value: {
+          values: [
+            { key: "DATABASE_URL", folder: "", value: "postgres://secret" },
+            { key: "STRIPE_KEY", folder: "/apps/web", value: "sk_live" },
+          ],
+        },
+      },
+    });
+    expect((await verified(cloud.seen[0].authorization)).scope).toEqual(["cloud.apps.write"]);
+  });
+
+  it("answers a confirmation", async () => {
+    offer();
+    cloud.add(
+      "org-1",
+      cloudJob({
+        id: "job_confirm",
+        state: JobState.INPUT_REQUIRED,
+        input: {
+          id: "input_c",
+          need: { case: "confirmation", value: { question: "Deploy anyway?" } },
+        },
+      }),
+    );
+
+    const answer = await cloudJobsFor(session)?.respond("job_confirm", "input_c", {
+      kind: "confirmation",
+      confirmed: false,
+    });
+
+    expect(answer).toMatchObject({ ok: true, result: { state: "running" } });
+    expect(cloud.seen[0].answer).toEqual({ case: "confirmed", value: false });
+  });
+
+  it("says an answer to an input that is no longer pending is stale", async () => {
+    offer();
+    cloud.add("org-1", waitingForVariables("job_stale"));
+
+    const answer = await cloudJobsFor(session)?.respond("job_stale", "input_old", {
+      kind: "confirmation",
+      confirmed: true,
+    });
+
+    expect(answer).toEqual({ ok: false, reason: "stale", message: STALE_INPUT });
+  });
+
+  it("passes on why Ocel Cloud refused an answer", async () => {
+    offer();
+    cloud.add("org-1", waitingForVariables("job_invalid"));
+
+    const answer = await cloudJobsFor(session)?.respond("job_invalid", "input_1", {
+      kind: "variables",
+      values: [{ key: "OTHER", folder: "", value: "x" }],
+    });
+
+    expect(answer).toEqual({ ok: false, reason: "invalid", message: "OTHER was not asked for" });
+  });
+
   it("finds no job that belongs to another organization", async () => {
     offer();
     cloud.add("org-2", cloudJob({ id: "job_theirs" }));
@@ -177,5 +356,24 @@ describe("refusalOf", () => {
       reason: "unreachable",
       message: "socket hang up",
     });
+  });
+});
+
+describe("respondRefusalOf", () => {
+  it.each([
+    [Code.FailedPrecondition, "stale"],
+    [Code.InvalidArgument, "invalid"],
+    [Code.NotFound, "not-found"],
+    [Code.PermissionDenied, "not-found"],
+    [Code.Unauthenticated, "refused"],
+    [Code.Unavailable, "unreachable"],
+  ])("maps %s to %s", (code, reason) => {
+    expect(respondRefusalOf(new ConnectError("no", code))).toMatchObject({ ok: false, reason });
+  });
+
+  it("says a stale answer is no longer current, not what Ocel Cloud said", () => {
+    expect(
+      respondRefusalOf(new ConnectError("input inp_2 is pending", Code.FailedPrecondition)),
+    ).toEqual({ ok: false, reason: "stale", message: STALE_INPUT });
   });
 });

@@ -13,6 +13,7 @@ import {
   JobSchema,
   JobService,
   JobState,
+  type RespondJobRequest,
 } from "@console/connectors/gen/cloud/v1/job_pb";
 import { decodeJwt } from "jose";
 
@@ -22,6 +23,8 @@ export interface Seen {
   jobId: string;
   afterSeq?: bigint;
   limit?: number;
+  inputId?: string;
+  answer?: RespondJobRequest["answer"];
 }
 
 interface Stored {
@@ -117,6 +120,41 @@ export async function startFakeCloud(): Promise<FakeCloud> {
               more: after.length > limit,
               job: found.job,
             };
+          },
+          async respondJob(request, context) {
+            const found = owned("RespondJob", request.jobId, context, {
+              inputId: request.inputId,
+              answer: request.answer,
+            });
+            const input = found.job.input;
+            if (
+              found.job.state !== JobState.INPUT_REQUIRED ||
+              !input ||
+              input.id !== request.inputId
+            ) {
+              throw new ConnectError("the input is no longer pending", Code.FailedPrecondition);
+            }
+            const asks = input.need.case === "confirmation" ? "confirmed" : input.need.case;
+            if (asks !== request.answer.case) {
+              throw new ConnectError(
+                `the job asked for ${input.need.case}, not ${request.answer.case}`,
+                Code.InvalidArgument,
+              );
+            }
+            if (input.need.case === "variables" && request.answer.case === "variables") {
+              const asked = new Set(
+                input.need.value.variables.map((variable) => `${variable.folder}#${variable.key}`),
+              );
+              const outside = request.answer.value.values.find(
+                (value) => !asked.has(`${value.folder}#${value.key}`),
+              );
+              if (outside) {
+                throw new ConnectError(`${outside.key} was not asked for`, Code.InvalidArgument);
+              }
+            }
+            found.job.input = undefined;
+            found.job.state = JobState.RUNNING;
+            return { job: found.job };
           },
         });
       },
