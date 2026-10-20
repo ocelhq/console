@@ -139,6 +139,12 @@ needed), then trades the session for five-minute Ocel Cloud tokens
 verifies them against `{origin}/api/auth/jwks`, so it must trust this console's origin and
 expect the same audience.
 
+The CLI links each Ocel Cloud job to `/cloud/jobs/{id}`. That page reads the job from
+`cloud.v1.JobService` at `CONSOLE_CLOUD_URL` with a one-minute token of the same shape, signed for
+the viewer's active organization, and polls its events through `/api/cloud/jobs/{id}/events`. The
+console stores none of it. Without an offer, or for a job Ocel Cloud doesn't show that
+organization, the page is a 404.
+
 Then point the CLI at your console:
 `OCEL_CONSOLE_URL=https://console.example.com ocel login`,
 `ocel link`, `ocel connector add`.
