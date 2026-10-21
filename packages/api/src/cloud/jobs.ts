@@ -104,6 +104,13 @@ function answerOf(answer: JobAnswer): RespondJobRequest["answer"] {
   };
 }
 
+function jobOf(job: Job | undefined): CloudAnswer<CloudJob> {
+  if (!job) {
+    return refuse("unreachable", "Ocel Cloud answered without the job");
+  }
+  return { ok: true, result: cloudJobOf(job) };
+}
+
 function bearing(token: string): Interceptor {
   return (next) => (request) => {
     request.header.set("Authorization", `Bearer ${token}`);
@@ -116,14 +123,6 @@ export function cloudJobsFor(caller: CloudCaller): CloudJobs | null {
   if (!cloud) {
     return null;
   }
-
-  const jobOf = async (job: Job | undefined): Promise<CloudAnswer<CloudJob>> => {
-    if (!job) {
-      return refuse("unreachable", "Ocel Cloud answered without the job");
-    }
-    await recordJobReport(caller.organizationId, job);
-    return { ok: true, result: cloudJobOf(job) };
-  };
 
   const call = async <T>(
     scope: Scope,
@@ -157,9 +156,12 @@ export function cloudJobsFor(caller: CloudCaller): CloudJobs | null {
           afterSeq: BigInt(afterSeq),
           limit: Math.min(limit, JOB_EVENTS_LIMIT),
         });
-        const job = await jobOf(answer.job);
+        const job = jobOf(answer.job);
         if (!job.ok) {
           return job;
+        }
+        if (answer.job && !answer.more) {
+          await recordJobReport(caller.organizationId, answer.job);
         }
         return {
           ok: true,

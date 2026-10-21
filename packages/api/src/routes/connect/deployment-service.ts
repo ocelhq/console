@@ -13,10 +13,14 @@ import {
 } from "../../deployments/report";
 import { sessionOf } from "./session";
 
+function notOwned(projectId: string): ConnectError {
+  return new ConnectError(`No project ${projectId} in the session's organization`, Code.NotFound);
+}
+
 async function ownedProject(context: HandlerContext, projectId: string): Promise<string> {
   const found = await projectInOrganization(sessionOf(context).activeOrganizationId, projectId);
   if (!found) {
-    throw new ConnectError(`No project ${projectId} in the session's organization`, Code.NotFound);
+    throw notOwned(projectId);
   }
   return found;
 }
@@ -46,9 +50,15 @@ function accepted(what: string, recording: Recording): void {
 export const deploymentService: ServiceImpl<typeof DeploymentService> = {
   async report(request, context) {
     const reported = required(request.deployment, "deployment");
-    const projectId = await ownedProject(context, request.projectId);
-    const { deploymentId, recording } = await recordDeployment(projectId, reported);
-    accepted(`Deployment ${deploymentId}`, recording);
+    const recorded = await recordDeployment(
+      sessionOf(context).activeOrganizationId,
+      request.projectId,
+      reported,
+    );
+    if (!recorded) {
+      throw notOwned(request.projectId);
+    }
+    accepted(`Deployment ${recorded.deploymentId}`, recorded.recording);
     return {};
   },
 

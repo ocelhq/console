@@ -18,6 +18,10 @@ function contentOf<Row extends Recorded>({
   return JSON.parse(JSON.stringify(content));
 }
 
+function compared(first: Recorded, values: Recorded): Recording {
+  return isDeepStrictEqual(contentOf(first), contentOf(values)) ? "repeated" : "differs";
+}
+
 export async function recordOnce<Row extends Recorded>(
   values: Row,
   insert: (values: Row) => Promise<unknown[]>,
@@ -27,10 +31,7 @@ export async function recordOnce<Row extends Recorded>(
     return "recorded";
   }
   const first = await stored();
-  if (!first) {
-    return "gone";
-  }
-  return isDeepStrictEqual(contentOf(first), contentOf(values)) ? "repeated" : "differs";
+  return first ? compared(first, values) : "gone";
 }
 
 export async function projectInOrganization(
@@ -45,26 +46,30 @@ export async function projectInOrganization(
 }
 
 export async function recordDeployment(
+  organizationId: string,
   projectId: string,
   reported: Deployment,
-): Promise<{ deploymentId: string; recording: Recording }> {
+): Promise<{ deploymentId: string; recording: Recording } | null> {
+  const stored = and(eq(deployment.projectId, projectId), eq(deployment.deploymentId, reported.id));
+  const [found] = await db
+    .select({ first: deployment })
+    .from(project)
+    .leftJoin(deployment, stored)
+    .where(and(eq(project.organizationId, organizationId), eq(project.id, projectId)));
+  if (!found) {
+    return null;
+  }
   const values = deploymentValues(projectId, uuidv7(), reported);
-  const recording = await recordOnce(
-    values,
-    (row) =>
-      db.insert(deployment).values(row).onConflictDoNothing().returning({ id: deployment.id }),
-    async () => {
-      const [row] = await db
-        .select()
-        .from(deployment)
-        .where(
-          and(
-            eq(deployment.projectId, projectId),
-            eq(deployment.deploymentId, values.deploymentId),
-          ),
-        );
-      return row;
-    },
-  );
+  const recording = found.first
+    ? compared(found.first, values)
+    : await recordOnce(
+        values,
+        (row) =>
+          db.insert(deployment).values(row).onConflictDoNothing().returning({ id: deployment.id }),
+        async () => {
+          const [row] = await db.select().from(deployment).where(stored);
+          return row;
+        },
+      );
   return { deploymentId: values.deploymentId, recording };
 }
