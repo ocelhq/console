@@ -18,6 +18,7 @@ import { cloudEvent, cloudJob, type FakeCloud, startFakeCloud } from "../../test
 import {
   CONSOLE_FAILED,
   cloudJobsFor,
+  mayGiveValues,
   NOT_ALLOWED,
   refusalOf,
   respondRefusalOf,
@@ -536,5 +537,17 @@ describe("respondRefusalOf", () => {
     expect(
       respondRefusalOf(new ConnectError("input inp_2 is pending", Code.FailedPrecondition)),
     ).toEqual({ ok: false, reason: "stale", message: STALE_INPUT });
+  });
+});
+
+describe("mayGiveValues", () => {
+  it.each([
+    ["member", false],
+    ["admin", true],
+    ["owner", true],
+    ["member,admin", true],
+    ["", false],
+  ])("is %s -> %s, as the scopes a values answer needs follow the role", (role, may) => {
+    expect(mayGiveValues(role)).toBe(may);
   });
 });

@@ -1,5 +1,5 @@
 export { type CloudCaller, cloudCallerOf } from "./cloud/caller";
-export { cloudJobsFor, JOB_ID, type JobEvents } from "./cloud/jobs";
+export { cloudJobsFor, JOB_ID, type JobEvents, mayGiveValues } from "./cloud/jobs";
 export type {
   CloudJob,
   CloudJobEvent,
