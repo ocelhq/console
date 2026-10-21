@@ -1,9 +1,10 @@
 # Ocel console
 
-The console is Ocel's hosted control plane: the web UI and API over projects, deployments,
-variables and the connectors Ocel runs in a customer's account. Ocel deploys apps into the
-customer's own cloud account, under their billing and access. The console hosts none of that
-infrastructure, and using it is optional.
+The console is the UI over Ocel: the web UI and API over projects, deployments, variables
+and the connectors Ocel runs in a customer's account. Ocel, the deployment engine, deploys apps
+to a target: the customer's own cloud account, under their billing and access, or Ocel Cloud,
+the zero-config managed target a console may offer. The console hosts no app infrastructure,
+and using it is optional.
 
 ## Layout
 

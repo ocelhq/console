@@ -1,7 +1,8 @@
 # Ocel console
 
-Ocel's hosted control plane. Ocel deploys apps into the customer's own cloud account; the
-console is an optional UI and API over that, never "a cloud". README.md has the layout and
+The UI over Ocel. Ocel (the CLI and SDK) is the deployment engine; the console is an optional
+UI and API that gives a view into what it did and where it landed, never "a cloud". A console
+may offer Ocel Cloud, the zero-config managed target; the console itself is not Ocel Cloud. README.md has the layout and
 the commands; CONTRIBUTING.md is binding for every change.
 
 ## Stack
