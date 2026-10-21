@@ -1,5 +1,6 @@
-import { type ActiveOrganizationSession, signOrganizationToken } from "@console/auth";
+import { signOrganizationToken } from "@console/auth";
 import type { CloudOffer } from "../routes/connect/cloud";
+import type { CloudCaller } from "./caller";
 
 export const CLOUD_SCOPES = ["cloud.apps.read", "cloud.apps.write"] as const;
 
@@ -12,14 +13,14 @@ export interface CloudToken {
 
 export function signCloudToken(
   cloud: CloudOffer,
-  session: ActiveOrganizationSession,
+  caller: Pick<CloudCaller, "userId" | "organizationId">,
   scope: readonly CloudScope[],
   lifetimeSeconds: number,
 ): Promise<CloudToken> {
   return signOrganizationToken({
     audience: cloud.audience,
-    organizationId: session.activeOrganizationId,
-    userId: session.userId,
+    organizationId: caller.organizationId,
+    userId: caller.userId,
     scope,
     lifetimeSeconds,
   });

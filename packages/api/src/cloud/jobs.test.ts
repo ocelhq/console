@@ -13,7 +13,7 @@ const offered = vi.hoisted(() => ({ cloud: undefined as CloudOffer | undefined }
 
 vi.mock("../routes/connect/cloud", () => ({ readCloudOffer: () => offered.cloud }));
 
-const session = { userId: "user-1", activeOrganizationId: "org-1" };
+const caller = { userId: "user-1", organizationId: "org-1", role: "owner" };
 
 let cloud: FakeCloud;
 
@@ -48,14 +48,14 @@ describe("cloudJobsFor", () => {
   }
 
   it("is null when the console offers no Ocel Cloud", () => {
-    expect(cloudJobsFor(session)).toBeNull();
+    expect(cloudJobsFor(caller)).toBeNull();
   });
 
   it("reads a job with a one-minute read token for the organization, as IssueCloudToken signs it", async () => {
     offer();
     cloud.add("org-1", cloudJob({ id: "job_read" }));
 
-    const answer = await cloudJobsFor(session)?.get("job_read");
+    const answer = await cloudJobsFor(caller)?.get("job_read");
 
     expect(answer).toMatchObject({
       ok: true,
@@ -86,7 +86,7 @@ describe("cloudJobsFor", () => {
     offer();
     cloud.add("org-1", cloudJob({ id: "job_cancel" }));
 
-    const answer = await cloudJobsFor(session)?.cancel("job_cancel");
+    const answer = await cloudJobsFor(caller)?.cancel("job_cancel");
 
     expect(answer).toMatchObject({ ok: true, result: { state: "canceled" } });
     expect((await verified(cloud.seen[0].authorization)).scope).toEqual(["cloud.apps.write"]);
@@ -100,7 +100,7 @@ describe("cloudJobsFor", () => {
       cloudEvent(3, "built"),
     ]);
 
-    const answer = await cloudJobsFor(session)?.events("job_events", 1, 5000);
+    const answer = await cloudJobsFor(caller)?.events("job_events", 1, 5000);
 
     expect(cloud.seen[0]).toMatchObject({ afterSeq: 1n, limit: 1000 });
     expect(answer).toEqual({
@@ -160,7 +160,7 @@ describe("cloudJobsFor", () => {
     offer();
     cloud.add("org-1", waitingForVariables("job_waiting"));
 
-    const answer = await cloudJobsFor(session)?.get("job_waiting");
+    const answer = await cloudJobsFor(caller)?.get("job_waiting");
 
     expect(answer).toMatchObject({
       ok: true,
@@ -212,7 +212,7 @@ describe("cloudJobsFor", () => {
     );
     cloud.add("org-1", cloudJob({ id: "job_no_input" }));
 
-    expect(await cloudJobsFor(session)?.get("job_confirm_read")).toMatchObject({
+    expect(await cloudJobsFor(caller)?.get("job_confirm_read")).toMatchObject({
       ok: true,
       result: {
         input: {
@@ -223,7 +223,7 @@ describe("cloudJobsFor", () => {
         },
       },
     });
-    expect(await cloudJobsFor(session)?.get("job_no_input")).toMatchObject({
+    expect(await cloudJobsFor(caller)?.get("job_no_input")).toMatchObject({
       ok: true,
       result: { input: null },
     });
@@ -233,7 +233,7 @@ describe("cloudJobsFor", () => {
     offer();
     cloud.add("org-1", waitingForVariables("job_respond"));
 
-    const answer = await cloudJobsFor(session)?.respond("job_respond", "input_1", {
+    const answer = await cloudJobsFor(caller)?.respond("job_respond", "input_1", {
       kind: "variables",
       values: [
         { key: "DATABASE_URL", folder: "", value: "postgres://secret" },
@@ -273,7 +273,7 @@ describe("cloudJobsFor", () => {
       }),
     );
 
-    const answer = await cloudJobsFor(session)?.respond("job_confirm", "input_c", {
+    const answer = await cloudJobsFor(caller)?.respond("job_confirm", "input_c", {
       kind: "confirmation",
       confirmed: false,
     });
@@ -286,7 +286,7 @@ describe("cloudJobsFor", () => {
     offer();
     cloud.add("org-1", waitingForVariables("job_stale"));
 
-    const answer = await cloudJobsFor(session)?.respond("job_stale", "input_old", {
+    const answer = await cloudJobsFor(caller)?.respond("job_stale", "input_old", {
       kind: "confirmation",
       confirmed: true,
     });
@@ -298,7 +298,7 @@ describe("cloudJobsFor", () => {
     offer();
     cloud.add("org-1", waitingForVariables("job_invalid"));
 
-    const answer = await cloudJobsFor(session)?.respond("job_invalid", "input_1", {
+    const answer = await cloudJobsFor(caller)?.respond("job_invalid", "input_1", {
       kind: "variables",
       values: [{ key: "OTHER", folder: "", value: "x" }],
     });
@@ -310,7 +310,7 @@ describe("cloudJobsFor", () => {
     offer();
     cloud.add("org-2", cloudJob({ id: "job_theirs" }));
 
-    expect(await cloudJobsFor(session)?.get("job_theirs")).toMatchObject({
+    expect(await cloudJobsFor(caller)?.get("job_theirs")).toMatchObject({
       ok: false,
       reason: "not-found",
     });
@@ -319,7 +319,7 @@ describe("cloudJobsFor", () => {
   it("answers unreachable when nothing listens at the Ocel Cloud URL", async () => {
     offered.cloud = { apiUrl: "http://127.0.0.1:9", providerUrl: "", audience: "ocel-cloud" };
 
-    expect(await cloudJobsFor(session)?.get("job_1")).toMatchObject({
+    expect(await cloudJobsFor(caller)?.get("job_1")).toMatchObject({
       ok: false,
       reason: "unreachable",
     });
@@ -330,7 +330,7 @@ describe("cloudJobsFor", () => {
     cloud.add("org-1", cloudJob({ id: "job_refused" }));
     cloud.failWith(new ConnectError("bad audience", Code.Unauthenticated));
 
-    expect(await cloudJobsFor(session)?.get("job_refused")).toEqual({
+    expect(await cloudJobsFor(caller)?.get("job_refused")).toEqual({
       ok: false,
       reason: "refused",
       message: "Ocel Cloud refused the console's token: bad audience",

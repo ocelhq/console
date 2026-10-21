@@ -1,8 +1,12 @@
+import { auth } from "@console/auth";
 import { JobState } from "@console/connectors/gen/cloud/v1/job_pb";
 import { Tier } from "@console/connectors/gen/common/environment/v1/environment_pb";
 import { setupTestDatabase } from "@console/db/testing";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { createTestSessionWithOrganization } from "../../../../../test/auth-harness";
+import {
+  createTestSessionWithOrganization,
+  createTestSessionWithRole,
+} from "../../../../../test/auth-harness";
 import {
   cloudEvent,
   cloudJob,
@@ -20,12 +24,15 @@ vi.mock("../../../connect/cloud", () => ({ readCloudOffer: () => offered.cloud }
 
 let cloud: FakeCloud;
 
-type Session = Awaited<ReturnType<typeof createTestSessionWithOrganization>>;
+type Session = { headers: Headers };
 
-function events(session: Session | null, id: string, after?: string) {
-  const query = after === undefined ? "" : `?after=${after}`;
+function events(session: Session | null, id: string, after?: string, org?: string) {
+  const query = new URLSearchParams();
+  if (after !== undefined) query.set("after", after);
+  if (org !== undefined) query.set("org", org);
+  const search = query.size === 0 ? "" : `?${query}`;
   return listCloudJobEvents(
-    new Request(`http://localhost:3000/api/cloud/jobs/${id}/events${query}`, {
+    new Request(`http://localhost:3000/api/cloud/jobs/${id}/events${search}`, {
       headers: session ? session.headers : {},
     }),
     id,
@@ -126,6 +133,46 @@ describe("the Ocel Cloud job routes", () => {
       expect(cloud.seen).toEqual([]);
     } finally {
       await session.cleanup();
+    }
+  });
+
+  it("reach the job of the organization the URL names, not the active one", async () => {
+    offer();
+    const named = await createTestSessionWithOrganization();
+    const active = await createTestSessionWithOrganization();
+    const joined = await createTestSessionWithRole(active.organization.id, "member");
+    try {
+      await auth.api.addMember({
+        body: { userId: joined.user.id, organizationId: named.organization.id, role: "member" },
+      });
+      cloud.add(named.organization.id, cloudJob({ id: "job_route_named" }));
+
+      expect((await events(joined, "job_route_named")).status).toBe(404);
+      const response = await events(joined, "job_route_named", undefined, named.organization.id);
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ job: { id: "job_route_named" } });
+    } finally {
+      await joined.cleanup();
+      await named.cleanup();
+      await active.cleanup();
+    }
+  });
+
+  it("are not found for an organization the caller does not belong to, even with the job in the active one", async () => {
+    offer();
+    const mine = await createTestSessionWithOrganization();
+    const theirs = await createTestSessionWithOrganization();
+    try {
+      cloud.add(mine.organization.id, cloudJob({ id: "job_route_mine" }));
+
+      const response = await events(mine, "job_route_mine", undefined, theirs.organization.id);
+
+      expect(response.status).toBe(404);
+      expect(cloud.seen).toEqual([]);
+    } finally {
+      await mine.cleanup();
+      await theirs.cleanup();
     }
   });
 

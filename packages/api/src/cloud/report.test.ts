@@ -80,7 +80,8 @@ describe("a finished Ocel Cloud job's deployment report", () => {
       await finishedJob(owner.organization.id, projectId, "job_report_view");
       const jobs = cloudJobsFor({
         userId: member.user.id,
-        activeOrganizationId: owner.organization.id,
+        organizationId: owner.organization.id,
+        role: "member",
       });
 
       const answer = await jobs?.events("job_report_view", 0);
@@ -113,7 +114,8 @@ describe("a finished Ocel Cloud job's deployment report", () => {
       await finishedJob(session.organization.id, projectId, "job_report_twice");
       const jobs = cloudJobsFor({
         userId: session.user.id,
-        activeOrganizationId: session.organization.id,
+        organizationId: session.organization.id,
+        role: "member",
       });
       const errors = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -147,7 +149,8 @@ describe("a finished Ocel Cloud job's deployment report", () => {
       );
       const jobs = cloudJobsFor({
         userId: session.user.id,
-        activeOrganizationId: session.organization.id,
+        organizationId: session.organization.id,
+        role: "member",
       });
       vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -174,7 +177,8 @@ describe("a finished Ocel Cloud job's deployment report", () => {
       await finishedJob(viewer.organization.id, projectId, "job_report_foreign");
       const jobs = cloudJobsFor({
         userId: viewer.user.id,
-        activeOrganizationId: viewer.organization.id,
+        organizationId: viewer.organization.id,
+        role: "member",
       });
 
       const answer = await jobs?.events("job_report_foreign", 0);
@@ -204,7 +208,8 @@ describe("a finished Ocel Cloud job's deployment report", () => {
       );
       const jobs = cloudJobsFor({
         userId: session.user.id,
-        activeOrganizationId: session.organization.id,
+        organizationId: session.organization.id,
+        role: "member",
       });
 
       await jobs?.events("job_report_none", 0);
@@ -236,7 +241,8 @@ describe("a finished Ocel Cloud job's deployment report", () => {
       );
       const jobs = cloudJobsFor({
         userId: session.user.id,
-        activeOrganizationId: session.organization.id,
+        organizationId: session.organization.id,
+        role: "member",
       });
       const errors = vi.spyOn(console, "error").mockImplementation(() => {});
 

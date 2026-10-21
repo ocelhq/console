@@ -41,7 +41,7 @@ export const consoleService: ServiceImpl<typeof ConsoleService> = {
     }
     const { token, expiresAt } = await signCloudToken(
       cloud,
-      session,
+      { userId: session.userId, organizationId: session.activeOrganizationId },
       cloudScopes(request.scopes),
       cloudTokenLifetime,
     );
