@@ -303,7 +303,11 @@ describe("cloudJobsFor", () => {
       values: [{ key: "OTHER", folder: "", value: "x" }],
     });
 
-    expect(answer).toEqual({ ok: false, reason: "invalid", message: "OTHER was not asked for" });
+    expect(answer).toEqual({
+      ok: false,
+      reason: "invalid",
+      message: "input input_1 asks for no OTHER: give values only for the variables it needs",
+    });
   });
 
   it("finds no job that belongs to another organization", async () => {
