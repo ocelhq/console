@@ -5,7 +5,7 @@ import { ConsoleService } from "@console/connectors/gen/console/v1/console_pb";
 import { setupTestDatabase } from "@console/db/testing";
 import { createLocalJWKSet, decodeJwt, decodeProtectedHeader, jwtVerify } from "jose";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import packageJson from "../../../package.json";
+import webPackage from "../../../../../apps/web/package.json";
 import {
   createTestSessionWithOrganization,
   createTestSessionWithoutOrganization,
@@ -55,14 +55,14 @@ describe("ConsoleService over Connect", () => {
   });
 
   describe("Describe", () => {
-    it("answers with no session", async () => {
+    it("answers the console app's version with no session", async () => {
       const described = await consoleService(null).describe({});
-      expect(described.consoleVersion).toBe(packageJson.version);
+      expect(described.consoleVersion).toBe(webPackage.version);
     });
 
     it("answers a bearer that is not a session", async () => {
       const described = await consoleService("not-a-session").describe({});
-      expect(described.consoleVersion).toBe(packageJson.version);
+      expect(described.consoleVersion).toBe(webPackage.version);
     });
 
     it("offers no Ocel Cloud when none is configured", async () => {
