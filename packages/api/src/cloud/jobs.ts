@@ -31,9 +31,18 @@ const callTimeout = 10_000;
 // Ocel Cloud waits up to 15 s for a canceled run to stop before it answers.
 const cancelTimeout = 30_000;
 
-export type CloudRefusal = "not-found" | "ended" | "stale" | "invalid" | "refused" | "unreachable";
+export type CloudRefusal =
+  | "not-found"
+  | "ended"
+  | "stale"
+  | "invalid"
+  | "refused"
+  | "unreachable"
+  | "internal";
 
 export const STALE_INPUT = "This request is no longer current. The job has moved on.";
+
+export const CONSOLE_FAILED = "The console failed to ask Ocel Cloud. Its server logs say why.";
 
 export type CloudAnswer<T> =
   | { ok: true; result: T }
@@ -68,7 +77,8 @@ function refuse(reason: CloudRefusal, message: string): CloudAnswer<never> {
 
 export function refusalOf(thrown: unknown): CloudAnswer<never> {
   if (!(thrown instanceof ConnectError)) {
-    return refuse("unreachable", thrown instanceof Error ? thrown.message : String(thrown));
+    console.error("cloud: the console failed on a call to Ocel Cloud", thrown);
+    return refuse("internal", CONSOLE_FAILED);
   }
   switch (thrown.code) {
     case Code.NotFound:

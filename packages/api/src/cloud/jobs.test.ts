@@ -9,7 +9,7 @@ import { setupTestDatabase } from "@console/db/testing";
 import { createLocalJWKSet, jwtVerify } from "jose";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cloudEvent, cloudJob, type FakeCloud, startFakeCloud } from "../../test/cloud-harness";
-import { cloudJobsFor, refusalOf, respondRefusalOf, STALE_INPUT } from "./jobs";
+import { CONSOLE_FAILED, cloudJobsFor, refusalOf, respondRefusalOf, STALE_INPUT } from "./jobs";
 import type { CloudOffer } from "./offer";
 
 const offered = vi.hoisted(() => ({ cloud: undefined as CloudOffer | undefined }));
@@ -392,12 +392,19 @@ describe("refusalOf", () => {
     expect(refusalOf(new ConnectError("no", code))).toMatchObject({ ok: false, reason });
   });
 
-  it("treats anything that is not a Connect error as unreachable", () => {
-    expect(refusalOf(new Error("socket hang up"))).toEqual({
-      ok: false,
-      reason: "unreachable",
-      message: "socket hang up",
-    });
+  it("logs a failure inside the console and answers without its words", () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const failure = new Error('relation "jwks" does not exist');
+    try {
+      expect(refusalOf(failure)).toEqual({
+        ok: false,
+        reason: "internal",
+        message: CONSOLE_FAILED,
+      });
+      expect(errors).toHaveBeenCalledWith(expect.any(String), failure);
+    } finally {
+      errors.mockRestore();
+    }
   });
 });
 
