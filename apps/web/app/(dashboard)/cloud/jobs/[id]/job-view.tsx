@@ -10,13 +10,7 @@ import { spanOf } from "@/lib/deployment-view";
 import { absoluteTime } from "@/lib/relative-time";
 import { labelType } from "@/lib/type";
 import { cn } from "@/lib/utils";
-import {
-  Cell,
-  Field,
-  Joined,
-  NotReported,
-  Panel,
-} from "../../../projects/[slug]/deployments/[id]/sections";
+import { Cell, Field, Joined, NotReported, Panel } from "../../../panels";
 import { Stamp } from "../../../stamp";
 import { CancelJob } from "./cancel";
 import { useJobFeed } from "./feed";

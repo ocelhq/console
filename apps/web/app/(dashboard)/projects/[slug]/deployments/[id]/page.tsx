@@ -34,6 +34,7 @@ import { edgeLabel, isOcelCloud, providerLabel } from "@/lib/providers";
 import { absoluteTime } from "@/lib/relative-time";
 import { labelType } from "@/lib/type";
 import { EdgeMark, ProviderMark } from "../../../../marks";
+import { Field, Joined, NotReported, Panel } from "../../../../panels";
 import { Stamp } from "../../../../stamp";
 import { Author, EnvironmentBadge, StatusDot, Trigger } from "../cells";
 import { DeploymentActions } from "./actions";
@@ -43,11 +44,7 @@ import {
   Checks,
   checksOf,
   Domains,
-  Field,
   hostnamesOf,
-  Joined,
-  NotReported,
-  Panel,
   ResourceList,
   readersOf,
 } from "./sections";
