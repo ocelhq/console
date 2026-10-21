@@ -3,7 +3,13 @@ import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { connectNodeAdapter } from "@connectrpc/connect-node";
 import { auth } from "@console/auth";
-import { JobPhase, JobSchema, JobService, JobState } from "@console/connectors/gen/cloud/v1/job_pb";
+import {
+  JobPhase,
+  JobSchema,
+  JobService,
+  JobState,
+  RespondJobRequestSchema,
+} from "@console/connectors/gen/cloud/v1/job_pb";
 import { Tier } from "@console/connectors/gen/common/environment/v1/environment_pb";
 import { setupTestDatabase } from "@console/db/testing";
 import { createLocalJWKSet, jwtVerify } from "jose";
@@ -26,6 +32,26 @@ vi.mock("./offer", () => ({ readCloudOffer: () => offered.cloud }));
 const caller = { userId: "user-1", organizationId: "org-1", role: "owner" };
 
 let cloud: FakeCloud;
+
+function giving(
+  jobId: string,
+  inputId: string,
+  values: { key: string; folder: string; value: string }[],
+) {
+  return create(RespondJobRequestSchema, {
+    jobId,
+    inputId,
+    answer: { case: "variables", value: { values } },
+  });
+}
+
+function confirming(jobId: string, inputId: string, confirmed: boolean) {
+  return create(RespondJobRequestSchema, {
+    jobId,
+    inputId,
+    answer: { case: "confirmed", value: confirmed },
+  });
+}
 
 async function verified(authorization: string) {
   const response = await auth.handler(new Request("http://localhost:3000/api/auth/jwks"));
@@ -281,13 +307,12 @@ describe("cloudJobsFor", () => {
     offer();
     cloud.add("org-1", waitingForVariables("job_respond"));
 
-    const answer = await cloudJobsFor(caller)?.respond("job_respond", "input_1", {
-      kind: "variables",
-      values: [
+    const answer = await cloudJobsFor(caller)?.respond(
+      giving("job_respond", "input_1", [
         { key: "DATABASE_URL", folder: "", value: "postgres://secret" },
         { key: "STRIPE_KEY", folder: "/apps/web", value: "sk_live" },
-      ],
-    });
+      ]),
+    );
 
     expect(answer).toMatchObject({ ok: true, result: { state: "running", input: null } });
     expect(cloud.seen[0]).toMatchObject({
@@ -325,10 +350,7 @@ describe("cloudJobsFor", () => {
       }),
     );
 
-    const answer = await cloudJobsFor(caller)?.respond("job_confirm", "input_c", {
-      kind: "confirmation",
-      confirmed: false,
-    });
+    const answer = await cloudJobsFor(caller)?.respond(confirming("job_confirm", "input_c", false));
 
     expect(answer).toMatchObject({ ok: true, result: { state: "running" } });
     expect(cloud.seen[0].answer).toEqual({ case: "confirmed", value: false });
@@ -353,12 +375,9 @@ describe("cloudJobsFor", () => {
 
     expect(await jobs?.events(`job_${role}_cancel`, 0)).toMatchObject({ ok: true });
     expect(await jobs?.cancel(`job_${role}_cancel`)).toMatchObject({ ok: true });
-    expect(
-      await jobs?.respond(`job_${role}_confirm`, "input_c", {
-        kind: "confirmation",
-        confirmed: true,
-      }),
-    ).toMatchObject({ ok: true });
+    expect(await jobs?.respond(confirming(`job_${role}_confirm`, "input_c", true))).toMatchObject({
+      ok: true,
+    });
   });
 
   it.each([
@@ -371,10 +390,9 @@ describe("cloudJobsFor", () => {
     const id = `job_${role.replace(",", "_")}_values`;
     cloud.add("org-1", waitingForVariables(id));
 
-    const answer = await cloudJobsFor({ ...caller, role })?.respond(id, "input_1", {
-      kind: "variables",
-      values: [{ key: "DATABASE_URL", folder: "", value: "x" }],
-    });
+    const answer = await cloudJobsFor({ ...caller, role })?.respond(
+      giving(id, "input_1", [{ key: "DATABASE_URL", folder: "", value: "x" }]),
+    );
 
     expect(answer?.ok).toBe(allowed);
   });
@@ -384,9 +402,7 @@ describe("cloudJobsFor", () => {
     cloud.add("org-1", waitingForVariables("job_member_values"));
 
     const answer = await cloudJobsFor({ ...caller, role: "member" })?.respond(
-      "job_member_values",
-      "input_1",
-      { kind: "variables", values: [{ key: "DATABASE_URL", folder: "", value: "x" }] },
+      giving("job_member_values", "input_1", [{ key: "DATABASE_URL", folder: "", value: "x" }]),
     );
 
     expect(answer).toEqual({ ok: false, reason: "forbidden", message: NOT_ALLOWED });
@@ -405,7 +421,7 @@ describe("cloudJobsFor", () => {
       for (const answer of [
         await jobs?.events("job_no_role", 0),
         await jobs?.cancel("job_no_role"),
-        await jobs?.respond("job_no_role", "input_1", { kind: "confirmation", confirmed: true }),
+        await jobs?.respond(confirming("job_no_role", "input_1", true)),
       ]) {
         expect(answer).toEqual({ ok: false, reason: "forbidden", message: NOT_ALLOWED });
       }
@@ -420,10 +436,7 @@ describe("cloudJobsFor", () => {
     offer();
     cloud.add("org-1", waitingForVariables("job_stale"));
 
-    const answer = await cloudJobsFor(caller)?.respond("job_stale", "input_old", {
-      kind: "confirmation",
-      confirmed: true,
-    });
+    const answer = await cloudJobsFor(caller)?.respond(confirming("job_stale", "input_old", true));
 
     expect(answer).toEqual({ ok: false, reason: "stale", message: STALE_INPUT });
   });
@@ -432,10 +445,9 @@ describe("cloudJobsFor", () => {
     offer();
     cloud.add("org-1", waitingForVariables("job_invalid"));
 
-    const answer = await cloudJobsFor(caller)?.respond("job_invalid", "input_1", {
-      kind: "variables",
-      values: [{ key: "OTHER", folder: "", value: "x" }],
-    });
+    const answer = await cloudJobsFor(caller)?.respond(
+      giving("job_invalid", "input_1", [{ key: "OTHER", folder: "", value: "x" }]),
+    );
 
     expect(answer).toEqual({
       ok: false,

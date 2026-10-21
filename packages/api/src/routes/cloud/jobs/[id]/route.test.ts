@@ -386,17 +386,60 @@ describe("the Ocel Cloud job routes", () => {
           inputId: "input_1",
           answer: { kind: "variables", values: [value("A", { folder: "x" })] },
         },
-        { inputId: "input_1", answer: { kind: "variables", values: [value("A", { value: "" })] } },
-        { inputId: "input_1", answer: { kind: "variables", values: [value("A"), value("A")] } },
+        { inputId: "input_1", answer: { kind: "variables", values: [value("A", { extra: 1 })] } },
+        { inputId: "input_1", answer: { kind: "variables", values: [value("A", { value: 1 })] } },
         { inputId: "input_1", answer: { kind: "confirmation", confirmed: "yes" } },
+        { inputId: "input_1", answer: { kind: "confirmation", confirmed: true, values: [] } },
         { inputId: "input_1", answer: { kind: "other" } },
         { ...answer, extra: true },
+        { ...answer, confirmed: true },
       ]) {
         const response = await respond(session, "job_1", body);
         expect(response.status, JSON.stringify(body)).toBe(400);
         expect(await response.text()).not.toContain("hunter2");
       }
       expect(cloud.seen).toEqual([]);
+    } finally {
+      await session.cleanup();
+    }
+  });
+
+  it("refuse an answer the job service's rules refuse, naming the field and never the value", async () => {
+    offer();
+    const session = await createTestSessionWithOrganization();
+    try {
+      const response = await respond(session, "job_1", {
+        inputId: "input_1",
+        answer: { kind: "variables", values: [{ key: "A", folder: "x", value: secretValue }] },
+      });
+
+      expect(response.status).toBe(400);
+      const text = await response.text();
+      expect(JSON.parse(text).error).toContain("folder");
+      expect(text).not.toContain("hunter2");
+      expect(cloud.seen).toEqual([]);
+    } finally {
+      await session.cleanup();
+    }
+  });
+
+  it("answer 400 with Ocel Cloud's words for a variable given twice", async () => {
+    offer();
+    const session = await createTestSessionWithOrganization();
+    try {
+      cloud.add(session.organization.id, waiting("job_route_twice"));
+      const given = answer.answer.values[0];
+
+      const response = await respond(session, "job_route_twice", {
+        inputId: "input_1",
+        answer: { kind: "variables", values: [given, given] },
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: "DATABASE_URL is given twice",
+        reason: "invalid",
+      });
     } finally {
       await session.cleanup();
     }

@@ -1,4 +1,3 @@
-import { create } from "@bufbuild/protobuf";
 import {
   type Client,
   Code,
@@ -11,7 +10,6 @@ import {
   type Job,
   JobService,
   type RespondJobRequest,
-  VariableValuesSchema,
 } from "@console/connectors/gen/cloud/v1/job_pb";
 import { Scope } from "@console/connectors/gen/cloud/v1/scope_pb";
 import type { CloudCaller } from "./caller";
@@ -56,21 +54,11 @@ export interface JobEvents {
   more: boolean;
 }
 
-export interface VariableAnswer {
-  key: string;
-  folder: string;
-  value: string;
-}
-
-export type JobAnswer =
-  | { kind: "variables"; values: VariableAnswer[] }
-  | { kind: "confirmation"; confirmed: boolean };
-
 export interface CloudJobs {
   get(jobId: string): Promise<CloudAnswer<CloudJob>>;
   events(jobId: string, afterSeq: number, limit?: number): Promise<CloudAnswer<JobEvents>>;
   cancel(jobId: string): Promise<CloudAnswer<CloudJob>>;
-  respond(jobId: string, inputId: string, answer: JobAnswer): Promise<CloudAnswer<CloudJob>>;
+  respond(request: RespondJobRequest): Promise<CloudAnswer<CloudJob>>;
 }
 
 function refuse(reason: CloudRefusal, message: string): CloudAnswer<never> {
@@ -104,18 +92,6 @@ export function respondRefusalOf(thrown: unknown): CloudAnswer<never> {
     }
   }
   return refusalOf(thrown);
-}
-
-function answerOf(answer: JobAnswer): RespondJobRequest["answer"] {
-  if (answer.kind === "confirmation") {
-    return { case: "confirmed", value: answer.confirmed };
-  }
-  return {
-    case: "variables",
-    value: create(VariableValuesSchema, {
-      values: answer.values.map(({ key, folder, value }) => ({ key, folder, value })),
-    }),
-  };
 }
 
 function jobOf(job: Job | undefined): CloudAnswer<CloudJob> {
@@ -195,13 +171,12 @@ export function cloudJobsFor(caller: CloudCaller): CloudJobs | null {
         async (client) => jobOf((await client.cancelJob({ jobId })).job),
         { timeoutMs: cancelTimeout },
       ),
-    respond: (jobId, inputId, answer) =>
+    respond: (request) =>
       call(
-        answer.kind === "variables"
+        request.answer.case === "variables"
           ? [Scope.APPS_READ, Scope.APPS_WRITE, Scope.VARIABLES_WRITE]
           : [Scope.APPS_READ, Scope.APPS_WRITE],
-        async (client) =>
-          jobOf((await client.respondJob({ jobId, inputId, answer: answerOf(answer) })).job),
+        async (client) => jobOf((await client.respondJob(request)).job),
         { refusal: respondRefusalOf },
       ),
   };
