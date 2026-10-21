@@ -45,11 +45,14 @@ function event(
 const known: JobPlace = {
   project: { name: "Shop", slug: "shop" },
   deploymentHref: null,
+  otherOrganization: null,
 };
 
 function render(shown: CloudJob, events: CloudJobEvent[] = [], place: JobPlace = known): string {
   const initial: JobEvents = { job: shown, events, more: false };
-  return renderToStaticMarkup(<JobView initial={initial} place={place} now={now} />);
+  return renderToStaticMarkup(
+    <JobView organizationId="org-1" initial={initial} place={place} now={now} />,
+  );
 }
 
 describe("JobView", () => {
@@ -213,10 +216,31 @@ describe("JobView", () => {
   });
 
   it("names a project it cannot find in this organization by its id", () => {
-    const html = render(job(), [], { project: null, deploymentHref: null });
+    const html = render(job(), [], {
+      project: null,
+      deploymentHref: null,
+      otherOrganization: null,
+    });
     expect(html).toContain("Not in this organization");
     expect(html).toContain("project-1");
     expect(html).toContain("Ocel Cloud job");
+  });
+
+  it("links no project page of a job outside the active organization, naming its organization", () => {
+    const html = render(
+      job({
+        state: "succeeded",
+        endedAt: "2026-10-20T10:02:00.000Z",
+        result: { urls: [], deploymentId: "dep-1", builds: [] },
+      }),
+      [],
+      { ...known, deploymentHref: "/projects/shop/deployments/row-1", otherOrganization: "Acme" },
+    );
+    expect(html).not.toContain('href="/projects/');
+    expect(html).toContain("Shop");
+    expect(html).toContain("dep-1");
+    expect(html).toContain("Acme");
+    expect(html).not.toContain("Not reported to this console yet.");
   });
 
   it("logs each event with its level, marking where a phase begins", () => {

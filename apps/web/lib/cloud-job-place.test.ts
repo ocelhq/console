@@ -41,12 +41,13 @@ describe("placeOf", () => {
       const projectId = await projectIn(session.organization.id);
       const row = await deploymentOf(projectId, "dep-cloud-1");
 
-      const place = await placeOf(session.organization.id, {
+      const place = await placeOf(session.organization.id, session.organization.id, {
         projectId,
         result: { urls: [], builds: [], deploymentId: "dep-cloud-1" },
       });
 
       expect(place.project?.name).toBe("Shop");
+      expect(place.otherOrganization).toBeNull();
       expect(place.deploymentHref).toBe(`/projects/${place.project?.slug}/deployments/${row}`);
     } finally {
       await session.cleanup();
@@ -57,7 +58,7 @@ describe("placeOf", () => {
     const session = await createTestSessionWithOrganization();
     try {
       const projectId = await projectIn(session.organization.id);
-      const place = await placeOf(session.organization.id, {
+      const place = await placeOf(session.organization.id, session.organization.id, {
         projectId,
         result: { urls: [], builds: [], deploymentId: "dep-unreported" },
       });
@@ -76,14 +77,34 @@ describe("placeOf", () => {
       await deploymentOf(projectId, "dep-cloud-2");
 
       expect(
-        await placeOf(viewer.organization.id, {
+        await placeOf(viewer.organization.id, viewer.organization.id, {
           projectId,
           result: { urls: [], builds: [], deploymentId: "dep-cloud-2" },
         }),
-      ).toEqual({ project: null, deploymentHref: null });
+      ).toEqual({ project: null, deploymentHref: null, otherOrganization: null });
     } finally {
       await owner.cleanup();
       await viewer.cleanup();
+    }
+  });
+
+  it("names the job's organization when it isn't the active one, so no link opens the wrong project", async () => {
+    const owner = await createTestSessionWithOrganization();
+    const other = await createTestSessionWithOrganization();
+    try {
+      const projectId = await projectIn(owner.organization.id);
+      await deploymentOf(projectId, "dep-cloud-3");
+
+      const place = await placeOf(owner.organization.id, other.organization.id, {
+        projectId,
+        result: { urls: [], builds: [], deploymentId: "dep-cloud-3" },
+      });
+
+      expect(place.project?.name).toBe("Shop");
+      expect(place.otherOrganization).toBe("Test Org");
+    } finally {
+      await owner.cleanup();
+      await other.cleanup();
     }
   });
 });

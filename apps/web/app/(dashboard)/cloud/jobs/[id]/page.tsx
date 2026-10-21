@@ -1,7 +1,7 @@
 import { cloudJobsFor, JOB_ID } from "@console/api";
 import { notFound } from "next/navigation";
-import { requireCloudCaller } from "@/lib/access";
-import { jobHref } from "@/lib/cloud-job";
+import { requireCloudCaller, requireOrganization } from "@/lib/access";
+import { jobHref } from "@/lib/cloud-job-client";
 import { placeOf } from "@/lib/cloud-job-place";
 import { JobView } from "./job-view";
 import { JobLoadError } from "./states";
@@ -28,9 +28,22 @@ export default async function CloudJobPage({
     if (answer.reason === "not-found") {
       notFound();
     }
-    return <JobLoadError href={jobHref(id)} message={answer.message} />;
+    return (
+      <JobLoadError
+        href={jobHref({ id, organizationId: caller.organizationId })}
+        message={answer.message}
+      />
+    );
   }
 
-  const place = await placeOf(caller.organizationId, answer.result.job);
-  return <JobView initial={answer.result} place={place} now={new Date().toISOString()} />;
+  const { activeOrganizationId } = await requireOrganization();
+  const place = await placeOf(caller.organizationId, activeOrganizationId, answer.result.job);
+  return (
+    <JobView
+      organizationId={caller.organizationId}
+      initial={answer.result}
+      place={place}
+      now={new Date().toISOString()}
+    />
+  );
 }

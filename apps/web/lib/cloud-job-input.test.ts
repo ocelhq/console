@@ -7,8 +7,6 @@ import {
   folderLabel,
   isMultiline,
   pasteInto,
-  refusalOf,
-  respondURL,
   sectionsOf,
   spansFolders,
   tierHeading,
@@ -98,10 +96,6 @@ describe("labels", () => {
   it("keeps the same key apart in two folders", () => {
     expect(fieldKey(needed("A"))).not.toBe(fieldKey(needed("A", { folder: "/apps/web" })));
   });
-
-  it("puts the job id in the path, escaped", () => {
-    expect(respondURL("job_1")).toBe("/api/cloud/jobs/job_1/respond");
-  });
 });
 
 describe("blankFields and answerOf", () => {
@@ -139,36 +133,5 @@ describe("pasteInto", () => {
     expect(isMultiline("a\nb")).toBe(true);
     expect(isMultiline("a\r\nb")).toBe(true);
     expect(isMultiline("ab")).toBe(false);
-  });
-});
-
-describe("refusalOf", () => {
-  it("marks a stale input so the page reads the job again", async () => {
-    const response = Response.json(
-      { error: "This request is no longer current.", reason: "stale" },
-      { status: 409 },
-    );
-    expect(await refusalOf(response, "fallback")).toEqual({
-      stale: true,
-      message: "This request is no longer current.",
-    });
-  });
-
-  it("shows what Ocel Cloud said about an answer it refused", async () => {
-    const response = Response.json(
-      { error: "OTHER was not asked for", reason: "invalid" },
-      { status: 400 },
-    );
-    expect(await refusalOf(response, "fallback")).toEqual({
-      stale: false,
-      message: "OTHER was not asked for",
-    });
-  });
-
-  it("falls back when the answer has no words", async () => {
-    expect(await refusalOf(new Response("oops", { status: 502 }), "Try again.")).toEqual({
-      stale: false,
-      message: "Try again.",
-    });
   });
 });
