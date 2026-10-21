@@ -288,6 +288,24 @@ describe("the Ocel Cloud job routes", () => {
     }
   });
 
+  it("answer 500 without the console's own error when the console fails", async () => {
+    offer();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(auth.api, "signJWT").mockRejectedValue(new Error('relation "jwks" does not exist'));
+    const session = await createTestSessionWithOrganization();
+    try {
+      const response = await events(session, "job_1");
+
+      expect(response.status).toBe(500);
+      const text = await response.text();
+      expect(JSON.parse(text).reason).toBe("internal");
+      expect(text).not.toContain("jwks");
+      expect(cloud.seen).toEqual([]);
+    } finally {
+      await session.cleanup();
+    }
+  });
+
   it("answer the variables a job asked for, and the job resumes", async () => {
     offer();
     const session = await createTestSessionWithOrganization();

@@ -35,6 +35,7 @@ const statuses: Record<CloudRefusal, number> = {
   invalid: 400,
   refused: 502,
   unreachable: 502,
+  internal: 500,
 };
 
 export function answered<T>(answer: CloudAnswer<T>): Response {
