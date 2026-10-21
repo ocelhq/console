@@ -5,12 +5,13 @@ import { db } from "@console/db";
 import { deployment } from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
 import { and, eq } from "drizzle-orm";
+import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   createTestSessionWithOrganization,
   createTestSessionWithRole,
 } from "../../test/auth-harness";
-import { cloudJob, type FakeCloud, startFakeCloud } from "../../test/cloud-harness";
+import { cloudEvent, cloudJob, type FakeCloud, startFakeCloud } from "../../test/cloud-harness";
 import { deploymentRecord, projectIn, TRACE_ID } from "../../test/connect-harness";
 import { cloudJobsFor } from "./jobs";
 import type { CloudOffer } from "./offer";
@@ -37,6 +38,14 @@ async function recorded(projectId: string, deploymentId = TRACE_ID) {
     .select()
     .from(deployment)
     .where(and(eq(deployment.projectId, projectId), eq(deployment.deploymentId, deploymentId)));
+}
+
+function deploymentQueries(): () => string[] {
+  const query = vi.spyOn(Pool.prototype, "query");
+  return () =>
+    query.mock.calls
+      .map(([sql]) => (typeof sql === "string" ? sql : (sql as { text: string }).text))
+      .filter((text) => text.includes('"deployment"'));
 }
 
 describe("a finished Ocel Cloud job's deployment report", () => {
@@ -125,6 +134,68 @@ describe("a finished Ocel Cloud job's deployment report", () => {
 
       expect(await recorded(projectId)).toHaveLength(1);
       expect(errors).not.toHaveBeenCalled();
+    } finally {
+      await session.cleanup();
+    }
+  });
+
+  it("is read in one query and not written again when a recorded job is viewed again", async () => {
+    const session = await createTestSessionWithOrganization();
+    try {
+      const projectId = await projectIn(
+        session.organization.id,
+        `cloud-report-${crypto.randomUUID()}`,
+      );
+      await finishedJob(session.organization.id, projectId, "job_report_cheap");
+      const jobs = cloudJobsFor({
+        userId: session.user.id,
+        organizationId: session.organization.id,
+        role: "member",
+      });
+      await jobs?.events("job_report_cheap", 0);
+      const queries = deploymentQueries();
+
+      const answer = await jobs?.events("job_report_cheap", 0);
+
+      expect(answer?.ok).toBe(true);
+      expect(queries()).toEqual([expect.stringMatching(/^select /)]);
+    } finally {
+      await session.cleanup();
+    }
+  });
+
+  it("is not looked at on a page of events before the last", async () => {
+    const session = await createTestSessionWithOrganization();
+    try {
+      const projectId = await projectIn(
+        session.organization.id,
+        `cloud-report-${crypto.randomUUID()}`,
+      );
+      cloud.add(
+        session.organization.id,
+        cloudJob({
+          id: "job_report_paged",
+          projectId,
+          state: JobState.SUCCEEDED,
+          report: cloudReport(),
+        }),
+        [cloudEvent(1, "one"), cloudEvent(2, "two")],
+      );
+      const jobs = cloudJobsFor({
+        userId: session.user.id,
+        organizationId: session.organization.id,
+        role: "member",
+      });
+      const queries = deploymentQueries();
+
+      const first = await jobs?.events("job_report_paged", 0, 1);
+
+      expect(first).toMatchObject({ ok: true, result: { more: true } });
+      expect(queries()).toEqual([]);
+
+      await jobs?.events("job_report_paged", 1, 1);
+
+      expect(await recorded(projectId)).toHaveLength(1);
     } finally {
       await session.cleanup();
     }

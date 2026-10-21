@@ -1,6 +1,6 @@
 import { type Job, JobState } from "@console/connectors/gen/cloud/v1/job_pb";
 import { DeploymentSchema } from "@console/connectors/gen/console/v1/deployment_pb";
-import { projectInOrganization, recordDeployment } from "../deployments/report";
+import { recordDeployment } from "../deployments/report";
 import { validator } from "../validator";
 
 const terminal = new Set([JobState.SUCCEEDED, JobState.FAILED, JobState.CANCELED]);
@@ -19,12 +19,8 @@ export async function recordJobReport(organizationId: string, job: Job): Promise
       });
       return;
     }
-    const projectId = await projectInOrganization(organizationId, job.projectId);
-    if (!projectId) {
-      return;
-    }
-    const { recording } = await recordDeployment(projectId, report);
-    if (recording === "differs") {
+    const recorded = await recordDeployment(organizationId, job.projectId, report);
+    if (recorded?.recording === "differs") {
       console.error("cloud: a finished job reports a deployment already recorded differently", {
         jobId: job.id,
         deploymentId: report.id,
