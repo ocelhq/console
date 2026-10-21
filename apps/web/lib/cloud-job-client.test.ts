@@ -1,6 +1,6 @@
 import type { CloudJob } from "@console/api";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cancelJob, jobHref, readEvents, refusalOf, respondToJob } from "./cloud-job-client";
+import { cancelJob, jobHref, readEvents, respondToJob } from "./cloud-job-client";
 
 const ref = { id: "job_1", organizationId: "org 1" };
 
@@ -57,7 +57,21 @@ describe("what the console answered", () => {
 
   it("says the job is gone when the console finds none", async () => {
     answering(Response.json({ error: "Not found" }, { status: 404 }));
-    expect(await cancelJob(ref)).toEqual({ kind: "gone" });
+    expect(await cancelJob(ref)).toEqual({ kind: "lost", why: "gone" });
+  });
+
+  it("says the reader is signed out when the console no longer knows them", async () => {
+    answering(
+      Response.json({ error: "Unauthorized" }, { status: 401 }),
+      Response.json({ error: "Unauthorized" }, { status: 401 }),
+      Response.json({ error: "Unauthorized" }, { status: 401 }),
+    );
+    const signedOut = { kind: "lost", why: "signed-out" };
+    expect(await readEvents(ref, 0)).toEqual(signedOut);
+    expect(await cancelJob(ref)).toEqual(signedOut);
+    expect(await respondToJob(ref, "input_1", { kind: "confirmation", confirmed: true })).toEqual(
+      signedOut,
+    );
   });
 
   it("marks a stale input so the page reads the job again", async () => {
@@ -87,15 +101,5 @@ describe("what the console answered", () => {
     answering(new Response("oops", { status: 502 }), new TypeError("Failed to fetch"));
     expect(await readEvents(ref, 0)).toEqual({ kind: "failed", message: null });
     expect(await readEvents(ref, 0)).toEqual({ kind: "failed", message: null });
-  });
-});
-
-describe("refusalOf", () => {
-  it("says what the console said, a gone job is gone, and falls back when it said nothing", () => {
-    expect(refusalOf({ kind: "failed", message: "already ended" }, "Try again.")).toBe(
-      "already ended",
-    );
-    expect(refusalOf({ kind: "stale", message: null }, "Try again.")).toBe("Try again.");
-    expect(refusalOf({ kind: "gone" }, "Try again.")).toBe("This job is gone. Reload the page.");
   });
 });

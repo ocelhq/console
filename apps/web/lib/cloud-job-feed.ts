@@ -1,17 +1,18 @@
 import type { CloudJob, CloudJobEvent, JobEvents } from "@console/api";
 import { appendEvents, isTerminal, lastSeq, pollDelay, shouldPoll } from "./cloud-job";
-import type { JobReply } from "./cloud-job-client";
+import type { JobReply, Lost } from "./cloud-job-client";
 
 export interface Feed {
   job: CloudJob;
   events: readonly CloudJobEvent[];
   polling: boolean;
   trouble: string | null;
-  gone: boolean;
+  lost: Lost | null;
 }
 
 export interface FeedPoll {
   show(job: CloudJob): void;
+  lose(why: Lost): void;
   poke(): void;
   stop(): void;
 }
@@ -22,7 +23,7 @@ export function feedOf(start: JobEvents): Feed {
     events: start.events,
     polling: shouldPoll(start.job, start.more),
     trouble: null,
-    gone: false,
+    lost: null,
   };
 }
 
@@ -46,14 +47,23 @@ export function pollFeed(
     on.change(feed);
   }
 
+  function stop() {
+    stopped = true;
+    clearTimeout(timer);
+  }
+
+  function lose(why: Lost) {
+    stop();
+    emit({ lost: why, trouble: null, polling: false });
+  }
+
   async function tick() {
     busy = true;
     const reply = await read(after);
     busy = false;
     if (stopped) return;
-    if (reply.kind === "gone") {
-      stopped = true;
-      emit({ gone: true, polling: false });
+    if (reply.kind === "lost") {
+      lose(reply.why);
       return;
     }
     if (reply.kind === "ok") {
@@ -83,6 +93,7 @@ export function pollFeed(
 
   return {
     show: (job) => emit({ job }),
+    lose,
     poke() {
       if (stopped || !shouldPoll({ state }, more)) return;
       if (busy) {
@@ -92,9 +103,6 @@ export function pollFeed(
       clearTimeout(timer);
       void tick();
     },
-    stop() {
-      stopped = true;
-      clearTimeout(timer);
-    },
+    stop,
   };
 }

@@ -5,18 +5,13 @@ export interface JobRef {
   organizationId: string;
 }
 
+export type Lost = "gone" | "signed-out";
+
 export type JobReply<T> =
   | { kind: "ok"; value: T }
-  | { kind: "gone" }
+  | { kind: "lost"; why: Lost }
   | { kind: "stale"; message: string | null }
   | { kind: "failed"; message: string | null };
-
-export function refusalOf(
-  reply: Exclude<JobReply<unknown>, { kind: "ok" }>,
-  fallback: string,
-): string {
-  return reply.kind === "gone" ? "This job is gone. Reload the page." : (reply.message ?? fallback);
-}
 
 export function jobHref(ref: JobRef): string {
   return `/cloud/jobs/${encodeURIComponent(ref.id)}?${new URLSearchParams({ org: ref.organizationId })}`;
@@ -34,7 +29,10 @@ async function call<T>(url: string, init: RequestInit): Promise<JobReply<T>> {
       return { kind: "ok", value: (await response.json()) as T };
     }
     if (response.status === 404) {
-      return { kind: "gone" };
+      return { kind: "lost", why: "gone" };
+    }
+    if (response.status === 401) {
+      return { kind: "lost", why: "signed-out" };
     }
     const body = (await response.json().catch(() => null)) as {
       error?: string;
