@@ -1,17 +1,24 @@
 import { cloudJobsFor, JOB_ID } from "@console/api";
 import { notFound } from "next/navigation";
-import { requireOrganization } from "@/lib/access";
+import { requireCloudCaller } from "@/lib/access";
 import { jobHref } from "@/lib/cloud-job";
 import { placeOf } from "@/lib/cloud-job-place";
 import { JobView } from "./job-view";
 import { JobLoadError } from "./states";
 
-export default async function CloudJobPage({ params }: { params: Promise<{ id: string }> }) {
-  const [{ id }, session] = await Promise.all([params, requireOrganization()]);
+export default async function CloudJobPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ org?: string | string[] }>;
+}) {
+  const [{ id }, { org }] = await Promise.all([params, searchParams]);
+  const caller = await requireCloudCaller(typeof org === "string" ? org : null);
   if (!JOB_ID.test(id)) {
     notFound();
   }
-  const jobs = cloudJobsFor(session);
+  const jobs = cloudJobsFor(caller);
   if (!jobs) {
     notFound();
   }
@@ -24,6 +31,6 @@ export default async function CloudJobPage({ params }: { params: Promise<{ id: s
     return <JobLoadError href={jobHref(id)} message={answer.message} />;
   }
 
-  const place = await placeOf(session.activeOrganizationId, answer.result.job);
+  const place = await placeOf(caller.organizationId, answer.result.job);
   return <JobView initial={answer.result} place={place} now={new Date().toISOString()} />;
 }

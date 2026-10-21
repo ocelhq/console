@@ -1,4 +1,4 @@
-import { getActiveOrganizationSession } from "@console/auth";
+import { cloudCallerOf } from "../../../../cloud/caller";
 import {
   type CloudAnswer,
   type CloudJobs,
@@ -14,11 +14,14 @@ export function notFound(): Response {
 }
 
 export async function reachJobs(request: Request, id: string): Promise<Reached> {
-  const session = await getActiveOrganizationSession(request.headers);
-  if (!session) {
+  const reach = await cloudCallerOf(request.headers, new URL(request.url).searchParams.get("org"));
+  if (reach.state === "signed-out") {
     return { ok: false, refusal: Response.json({ error: "Unauthorized" }, { status: 401 }) };
   }
-  const jobs = cloudJobsFor(session);
+  if (reach.state === "not-member") {
+    return { ok: false, refusal: notFound() };
+  }
+  const jobs = cloudJobsFor(reach.caller);
   if (!jobs || !JOB_ID.test(id)) {
     return { ok: false, refusal: notFound() };
   }

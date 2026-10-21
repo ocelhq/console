@@ -7,7 +7,6 @@ import {
   type Interceptor,
 } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-node";
-import type { ActiveOrganizationSession } from "@console/auth";
 import {
   type Job,
   JobService,
@@ -15,6 +14,7 @@ import {
   VariableValuesSchema,
 } from "@console/connectors/gen/cloud/v1/job_pb";
 import { readCloudOffer } from "../routes/connect/cloud";
+import type { CloudCaller } from "./caller";
 import { recordJobReport } from "./report";
 import { type CloudScope, signCloudToken } from "./token";
 import { type CloudJob, type CloudJobEvent, cloudJobEventOf, cloudJobOf } from "./view";
@@ -110,7 +110,7 @@ function bearing(token: string): Interceptor {
   };
 }
 
-export function cloudJobsFor(session: ActiveOrganizationSession): CloudJobs | null {
+export function cloudJobsFor(caller: CloudCaller): CloudJobs | null {
   const cloud = readCloudOffer();
   if (!cloud) {
     return null;
@@ -120,7 +120,7 @@ export function cloudJobsFor(session: ActiveOrganizationSession): CloudJobs | nu
     if (!job) {
       return refuse("unreachable", "Ocel Cloud answered without the job");
     }
-    await recordJobReport(session.activeOrganizationId, job);
+    await recordJobReport(caller.organizationId, job);
     return { ok: true, result: cloudJobOf(job) };
   };
 
@@ -130,7 +130,7 @@ export function cloudJobsFor(session: ActiveOrganizationSession): CloudJobs | nu
     refusal: (thrown: unknown) => CloudAnswer<never> = refusalOf,
   ): Promise<CloudAnswer<T>> => {
     try {
-      const { token } = await signCloudToken(cloud, session, [scope], tokenLifetime);
+      const { token } = await signCloudToken(cloud, caller, [scope], tokenLifetime);
       const client = createClient(
         JobService,
         createConnectTransport({
