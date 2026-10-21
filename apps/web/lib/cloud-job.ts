@@ -16,10 +16,6 @@ export function isTerminal(state: JobStateName | null): boolean {
   return terminal.has(state);
 }
 
-export function jobHref(id: string): string {
-  return `/cloud/jobs/${id}`;
-}
-
 export type JobTone = "go" | "faint" | "destructive" | "warn";
 
 export const stateWords: Record<JobStateName, { word: string; tone: JobTone; live: boolean }> = {

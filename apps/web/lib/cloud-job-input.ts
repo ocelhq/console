@@ -13,10 +13,6 @@ export interface InputSection {
   folders: InputFolder[];
 }
 
-export function respondURL(id: string): string {
-  return `/api/cloud/jobs/${encodeURIComponent(id)}/respond`;
-}
-
 export function fieldKey(variable: Pick<NeededVariable, "key" | "folder">): string {
   return `${variable.folder}#${variable.key}`;
 }
@@ -94,20 +90,4 @@ export function pasteInto(
 
 export function isMultiline(value: string): boolean {
   return /[\r\n]/.test(value);
-}
-
-export type Refusal = { stale: true; message: string } | { stale: false; message: string };
-
-export async function refusalOf(response: Response, fallback: string): Promise<Refusal> {
-  const body = (await response.json().catch(() => null)) as {
-    error?: string;
-    reason?: string;
-  } | null;
-  if (response.status === 409 && body?.reason === "stale") {
-    return { stale: true, message: body.error ?? fallback };
-  }
-  if (response.status === 404) {
-    return { stale: false, message: "This job is gone. Reload the page." };
-  }
-  return { stale: false, message: body?.error ?? fallback };
 }

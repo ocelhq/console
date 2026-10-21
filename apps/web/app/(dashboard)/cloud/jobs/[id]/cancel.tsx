@@ -12,12 +12,9 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { cancelJob, type JobRef, refusalOf } from "@/lib/cloud-job-client";
 
-export function cancelURL(id: string): string {
-  return `/api/cloud/jobs/${encodeURIComponent(id)}/cancel`;
-}
-
-export function CancelJob({ id, onCanceled }: { id: string; onCanceled(job: CloudJob): void }) {
+export function CancelJob({ job, onCanceled }: { job: JobRef; onCanceled(job: CloudJob): void }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,20 +22,14 @@ export function CancelJob({ id, onCanceled }: { id: string; onCanceled(job: Clou
   async function cancel() {
     setError(null);
     setPending(true);
-    try {
-      const response = await fetch(cancelURL(id), { method: "POST" });
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        setError(body?.error ?? "The job wasn’t canceled. Try again.");
-        return;
-      }
-      onCanceled((await response.json()) as CloudJob);
-      setOpen(false);
-    } catch {
-      setError("The job wasn’t canceled. Try again.");
-    } finally {
-      setPending(false);
+    const reply = await cancelJob(job);
+    setPending(false);
+    if (reply.kind !== "ok") {
+      setError(refusalOf(reply, "The job wasn’t canceled. Try again."));
+      return;
     }
+    onCanceled(reply.value);
+    setOpen(false);
   }
 
   return (

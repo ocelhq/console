@@ -60,7 +60,15 @@ export function JobStatus({ job }: { job: Pick<CloudJob, "state"> }) {
   );
 }
 
-function Result({ job, deploymentHref }: { job: CloudJob; deploymentHref: string | null }) {
+function Elsewhere({ organization, what }: { organization: string; what: string }) {
+  return (
+    <span className="text-xs text-muted-foreground">
+      In {organization}. Switch to it to open the {what}.
+    </span>
+  );
+}
+
+function Result({ job, place }: { job: CloudJob; place: JobPlace }) {
   const result = job.result;
   if (!result) {
     return null;
@@ -114,9 +122,9 @@ function Result({ job, deploymentHref }: { job: CloudJob; deploymentHref: string
       <Panel heading="Deployment">
         {!deploymentId ? (
           <NotReported />
-        ) : deploymentHref ? (
+        ) : place.deploymentHref && !place.otherOrganization ? (
           <Link
-            href={deploymentHref}
+            href={place.deploymentHref}
             className="font-mono text-xs break-all underline-offset-4 outline-none hover:underline focus-visible:underline"
           >
             {deploymentId}
@@ -124,7 +132,13 @@ function Result({ job, deploymentHref }: { job: CloudJob; deploymentHref: string
         ) : (
           <span className="flex flex-col gap-1">
             <span className="font-mono text-xs break-all">{deploymentId}</span>
-            <span className="text-xs text-muted-foreground">Not reported to this console yet.</span>
+            {place.deploymentHref && place.otherOrganization ? (
+              <Elsewhere organization={place.otherOrganization} what="deployment" />
+            ) : (
+              <span className="text-xs text-muted-foreground">
+                Not reported to this console yet.
+              </span>
+            )}
           </span>
         )}
       </Panel>
@@ -133,15 +147,18 @@ function Result({ job, deploymentHref }: { job: CloudJob; deploymentHref: string
 }
 
 export function JobView({
+  organizationId,
   initial,
   place,
   now,
 }: {
+  organizationId: string;
   initial: JobEvents;
   place: JobPlace;
   now: string;
 }) {
-  const feed = useJobFeed(initial);
+  const ref = { id: initial.job.id, organizationId };
+  const feed = useJobFeed(ref, initial);
   const { job } = feed;
   const [answered, setAnswered] = useState<ReadonlySet<string>>(new Set());
   const ended = isTerminal(job.state);
@@ -159,7 +176,7 @@ export function JobView({
   return (
     <div className="flex flex-1 flex-col gap-6 px-5 pt-8 pb-12 md:px-8">
       <header className="flex flex-col gap-4">
-        {place.project ? (
+        {place.project && !place.otherOrganization ? (
           <Link
             href={`/projects/${place.project.slug}/deployments`}
             className={`${labelType} inline-flex w-fit items-center gap-1.5 underline-offset-4 outline-none hover:underline focus-visible:underline`}
@@ -208,20 +225,23 @@ export function JobView({
               </div>
             )}
           </div>
-          {!ended && <CancelJob id={job.id} onCanceled={feed.show} />}
+          {!ended && <CancelJob job={ref} onCanceled={feed.show} />}
         </div>
       </header>
 
       {job.state === "input-required" && (
         <InputRequired
-          job={job}
+          input={job.input}
           sent={job.input !== null && answered.has(job.input.id)}
-          onAnswered={(inputId, next) => {
-            setAnswered((current) => new Set(current).add(inputId));
-            feed.show(next);
-            feed.refresh();
+          answering={{
+            job: ref,
+            onAnswered: (inputId, next) => {
+              setAnswered((current) => new Set(current).add(inputId));
+              feed.show(next);
+              feed.refresh();
+            },
+            onStale: feed.refresh,
           }}
-          onStale={feed.refresh}
         />
       )}
 
@@ -237,7 +257,12 @@ export function JobView({
           )}
         </Field>
         <Field name="Project">
-          {place.project ? (
+          {place.project && place.otherOrganization ? (
+            <span className="flex flex-col gap-0.5">
+              <span>{place.project.name}</span>
+              <Elsewhere organization={place.otherOrganization} what="project" />
+            </span>
+          ) : place.project ? (
             <Link
               href={`/projects/${place.project.slug}`}
               className="underline-offset-4 outline-none hover:underline focus-visible:underline"
@@ -278,7 +303,7 @@ export function JobView({
         </Cell>
       </Joined>
 
-      <Result job={job} deploymentHref={place.deploymentHref} />
+      <Result job={job} place={place} />
 
       <JobLog events={feed.events} polling={feed.polling} trouble={feed.trouble} ended={ended} />
     </div>

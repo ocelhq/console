@@ -1,11 +1,12 @@
 "use client";
 
-import type { CloudJob, CloudJobInput, NeededVariable } from "@console/api";
+import type { CloudJob, CloudJobInput, JobAnswer, NeededVariable } from "@console/api";
 import { EyeIcon, EyeSlashIcon, HandPalmIcon } from "@phosphor-icons/react";
 import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { type JobRef, refusalOf, respondToJob } from "@/lib/cloud-job-client";
 import {
   answerOf,
   blankFields,
@@ -14,8 +15,6 @@ import {
   isBlank,
   isMultiline,
   pasteInto,
-  refusalOf,
-  respondURL,
   sectionsOf,
   spansFolders,
   tierHeading,
@@ -27,17 +26,24 @@ import { cn } from "@/lib/utils";
 type ConfirmationInput = Extract<CloudJobInput, { kind: "confirmation" }>;
 
 interface Answering {
-  jobId: string;
+  job: JobRef;
   onAnswered(inputId: string, job: CloudJob): void;
   onStale(): void;
 }
 
-function send(jobId: string, body: unknown): Promise<Response> {
-  return fetch(respondURL(jobId), {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
+async function answerWith(
+  { job, onAnswered, onStale }: Answering,
+  inputId: string,
+  answer: JobAnswer,
+  fallback: string,
+): Promise<string | null> {
+  const reply = await respondToJob(job, inputId, answer);
+  if (reply.kind === "ok") {
+    onAnswered(inputId, reply.value);
+    return null;
+  }
+  if (reply.kind === "stale") onStale();
+  return refusalOf(reply, fallback);
 }
 
 function plural(count: number, one: string, many: string): string {
@@ -55,18 +61,14 @@ function introOf(input: CloudJobInput | null): string {
 }
 
 export function InputRequired({
-  job,
+  input,
   sent,
-  onAnswered,
-  onStale,
+  answering,
 }: {
-  job: CloudJob;
+  input: CloudJob["input"];
   sent: boolean;
-  onAnswered(inputId: string, job: CloudJob): void;
-  onStale(): void;
+  answering: Answering;
 }) {
-  const input = job.input;
-  const answering = { jobId: job.id, onAnswered, onStale };
   return (
     <section
       aria-labelledby="job-input"
@@ -85,9 +87,9 @@ export function InputRequired({
             Answer sent. Waiting for the job to carry on…
           </p>
         ) : input?.kind === "variables" ? (
-          <VariablesForm key={input.id} input={input} {...answering} />
+          <VariablesForm key={input.id} input={input} answering={answering} />
         ) : input?.kind === "confirmation" ? (
-          <ConfirmationForm key={input.id} input={input} {...answering} />
+          <ConfirmationForm key={input.id} input={input} answering={answering} />
         ) : (
           <p className="max-w-prose px-4 py-3 text-sm text-muted-foreground">
             This console can’t answer what the job is asking. Cancel the job, settle it from your
@@ -124,10 +126,11 @@ function Feedback({
 
 function ConfirmationForm({
   input,
-  jobId,
-  onAnswered,
-  onStale,
-}: Answering & { input: ConfirmationInput }) {
+  answering,
+}: {
+  input: ConfirmationInput;
+  answering: Answering;
+}) {
   const [pending, setPending] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -135,23 +138,15 @@ function ConfirmationForm({
     if (pending !== null) return;
     setError(null);
     setPending(confirmed);
-    try {
-      const response = await send(jobId, {
-        inputId: input.id,
-        answer: { kind: "confirmation", confirmed },
-      });
-      if (!response.ok) {
-        const refusal = await refusalOf(response, "The answer wasn’t sent. Try again.");
-        setError(refusal.message);
-        if (refusal.stale) onStale();
-        return;
-      }
-      onAnswered(input.id, (await response.json()) as CloudJob);
-    } catch {
-      setError("The answer wasn’t sent. Try again.");
-    } finally {
-      setPending(null);
-    }
+    setError(
+      await answerWith(
+        answering,
+        input.id,
+        { kind: "confirmation", confirmed },
+        "The answer wasn’t sent. Try again.",
+      ),
+    );
+    setPending(null);
   }
 
   return (
@@ -190,12 +185,7 @@ function ConfirmationForm({
   );
 }
 
-function VariablesForm({
-  input,
-  jobId,
-  onAnswered,
-  onStale,
-}: Answering & { input: VariablesInput }) {
+function VariablesForm({ input, answering }: { input: VariablesInput; answering: Answering }) {
   const formId = useId();
   const sections = sectionsOf(input);
   const ordered = sections.flatMap((section) =>
@@ -251,23 +241,15 @@ function VariablesForm({
     setFlagged(new Set());
     setError(null);
     setPending(true);
-    try {
-      const response = await send(jobId, {
-        inputId: input.id,
-        answer: { kind: "variables", values: answerOf(ordered, typed) },
-      });
-      if (!response.ok) {
-        const refusal = await refusalOf(response, "The values weren’t sent. Try again.");
-        setError(refusal.message);
-        if (refusal.stale) onStale();
-        return;
-      }
-      onAnswered(input.id, (await response.json()) as CloudJob);
-    } catch {
-      setError("The values weren’t sent. Try again.");
-    } finally {
-      setPending(false);
-    }
+    setError(
+      await answerWith(
+        answering,
+        input.id,
+        { kind: "variables", values: answerOf(ordered, typed) },
+        "The values weren’t sent. Try again.",
+      ),
+    );
+    setPending(false);
   }
 
   const row = (variable: NeededVariable) => {
