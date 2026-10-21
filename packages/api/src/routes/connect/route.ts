@@ -16,7 +16,11 @@ export const CONNECT_PREFIX = "/api/connect";
 
 const handlers = createConnectRouter({
   interceptors: [
-    sessionInterceptor([ConsoleService.method.describe, ConnectorService.method.heartbeat]),
+    sessionInterceptor([
+      ConsoleService.method.describe,
+      ConsoleService.method.issueCloudToken,
+      ConnectorService.method.heartbeat,
+    ]),
     createValidateInterceptor({ validator }),
   ],
 })

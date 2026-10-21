@@ -13,10 +13,11 @@ import {
   type RespondJobRequest,
   VariableValuesSchema,
 } from "@console/connectors/gen/cloud/v1/job_pb";
+import { Scope } from "@console/connectors/gen/cloud/v1/scope_pb";
 import { readCloudOffer } from "../routes/connect/cloud";
 import type { CloudCaller } from "./caller";
 import { recordJobReport } from "./report";
-import { type CloudScope, signCloudToken } from "./token";
+import { signCloudToken } from "./token";
 import { type CloudJob, type CloudJobEvent, cloudJobEventOf, cloudJobOf } from "./view";
 
 export const JOB_ID = /^[A-Za-z0-9_-]{1,128}$/;
@@ -125,7 +126,7 @@ export function cloudJobsFor(caller: CloudCaller): CloudJobs | null {
   };
 
   const call = async <T>(
-    scope: CloudScope,
+    scope: Scope,
     run: (client: Client<typeof JobService>) => Promise<CloudAnswer<T>>,
     refusal: (thrown: unknown) => CloudAnswer<never> = refusalOf,
   ): Promise<CloudAnswer<T>> => {
@@ -148,9 +149,9 @@ export function cloudJobsFor(caller: CloudCaller): CloudJobs | null {
 
   return {
     get: (jobId) =>
-      call("cloud.apps.read", async (client) => jobOf((await client.getJob({ jobId })).job)),
+      call(Scope.APPS_READ, async (client) => jobOf((await client.getJob({ jobId })).job)),
     events: (jobId, afterSeq, limit = JOB_EVENTS_LIMIT) =>
-      call("cloud.apps.read", async (client) => {
+      call(Scope.APPS_READ, async (client) => {
         const answer = await client.listJobEvents({
           jobId,
           afterSeq: BigInt(afterSeq),
@@ -170,10 +171,10 @@ export function cloudJobsFor(caller: CloudCaller): CloudJobs | null {
         };
       }),
     cancel: (jobId) =>
-      call("cloud.apps.write", async (client) => jobOf((await client.cancelJob({ jobId })).job)),
+      call(Scope.APPS_WRITE, async (client) => jobOf((await client.cancelJob({ jobId })).job)),
     respond: (jobId, inputId, answer) =>
       call(
-        "cloud.apps.write",
+        Scope.APPS_WRITE,
         async (client) =>
           jobOf((await client.respondJob({ jobId, inputId, answer: answerOf(answer) })).job),
         respondRefusalOf,
