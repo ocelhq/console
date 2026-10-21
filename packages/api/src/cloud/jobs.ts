@@ -60,6 +60,16 @@ export interface CloudJobs {
   respond(request: RespondJobRequest): Promise<CloudAnswer<CloudJob>>;
 }
 
+const scopesTo = {
+  read: [Scope.APPS_READ],
+  act: [Scope.APPS_READ, Scope.APPS_WRITE],
+  giveValues: [Scope.APPS_READ, Scope.APPS_WRITE, Scope.VARIABLES_WRITE],
+};
+
+export function mayGiveValues(role: string): boolean {
+  return lackedScope(role, scopesTo.giveValues) === undefined;
+}
+
 function refuse(reason: CloudRefusal, message: string): CloudAnswer<never> {
   return { ok: false, reason, message };
 }
@@ -140,7 +150,7 @@ export function cloudJobsFor(caller: CloudCaller): CloudJobs | null {
 
   return {
     events: (jobId, afterSeq, limit = JOB_EVENTS_LIMIT) =>
-      call([Scope.APPS_READ], async (client) => {
+      call(scopesTo.read, async (client) => {
         const answer = await client.listJobEvents({
           jobId,
           afterSeq: BigInt(afterSeq),
@@ -163,16 +173,12 @@ export function cloudJobsFor(caller: CloudCaller): CloudJobs | null {
         };
       }),
     cancel: (jobId) =>
-      call(
-        [Scope.APPS_READ, Scope.APPS_WRITE],
-        async (client) => jobOf((await client.cancelJob({ jobId })).job),
-        { timeoutMs: cancelTimeout },
-      ),
+      call(scopesTo.act, async (client) => jobOf((await client.cancelJob({ jobId })).job), {
+        timeoutMs: cancelTimeout,
+      }),
     respond: (request) =>
       call(
-        request.answer.case === "variables"
-          ? [Scope.APPS_READ, Scope.APPS_WRITE, Scope.VARIABLES_WRITE]
-          : [Scope.APPS_READ, Scope.APPS_WRITE],
+        request.answer.case === "variables" ? scopesTo.giveValues : scopesTo.act,
         async (client) => jobOf((await client.respondJob(request)).job),
         { refusal: respondRefusalOf },
       ),

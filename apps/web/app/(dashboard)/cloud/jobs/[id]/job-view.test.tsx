@@ -48,10 +48,21 @@ const known: JobPlace = {
   otherOrganization: null,
 };
 
-function render(shown: CloudJob, events: CloudJobEvent[] = [], place: JobPlace = known): string {
+function render(
+  shown: CloudJob,
+  events: CloudJobEvent[] = [],
+  place: JobPlace = known,
+  mayGiveValues = true,
+): string {
   const initial: JobEvents = { job: shown, events, more: false };
   return renderToStaticMarkup(
-    <JobView organizationId="org-1" initial={initial} place={place} now={now} />,
+    <JobView
+      organizationId="org-1"
+      mayGiveValues={mayGiveValues}
+      initial={initial}
+      place={place}
+      now={now}
+    />,
   );
 }
 
@@ -88,6 +99,37 @@ describe("JobView", () => {
     expect(html).toContain('data-slot="job-input"');
     expect(html).toContain("settle it from your terminal");
     expect(html).toContain("Cancel job");
+  });
+
+  it("tells a reader whose role gives no values who can, instead of a form they cannot send", () => {
+    const html = render(
+      job({
+        state: "input-required",
+        input: {
+          id: "input_1",
+          kind: "variables",
+          tier: "production",
+          variables: [
+            {
+              key: "DATABASE_URL",
+              folder: "",
+              secret: true,
+              description: "",
+              reason: "no value",
+              group: "",
+            },
+          ],
+          groups: [],
+        },
+      }),
+      [],
+      known,
+      false,
+    );
+    expect(html).toContain("an admin or an owner");
+    expect(html).toContain("DATABASE_URL");
+    expect(html).not.toContain("Save and continue");
+    expect(html).not.toContain('type="password"');
   });
 
   it("asks for the missing variables, keys prefilled and grouped, secrets masked", () => {

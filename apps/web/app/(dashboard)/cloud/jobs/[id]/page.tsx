@@ -1,4 +1,4 @@
-import { cloudJobsFor, JOB_ID } from "@console/api";
+import { cloudJobsFor, JOB_ID, mayGiveValues } from "@console/api";
 import { notFound } from "next/navigation";
 import { requireCloudCaller, requireOrganization } from "@/lib/access";
 import { jobHref } from "@/lib/cloud-job-client";
@@ -41,6 +41,7 @@ export default async function CloudJobPage({
   return (
     <JobView
       organizationId={caller.organizationId}
+      mayGiveValues={mayGiveValues(caller.role)}
       initial={answer.result}
       place={place}
       now={new Date().toISOString()}

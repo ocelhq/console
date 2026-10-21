@@ -149,11 +149,13 @@ function Result({ job, place }: { job: CloudJob; place: JobPlace }) {
 
 export function JobView({
   organizationId,
+  mayGiveValues,
   initial,
   place,
   now,
 }: {
   organizationId: string;
+  mayGiveValues: boolean;
   initial: JobEvents;
   place: JobPlace;
   now: string;
@@ -237,6 +239,7 @@ export function JobView({
         <InputRequired
           input={job.input}
           sent={job.input !== null && answered.has(job.input.id)}
+          mayGiveValues={mayGiveValues}
           answering={{
             job: ref,
             onAnswered: (inputId, next) => {

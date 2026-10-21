@@ -68,10 +68,12 @@ function introOf(input: CloudJobInput | null): string {
 export function InputRequired({
   input,
   sent,
+  mayGiveValues,
   answering,
 }: {
   input: CloudJob["input"];
   sent: boolean;
+  mayGiveValues: boolean;
   answering: Answering;
 }) {
   return (
@@ -91,6 +93,8 @@ export function InputRequired({
           <p role="status" className="px-4 py-3 text-sm">
             Answer sent. Waiting for the job to carry on…
           </p>
+        ) : input?.kind === "variables" && !mayGiveValues ? (
+          <ValuesForOthers input={input} />
         ) : input?.kind === "variables" ? (
           <VariablesForm key={input.id} input={input} answering={answering} />
         ) : input?.kind === "confirmation" ? (
@@ -103,6 +107,22 @@ export function InputRequired({
         )}
       </div>
     </section>
+  );
+}
+
+function ValuesForOthers({ input }: { input: VariablesInput }) {
+  return (
+    <div className="flex flex-col gap-2 px-4 py-3 text-sm">
+      <p className="max-w-prose">
+        Giving these values takes an admin or an owner of this organization. Ask one of them to open
+        this page.
+      </p>
+      <ul className="font-mono text-xs">
+        {input.variables.map((variable) => (
+          <li key={fieldKey(variable)}>{variable.key}</li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
