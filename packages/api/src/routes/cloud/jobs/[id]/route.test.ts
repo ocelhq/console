@@ -258,7 +258,7 @@ describe("the Ocel Cloud job routes", () => {
     }
   });
 
-  it("answer 409 for a job that has already ended", async () => {
+  it("answer a job that has already ended as it ended, without canceling it", async () => {
     offer();
     const session = await createTestSessionWithOrganization();
     try {
@@ -269,8 +269,8 @@ describe("the Ocel Cloud job routes", () => {
 
       const response = await cancel(session, "job_route_ended");
 
-      expect(response.status).toBe(409);
-      expect(await response.json()).toEqual({ error: "the job has ended", reason: "ended" });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ id: "job_route_ended", state: "succeeded" });
     } finally {
       await session.cleanup();
     }
@@ -430,7 +430,7 @@ describe("the Ocel Cloud job routes", () => {
 
       expect(response.status).toBe(400);
       expect(await response.json()).toEqual({
-        error: "OTHER was not asked for",
+        error: "input input_1 asks for no OTHER: give values only for the variables it needs",
         reason: "invalid",
       });
     } finally {
