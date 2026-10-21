@@ -12,11 +12,11 @@ import {
   createTestSessionWithRole,
 } from "../../../test/auth-harness";
 import { serviceClient } from "../../../test/connect-harness";
-import type { CloudOffer } from "./cloud";
+import type { CloudOffer } from "../../cloud/offer";
 
 const offered = vi.hoisted(() => ({ cloud: undefined as CloudOffer | undefined }));
 
-vi.mock("./cloud", () => ({ readCloudOffer: () => offered.cloud }));
+vi.mock("../../cloud/offer", () => ({ readCloudOffer: () => offered.cloud }));
 
 const consoleOrigin = "http://localhost:3000";
 

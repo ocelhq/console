@@ -5,12 +5,12 @@ import { ConnectorService } from "@console/connectors/gen/console/v1/connector_p
 import { ConsoleService } from "@console/connectors/gen/console/v1/console_pb";
 import { DeploymentService } from "@console/connectors/gen/console/v1/deployment_pb";
 import { ProjectService } from "@console/connectors/gen/console/v1/project_pb";
+import { validator } from "../../validator";
 import { connectorService } from "./connector-service";
 import { consoleService } from "./console-service";
 import { deploymentService } from "./deployment-service";
 import { projectService } from "./project-service";
 import { sessionInterceptor } from "./session";
-import { validator } from "./validator";
 
 export const CONNECT_PREFIX = "/api/connect";
 

@@ -1,8 +1,8 @@
 import { getOption } from "@bufbuild/protobuf";
 import { signOrganizationToken } from "@console/auth";
 import { claim, Scope, ScopeSchema } from "@console/connectors/gen/cloud/v1/scope_pb";
-import type { CloudOffer } from "../routes/connect/cloud";
 import type { CloudCaller } from "./caller";
+import type { CloudOffer } from "./offer";
 
 const byRole: Record<string, readonly Scope[]> = {
   member: [Scope.APPS_READ, Scope.APPS_WRITE],

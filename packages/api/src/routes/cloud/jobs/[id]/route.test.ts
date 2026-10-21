@@ -13,14 +13,14 @@ import {
   type FakeCloud,
   startFakeCloud,
 } from "../../../../../test/cloud-harness";
-import type { CloudOffer } from "../../../connect/cloud";
+import type { CloudOffer } from "../../../../cloud/offer";
 import { cancelCloudJob } from "./cancel/route";
 import { listCloudJobEvents } from "./events/route";
 import { RESPOND_BODY_LIMIT, respondCloudJob } from "./respond/route";
 
 const offered = vi.hoisted(() => ({ cloud: undefined as CloudOffer | undefined }));
 
-vi.mock("../../../connect/cloud", () => ({ readCloudOffer: () => offered.cloud }));
+vi.mock("../../../../cloud/offer", () => ({ readCloudOffer: () => offered.cloud }));
 
 let cloud: FakeCloud;
 

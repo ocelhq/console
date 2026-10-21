@@ -5,7 +5,7 @@ const keys = ["CONSOLE_CLOUD_URL", "CONSOLE_CLOUD_PROVIDER_URL", "CONSOLE_CLOUD_
 async function offerWith(values: Partial<Record<(typeof keys)[number], string>>) {
   for (const key of keys) vi.stubEnv(key, values[key]);
   vi.resetModules();
-  const { readCloudOffer } = await import("./cloud");
+  const { readCloudOffer } = await import("./offer");
   return readCloudOffer();
 }
 
