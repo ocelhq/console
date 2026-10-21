@@ -136,15 +136,18 @@ variables configure the offer; with `CONSOLE_CLOUD_URL` unset the console offers
 
 `ocel login` asks the console what it offers (`console.v1.ConsoleService.Describe`, no session
 needed), then trades the session for five-minute Ocel Cloud tokens
-(`ConsoleService.IssueCloudToken`) signed for the session's active organization. Ocel Cloud
-verifies them against `{origin}/api/auth/jwks`, so it must trust this console's origin and
-expect the same audience.
+(`ConsoleService.IssueCloudToken`) signed for the organization the request names, with the
+scopes it asks for when the caller's role allows them all: members get `cloud.apps.read` and
+`cloud.apps.write`, admins add `cloud.variables.write`, owners add `cloud.variables.reveal`.
+Ocel Cloud verifies them against `{origin}/api/auth/jwks`, so it must trust this console's origin
+and expect the same audience.
 
-The CLI links each Ocel Cloud job to `/cloud/jobs/{id}`. That page reads the job from
-`cloud.v1.JobService` at `CONSOLE_CLOUD_URL` with a one-minute token of the same shape, signed for
-the viewer's active organization, and polls its events through `/api/cloud/jobs/{id}/events`. The
-console stores none of it. Without an offer, or for a job Ocel Cloud doesn't show that
-organization, the page is a 404.
+The CLI links each Ocel Cloud job to `/cloud/jobs/{id}?org={organization id}`. That page reads
+the job from `cloud.v1.JobService` at `CONSOLE_CLOUD_URL` with a one-minute token of the same
+shape, signed for that organization (the viewer's active one when the link names none), and polls
+its events through `/api/cloud/jobs/{id}/events`. The console stores none of it but the
+deployment a finished job reports. Without an offer, for an organization the viewer doesn't
+belong to, or for a job Ocel Cloud doesn't show that organization, the page is a 404.
 
 Then point the CLI at your console:
 `OCEL_CONSOLE_URL=https://console.example.com ocel login`,
