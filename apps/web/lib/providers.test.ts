@@ -1,39 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { connectorLabel, edgeLabel, isOcelCloud, providerLabel } from "./providers";
+import { targetOf } from "./providers";
 
-describe("providerLabel", () => {
-  it("names the ocel provider Ocel Cloud", () => {
-    expect(providerLabel("ocel")).toBe("Ocel Cloud");
-    expect(isOcelCloud("ocel")).toBe(true);
+describe("targetOf", () => {
+  it("names the ocel provider Ocel Cloud, where the values live", () => {
+    const target = targetOf("ocel");
+    expect(target.label).toBe("Ocel Cloud");
+    expect(target.home).toBe("Ocel Cloud");
+    expect(target.own).toBe(false);
   });
 
-  it("leaves every other provider as it was reported", () => {
-    expect(providerLabel("aws")).toBe("aws");
-    expect(providerLabel("vps")).toBe("vps");
-    expect(isOcelCloud("aws")).toBe(false);
-    expect(isOcelCloud(null)).toBe(false);
+  it("leaves every other provider as it was reported, in your own cloud", () => {
+    expect(targetOf("aws").label).toBe("aws");
+    expect(targetOf("vps").label).toBe("vps");
+    expect(targetOf("aws").home).toBe("your cloud");
+    expect(targetOf("aws").own).toBe(true);
+    expect(targetOf(null).own).toBe(true);
   });
 
   it("names Ocel Cloud's edge Ocel Cloud and leaves the rest", () => {
-    expect(edgeLabel("ocel-cloud")).toBe("Ocel Cloud");
-    expect(edgeLabel("cloudfront")).toBe("cloudfront");
+    expect(targetOf("aws").edge("ocel-cloud")).toEqual({ kind: "ocel-cloud", label: "Ocel Cloud" });
+    expect(targetOf("aws").edge("CloudFront")).toEqual({ kind: "cloudfront", label: "CloudFront" });
   });
 
   it("names the edge an Ocel Cloud deployment reports, none, Ocel Cloud", () => {
-    expect(edgeLabel("none", "ocel")).toBe("Ocel Cloud");
-    expect(edgeLabel("none", "vps")).toBe("none");
-    expect(edgeLabel("none")).toBe("none");
-  });
-});
-
-describe("connectorLabel", () => {
-  it("names the ocel vendor's connector Ocel Cloud rather than its target", () => {
-    expect(connectorLabel({ vendor: "ocel", target: "ocel/cloud" })).toBe("Ocel Cloud");
-  });
-
-  it("names any other connector by its target", () => {
-    expect(connectorLabel({ vendor: "vps", target: "vps/sha256:abc/ocel" })).toBe(
-      "vps/sha256:abc/ocel",
-    );
+    expect(targetOf("ocel").edge("none")).toEqual({ kind: "ocel-cloud", label: "Ocel Cloud" });
+    expect(targetOf("vps").edge("none")).toEqual({ kind: "none", label: "none" });
   });
 });

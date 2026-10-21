@@ -1,27 +1,39 @@
-export const OCEL_CLOUD = "Ocel Cloud";
+const OCEL_CLOUD = "Ocel Cloud";
 
-const ocelCloudProvider = "ocel";
-const ocelCloudVendor = "ocel";
-const ocelCloudEdge = "ocel-cloud";
-const noEdge = "none";
+const edgeLabels: Record<string, string> = { "ocel-cloud": OCEL_CLOUD };
 
-export function isOcelCloud(provider: string | null | undefined): boolean {
-  return provider?.toLowerCase() === ocelCloudProvider;
+export interface Edge {
+  kind: string;
+  label: string;
 }
 
-export function providerLabel(provider: string): string {
-  return isOcelCloud(provider) ? OCEL_CLOUD : provider;
+export interface Target {
+  label: string;
+  home: string;
+  own: boolean;
+  edge(reported: string): Edge;
 }
 
-export function isOcelCloudEdge(edge: string, provider?: string | null): boolean {
-  const kind = edge.toLowerCase();
-  return kind === ocelCloudEdge || (kind === noEdge && isOcelCloud(provider));
+function edgeOf(reported: string, kind = reported.toLowerCase()): Edge {
+  return { kind, label: edgeLabels[kind] ?? reported };
 }
 
-export function edgeLabel(edge: string, provider?: string | null): string {
-  return isOcelCloudEdge(edge, provider) ? OCEL_CLOUD : edge;
-}
+const ocelCloud: Target = {
+  label: OCEL_CLOUD,
+  home: OCEL_CLOUD,
+  own: false,
+  edge: (reported) =>
+    reported.toLowerCase() === "none" ? edgeOf(reported, "ocel-cloud") : edgeOf(reported),
+};
 
-export function connectorLabel(row: { vendor: string; target: string }): string {
-  return row.vendor.toLowerCase() === ocelCloudVendor ? OCEL_CLOUD : row.target;
+export function targetOf(provider: string | null): Target {
+  if (provider?.toLowerCase() === "ocel") {
+    return ocelCloud;
+  }
+  return {
+    label: provider ?? "your cloud",
+    home: "your cloud",
+    own: true,
+    edge: (reported) => edgeOf(reported),
+  };
 }

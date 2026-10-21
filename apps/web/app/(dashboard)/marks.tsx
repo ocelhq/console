@@ -20,7 +20,6 @@ import { AwsIcon, RdsIcon, S3Icon } from "@/components/marks/aws";
 import { OcelIcon } from "@/components/marks/ocel";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { frameworkCatalog } from "@/lib/frameworks";
-import { isOcelCloud, isOcelCloudEdge } from "@/lib/providers";
 
 const runtimeMarks: Record<string, SimpleIcon> = {
   node: siNodedotjs,
@@ -40,6 +39,8 @@ const providerMarks: Record<string, SimpleIcon> = {
   digitalocean: siDigitalocean,
   hetzner: siHetzner,
 };
+
+const drawnMarks: Record<string, typeof OcelIcon> = { ocel: OcelIcon, "ocel-cloud": OcelIcon };
 
 function Glyph({ icon, size = 20 }: { icon: SimpleIcon; size?: number }) {
   return (
@@ -128,8 +129,9 @@ export function ProviderMark({
     }
     return <AwsIcon className="shrink-0 object-contain" style={style} />;
   }
-  if (isOcelCloud(name)) {
-    return <OcelIcon className="shrink-0" style={style} />;
+  const Drawn = drawnMarks[name];
+  if (Drawn) {
+    return <Drawn className="shrink-0" style={style} />;
   }
 
   const mark = providerMarks[name];
@@ -163,19 +165,13 @@ export function OutcomeDot({ outcome }: { outcome: DeploymentApp["outcome"] }) {
   );
 }
 
-export function EdgeMark({
-  edge,
-  provider,
-  size = 14,
-}: {
-  edge: string;
-  provider?: string | null;
-  size?: number;
-}) {
-  if (isOcelCloudEdge(edge, provider)) {
-    return <OcelIcon className="shrink-0" style={{ width: size, height: size }} />;
+export function EdgeMark({ edge, size = 14 }: { edge: string; size?: number }) {
+  const name = edge.toLowerCase();
+  const Drawn = drawnMarks[name];
+  if (Drawn) {
+    return <Drawn className="shrink-0" style={{ width: size, height: size }} />;
   }
-  const mark = providerMarks[edge.toLowerCase()];
+  const mark = providerMarks[name];
   if (mark) {
     return <Glyph icon={mark} size={size} />;
   }
