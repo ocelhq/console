@@ -28,6 +28,9 @@ const tokenLifetime = 60;
 
 const callTimeout = 10_000;
 
+// Ocel Cloud waits up to 15 s for a canceled run to stop before it answers.
+const cancelTimeout = 30_000;
+
 export type CloudRefusal = "not-found" | "ended" | "stale" | "invalid" | "refused" | "unreachable";
 
 export const STALE_INPUT = "This request is no longer current. The job has moved on.";
@@ -127,7 +130,7 @@ export function cloudJobsFor(caller: CloudCaller): CloudJobs | null {
   const call = async <T>(
     scope: Scope,
     run: (client: Client<typeof JobService>) => Promise<CloudAnswer<T>>,
-    refusal: (thrown: unknown) => CloudAnswer<never> = refusalOf,
+    { refusal = refusalOf, timeoutMs = callTimeout } = {},
   ): Promise<CloudAnswer<T>> => {
     try {
       const { token } = await signCloudToken(cloud, caller, [scope], tokenLifetime);
@@ -137,7 +140,7 @@ export function cloudJobsFor(caller: CloudCaller): CloudJobs | null {
           baseUrl: cloud.apiUrl,
           httpVersion: "1.1",
           interceptors: [bearing(token)],
-          defaultTimeoutMs: callTimeout,
+          defaultTimeoutMs: timeoutMs,
         }),
       );
       return await run(client);
@@ -173,13 +176,15 @@ export function cloudJobsFor(caller: CloudCaller): CloudJobs | null {
         };
       }),
     cancel: (jobId) =>
-      call(Scope.APPS_WRITE, async (client) => jobOf((await client.cancelJob({ jobId })).job)),
+      call(Scope.APPS_WRITE, async (client) => jobOf((await client.cancelJob({ jobId })).job), {
+        timeoutMs: cancelTimeout,
+      }),
     respond: (jobId, inputId, answer) =>
       call(
         Scope.APPS_WRITE,
         async (client) =>
           jobOf((await client.respondJob({ jobId, inputId, answer: answerOf(answer) })).job),
-        respondRefusalOf,
+        { refusal: respondRefusalOf },
       ),
   };
 }

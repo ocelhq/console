@@ -1,6 +1,9 @@
+import { createServer } from "node:http";
+import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
+import { connectNodeAdapter } from "@connectrpc/connect-node";
 import { auth } from "@console/auth";
-import { JobPhase, JobState } from "@console/connectors/gen/cloud/v1/job_pb";
+import { JobPhase, JobSchema, JobService, JobState } from "@console/connectors/gen/cloud/v1/job_pb";
 import { Tier } from "@console/connectors/gen/common/environment/v1/environment_pb";
 import { setupTestDatabase } from "@console/db/testing";
 import { createLocalJWKSet, jwtVerify } from "jose";
@@ -90,6 +93,41 @@ describe("cloudJobsFor", () => {
 
     expect(answer).toMatchObject({ ok: true, result: { state: "canceled" } });
     expect((await verified(cloud.seen[0].authorization)).scope).toEqual(["cloud.apps.write"]);
+  });
+
+  it("waits on a cancel longer than Ocel Cloud waits for the run to stop", async () => {
+    const timeouts = new Map<string, number | undefined>();
+    const job = create(JobSchema, cloudJob({ id: "job_timed" }));
+    const server = createServer(
+      connectNodeAdapter({
+        routes(router) {
+          router.service(JobService, {
+            async getJob(_, context) {
+              timeouts.set("GetJob", context.timeoutMs());
+              return { job };
+            },
+            async cancelJob(_, context) {
+              timeouts.set("CancelJob", context.timeoutMs());
+              return { job };
+            },
+          });
+        },
+      }),
+    );
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    const port = typeof address === "object" && address !== null ? address.port : 0;
+    offered.cloud = { apiUrl: `http://127.0.0.1:${port}`, providerUrl: "", audience: "ocel-cloud" };
+    try {
+      await cloudJobsFor(caller)?.get("job_timed");
+      await cloudJobsFor(caller)?.cancel("job_timed");
+
+      expect(timeouts.get("CancelJob")).toBeGreaterThan(20_000);
+      expect(timeouts.get("GetJob")).toBeLessThanOrEqual(10_000);
+    } finally {
+      server.closeAllConnections();
+      await new Promise((resolve) => server.close(resolve));
+    }
   });
 
   it("lists the events after a seq, capped at Ocel Cloud's limit, with the job", async () => {
