@@ -3,12 +3,13 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { auth } from "@console/auth";
 import { ConsoleService } from "@console/connectors/gen/console/v1/console_pb";
 import { setupTestDatabase } from "@console/db/testing";
-import { createLocalJWKSet, decodeProtectedHeader, jwtVerify } from "jose";
+import { createLocalJWKSet, decodeJwt, decodeProtectedHeader, jwtVerify } from "jose";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import packageJson from "../../../package.json";
 import {
   createTestSessionWithOrganization,
   createTestSessionWithoutOrganization,
+  createTestSessionWithRole,
 } from "../../../test/auth-harness";
 import { serviceClient } from "../../../test/connect-harness";
 import type { CloudOffer } from "./cloud";
@@ -83,27 +84,89 @@ describe("ConsoleService over Connect", () => {
   });
 
   describe("IssueCloudToken", () => {
+    const read = ["cloud.apps.read"];
+
+    function issue(
+      bearer: string | null,
+      organizationId: string,
+      scopes: readonly string[] = read,
+    ) {
+      return consoleService(bearer).issueCloudToken({ organizationId, scopes: [...scopes] });
+    }
+
     it("returns Unauthenticated with no session", async () => {
       offerCloud();
-      expect((await errorOf(consoleService(null).issueCloudToken({}))).code).toBe(
-        Code.Unauthenticated,
-      );
+      expect((await errorOf(issue(null, "org-1"))).code).toBe(Code.Unauthenticated);
     });
 
     it("returns Unauthenticated for a bearer that is not a session", async () => {
       offerCloud();
-      expect((await errorOf(consoleService("not-a-session").issueCloudToken({}))).code).toBe(
-        Code.Unauthenticated,
-      );
+      expect((await errorOf(issue("not-a-session", "org-1"))).code).toBe(Code.Unauthenticated);
     });
 
-    it("returns FailedPrecondition for a session with no active organization", async () => {
+    it("returns PermissionDenied for an organization the caller does not belong to", async () => {
       offerCloud();
-      const session = await createTestSessionWithoutOrganization();
+      const mine = await createTestSessionWithOrganization();
+      const theirs = await createTestSessionWithOrganization();
       try {
-        const refused = await errorOf(consoleService(session.token).issueCloudToken({}));
-        expect(refused.code).toBe(Code.FailedPrecondition);
-        expect(refused.rawMessage).toContain("no active organization");
+        const refused = await errorOf(issue(mine.token, theirs.organization.id));
+        expect(refused.code).toBe(Code.PermissionDenied);
+        expect(refused.rawMessage).toContain(theirs.organization.id);
+      } finally {
+        await mine.cleanup();
+        await theirs.cleanup();
+      }
+    });
+
+    it("signs for the organization asked for, not the session's active one", async () => {
+      offerCloud();
+      const named = await createTestSessionWithOrganization();
+      const active = await createTestSessionWithOrganization();
+      const joined = await createTestSessionWithRole(active.organization.id, "member");
+      try {
+        await auth.api.addMember({
+          body: { userId: joined.user.id, organizationId: named.organization.id, role: "member" },
+        });
+
+        const issued = await issue(joined.token, named.organization.id);
+
+        const { payload } = await jwtVerify(issued.token, await consoleKeys(), {
+          audience: "ocel-cloud",
+        });
+        expect(payload.sub).toBe(`org:${named.organization.id}`);
+      } finally {
+        await joined.cleanup();
+        await named.cleanup();
+        await active.cleanup();
+      }
+    });
+
+    it("signs for a member of the organization whose session has no active organization", async () => {
+      offerCloud();
+      const owner = await createTestSessionWithOrganization();
+      const loose = await createTestSessionWithoutOrganization();
+      try {
+        await auth.api.addMember({
+          body: { userId: loose.user.id, organizationId: owner.organization.id, role: "member" },
+        });
+
+        const issued = await issue(loose.token, owner.organization.id);
+
+        expect(decodeJwt(issued.token).sub).toBe(`org:${owner.organization.id}`);
+      } finally {
+        await loose.cleanup();
+        await owner.cleanup();
+      }
+    });
+
+    it("returns InvalidArgument without an organization or a scope", async () => {
+      offerCloud();
+      const session = await createTestSessionWithOrganization();
+      try {
+        expect((await errorOf(issue(session.token, ""))).code).toBe(Code.InvalidArgument);
+        expect((await errorOf(issue(session.token, session.organization.id, []))).code).toBe(
+          Code.InvalidArgument,
+        );
       } finally {
         await session.cleanup();
       }
@@ -112,7 +175,7 @@ describe("ConsoleService over Connect", () => {
     it("returns FailedPrecondition when the console offers no Ocel Cloud", async () => {
       const session = await createTestSessionWithOrganization();
       try {
-        const refused = await errorOf(consoleService(session.token).issueCloudToken({}));
+        const refused = await errorOf(issue(session.token, session.organization.id));
         expect(refused.code).toBe(Code.FailedPrecondition);
         expect(refused.rawMessage).toContain("offers no Ocel Cloud");
       } finally {
@@ -125,12 +188,65 @@ describe("ConsoleService over Connect", () => {
       const session = await createTestSessionWithOrganization();
       try {
         const refused = await errorOf(
-          consoleService(session.token).issueCloudToken({
-            scopes: ["cloud.apps.read", "cloud.everything"],
-          }),
+          issue(session.token, session.organization.id, ["cloud.apps.read", "cloud.everything"]),
         );
         expect(refused.code).toBe(Code.InvalidArgument);
         expect(refused.rawMessage).toContain('"cloud.everything" is no Ocel Cloud scope');
+      } finally {
+        await session.cleanup();
+      }
+    });
+
+    it.each([
+      ["member", ["cloud.apps.read", "cloud.apps.write"]],
+      ["admin", ["cloud.apps.read", "cloud.apps.write", "cloud.variables.write"]],
+      [
+        "owner",
+        ["cloud.apps.read", "cloud.apps.write", "cloud.variables.write", "cloud.variables.reveal"],
+      ],
+    ] as const)("grants a %s every scope of its role", async (role, scopes) => {
+      offerCloud();
+      const owner = await createTestSessionWithOrganization();
+      const joined = await createTestSessionWithRole(owner.organization.id, role);
+      try {
+        const issued = await issue(joined.token, owner.organization.id, scopes);
+
+        expect(decodeJwt(issued.token).scope).toEqual(scopes);
+      } finally {
+        await joined.cleanup();
+        await owner.cleanup();
+      }
+    });
+
+    it.each([
+      ["member", "cloud.variables.write"],
+      ["member", "cloud.variables.reveal"],
+      ["admin", "cloud.variables.reveal"],
+    ] as const)("returns PermissionDenied when a %s asks for %s", async (role, lacked) => {
+      offerCloud();
+      const owner = await createTestSessionWithOrganization();
+      const joined = await createTestSessionWithRole(owner.organization.id, role);
+      try {
+        const refused = await errorOf(
+          issue(joined.token, owner.organization.id, ["cloud.apps.read", lacked]),
+        );
+        expect(refused.code).toBe(Code.PermissionDenied);
+        expect(refused.rawMessage).toContain(lacked);
+      } finally {
+        await joined.cleanup();
+        await owner.cleanup();
+      }
+    });
+
+    it("never grants cloud.provider, even to an owner", async () => {
+      offerCloud();
+      const session = await createTestSessionWithOrganization();
+      try {
+        const refused = await errorOf(
+          issue(session.token, session.organization.id, ["cloud.provider"]),
+        );
+        expect(refused.code).toBe(Code.PermissionDenied);
+        expect(refused.rawMessage).toContain("cloud.provider");
       } finally {
         await session.cleanup();
       }
@@ -140,7 +256,7 @@ describe("ConsoleService over Connect", () => {
       offerCloud();
       const session = await createTestSessionWithOrganization();
       try {
-        const issued = await consoleService(session.token).issueCloudToken({});
+        const issued = await issue(session.token, session.organization.id);
 
         expect(decodeProtectedHeader(issued.token).alg).toBe("EdDSA");
         const { payload } = await jwtVerify(issued.token, await consoleKeys(), {
@@ -150,7 +266,7 @@ describe("ConsoleService over Connect", () => {
         expect(payload).toMatchObject({
           sub: `org:${session.organization.id}`,
           act: session.user.id,
-          scope: ["cloud.apps.read", "cloud.apps.write"],
+          scope: ["cloud.apps.read"],
         });
         expect(payload.jti).toEqual(expect.any(String));
         expect((payload.exp ?? 0) - (payload.iat ?? 0)).toBe(300);
@@ -162,13 +278,11 @@ describe("ConsoleService over Connect", () => {
       }
     });
 
-    it("signs only the scopes asked for, for the configured audience", async () => {
+    it("signs for the configured audience", async () => {
       offerCloud("https://cloud.example.test");
       const session = await createTestSessionWithOrganization();
       try {
-        const issued = await consoleService(session.token).issueCloudToken({
-          scopes: ["cloud.apps.read"],
-        });
+        const issued = await issue(session.token, session.organization.id);
         const { payload } = await jwtVerify(issued.token, await consoleKeys(), {
           audience: "https://cloud.example.test",
         });

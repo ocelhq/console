@@ -1,26 +1,22 @@
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError, type ServiceImpl } from "@connectrpc/connect";
+import type { Scope } from "@console/connectors/gen/cloud/v1/scope_pb";
 import type { ConsoleService } from "@console/connectors/gen/console/v1/console_pb";
 import { version } from "../../../package.json";
-import { CLOUD_SCOPES, type CloudScope, signCloudToken } from "../../cloud/token";
+import { cloudCallerOf } from "../../cloud/caller";
+import { claimOf, lackedScope, scopeOf, signCloudToken } from "../../cloud/token";
 import { readCloudOffer } from "./cloud";
-import { sessionOf } from "./session";
 
 const cloudTokenLifetime = 5 * 60;
 
-function cloudScopes(asked: readonly string[]): CloudScope[] {
-  if (asked.length === 0) {
-    return [...CLOUD_SCOPES];
-  }
-  const known = new Set<string>(CLOUD_SCOPES);
-  const unknown = asked.find((scope) => !known.has(scope));
-  if (unknown !== undefined) {
-    throw new ConnectError(
-      `"${unknown}" is no Ocel Cloud scope; the scopes are ${CLOUD_SCOPES.join(", ")}`,
-      Code.InvalidArgument,
-    );
-  }
-  return [...asked] as CloudScope[];
+function scopesAsked(asked: readonly string[]): Scope[] {
+  return asked.map((named) => {
+    const scope = scopeOf(named);
+    if (scope === undefined) {
+      throw new ConnectError(`"${named}" is no Ocel Cloud scope`, Code.InvalidArgument);
+    }
+    return scope;
+  });
 }
 
 export const consoleService: ServiceImpl<typeof ConsoleService> = {
@@ -34,15 +30,32 @@ export const consoleService: ServiceImpl<typeof ConsoleService> = {
   },
 
   async issueCloudToken(request, context) {
-    const session = sessionOf(context);
+    const reach = await cloudCallerOf(context.requestHeader, request.organizationId);
+    if (reach.state === "signed-out") {
+      throw new ConnectError("A session is required", Code.Unauthenticated);
+    }
+    if (reach.state === "not-member") {
+      throw new ConnectError(
+        `You are not a member of organization ${request.organizationId}`,
+        Code.PermissionDenied,
+      );
+    }
     const cloud = readCloudOffer();
     if (!cloud) {
       throw new ConnectError("This console offers no Ocel Cloud", Code.FailedPrecondition);
     }
+    const scopes = scopesAsked(request.scopes);
+    const lacked = lackedScope(reach.caller.role, scopes);
+    if (lacked !== undefined) {
+      throw new ConnectError(
+        `Your role in this organization (${reach.caller.role}) does not allow ${claimOf(lacked)}`,
+        Code.PermissionDenied,
+      );
+    }
     const { token, expiresAt } = await signCloudToken(
       cloud,
-      { userId: session.userId, organizationId: session.activeOrganizationId },
-      cloudScopes(request.scopes),
+      reach.caller,
+      scopes,
       cloudTokenLifetime,
     );
     return { token, expiresAt: timestampFromDate(expiresAt) };
