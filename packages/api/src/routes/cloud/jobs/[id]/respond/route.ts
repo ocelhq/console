@@ -1,4 +1,4 @@
-import { fromJson, type JsonObject, type JsonValue } from "@bufbuild/protobuf";
+import { fromJson, type JsonValue } from "@bufbuild/protobuf";
 import {
   type RespondJobRequest,
   RespondJobRequestSchema,
@@ -15,38 +15,13 @@ export interface VariableAnswer {
   value: string;
 }
 
-function isObject(value: unknown): value is JsonObject {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function protoJsonOf(body: unknown): JsonObject | null {
-  if (!isObject(body)) {
-    return null;
-  }
-  const { inputId = null, answer, ...extra } = body;
-  if (!isObject(answer) || Object.keys(extra).length > 0) {
-    return null;
-  }
-  const { kind, ...given } = answer;
-  switch (kind) {
-    case "variables":
-      return { inputId, variables: given };
-    case "confirmation":
-      return Object.keys(given).length === 1
-        ? { inputId, confirmed: given.confirmed ?? null }
-        : null;
-    default:
-      return null;
-  }
-}
+export type JobAnswer = { variables: { values: VariableAnswer[] } } | { confirmed: boolean };
 
 function requestOf(jobId: string, body: unknown): RespondJobRequest | null {
-  const json = protoJsonOf(body);
-  if (!json) {
-    return null;
-  }
   try {
-    return fromJson(RespondJobRequestSchema, { ...json, jobId } satisfies JsonValue);
+    const parsed = fromJson(RespondJobRequestSchema, body as JsonValue);
+    parsed.jobId = jobId;
+    return parsed;
   } catch {
     return null;
   }
