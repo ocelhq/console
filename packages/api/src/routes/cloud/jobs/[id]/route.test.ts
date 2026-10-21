@@ -83,7 +83,7 @@ const secretValue = "postgres://user:hunter2@db.internal/shop";
 
 const answer = {
   inputId: "input_1",
-  answer: { kind: "variables", values: [{ key: "DATABASE_URL", folder: "", value: secretValue }] },
+  variables: { values: [{ key: "DATABASE_URL", folder: "", value: secretValue }] },
 };
 
 describe("the Ocel Cloud job routes", () => {
@@ -324,6 +324,25 @@ describe("the Ocel Cloud job routes", () => {
     }
   });
 
+  it("answer the job the path names, whatever job the body names", async () => {
+    offer();
+    const session = await createTestSessionWithOrganization();
+    try {
+      cloud.add(session.organization.id, waiting("job_route_path"));
+      cloud.add(session.organization.id, waiting("job_route_body"));
+
+      const response = await respond(session, "job_route_path", {
+        ...answer,
+        jobId: "job_route_body",
+      });
+
+      expect(response.status).toBe(200);
+      expect(cloud.seen.map((seen) => seen.jobId)).toEqual(["job_route_path"]);
+    } finally {
+      await session.cleanup();
+    }
+  });
+
   it("never log the values they pass on", async () => {
     offer();
     const said = (["log", "info", "warn", "error", "debug"] as const).map((level) =>
@@ -359,7 +378,7 @@ describe("the Ocel Cloud job routes", () => {
 
       const response = await respond(session, "job_route_confirm", {
         inputId: "input_c",
-        answer: { kind: "confirmation", confirmed: true },
+        confirmed: true,
       });
 
       expect(response.status).toBe(200);
@@ -378,19 +397,19 @@ describe("the Ocel Cloud job routes", () => {
         "not json",
         {},
         { inputId: "input_1" },
-        { inputId: "bad id", answer: answer.answer },
-        { inputId: "input_1", answer: { kind: "variables", values: [] } },
-        { inputId: "input_1", answer: { kind: "variables", values: [value("")] } },
-        { inputId: "input_1", answer: { kind: "variables", values: [value("A#B")] } },
+        { ...answer, inputId: "bad id" },
+        { inputId: "input_1", variables: { values: [] } },
+        { inputId: "input_1", variables: { values: [value("")] } },
+        { inputId: "input_1", variables: { values: [value("A#B")] } },
         {
           inputId: "input_1",
-          answer: { kind: "variables", values: [value("A", { folder: "x" })] },
+          variables: { values: [value("A", { folder: "x" })] },
         },
-        { inputId: "input_1", answer: { kind: "variables", values: [value("A", { extra: 1 })] } },
-        { inputId: "input_1", answer: { kind: "variables", values: [value("A", { value: 1 })] } },
-        { inputId: "input_1", answer: { kind: "confirmation", confirmed: "yes" } },
-        { inputId: "input_1", answer: { kind: "confirmation", confirmed: true, values: [] } },
-        { inputId: "input_1", answer: { kind: "other" } },
+        { inputId: "input_1", variables: { values: [value("A", { extra: 1 })] } },
+        { inputId: "input_1", variables: { values: [value("A", { value: 1 })] } },
+        { inputId: "input_1", confirmed: "yes" },
+        { inputId: "input_1", confirmed: true, variables: { values: [] } },
+        { inputId: "input_1", answer: { confirmed: true } },
         { ...answer, extra: true },
         { ...answer, confirmed: true },
       ]) {
@@ -410,7 +429,7 @@ describe("the Ocel Cloud job routes", () => {
     try {
       const response = await respond(session, "job_1", {
         inputId: "input_1",
-        answer: { kind: "variables", values: [{ key: "A", folder: "x", value: secretValue }] },
+        variables: { values: [{ key: "A", folder: "x", value: secretValue }] },
       });
 
       expect(response.status).toBe(400);
@@ -428,11 +447,11 @@ describe("the Ocel Cloud job routes", () => {
     const session = await createTestSessionWithOrganization();
     try {
       cloud.add(session.organization.id, waiting("job_route_twice"));
-      const given = answer.answer.values[0];
+      const given = answer.variables.values[0];
 
       const response = await respond(session, "job_route_twice", {
         inputId: "input_1",
-        answer: { kind: "variables", values: [given, given] },
+        variables: { values: [given, given] },
       });
 
       expect(response.status).toBe(400);
@@ -451,8 +470,7 @@ describe("the Ocel Cloud job routes", () => {
     try {
       const response = await respond(session, "job_1", {
         ...answer,
-        answer: {
-          kind: "variables",
+        variables: {
           values: [{ key: "BIG", folder: "", value: "x".repeat(RESPOND_BODY_LIMIT) }],
         },
       });
@@ -486,7 +504,7 @@ describe("the Ocel Cloud job routes", () => {
 
       const response = await respond(session, "job_route_invalid", {
         inputId: "input_1",
-        answer: { kind: "variables", values: [{ key: "OTHER", folder: "", value: "x" }] },
+        variables: { values: [{ key: "OTHER", folder: "", value: "x" }] },
       });
 
       expect(response.status).toBe(400);

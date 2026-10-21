@@ -33,7 +33,7 @@ describe("the job page's urls", () => {
     );
     await readEvents(ref, 7);
     await cancelJob(ref);
-    await respondToJob(ref, "input_1", { kind: "confirmation", confirmed: true });
+    await respondToJob(ref, "input_1", { confirmed: true });
     expect(fetch.mock.calls.map(([url]) => url)).toEqual([
       "/api/cloud/jobs/job_1/events?after=7&org=org+1",
       "/api/cloud/jobs/job_1/cancel?org=org+1",
@@ -43,7 +43,7 @@ describe("the job page's urls", () => {
       method: "POST",
       body: JSON.stringify({
         inputId: "input_1",
-        answer: { kind: "confirmation", confirmed: true },
+        confirmed: true,
       }),
     });
   });
@@ -69,9 +69,7 @@ describe("what the console answered", () => {
     const signedOut = { kind: "lost", why: "signed-out" };
     expect(await readEvents(ref, 0)).toEqual(signedOut);
     expect(await cancelJob(ref)).toEqual(signedOut);
-    expect(await respondToJob(ref, "input_1", { kind: "confirmation", confirmed: true })).toEqual(
-      signedOut,
-    );
+    expect(await respondToJob(ref, "input_1", { confirmed: true })).toEqual(signedOut);
   });
 
   it("marks a stale input so the page reads the job again", async () => {
@@ -81,7 +79,7 @@ describe("what the console answered", () => {
         { status: 409 },
       ),
     );
-    expect(await respondToJob(ref, "input_1", { kind: "confirmation", confirmed: false })).toEqual({
+    expect(await respondToJob(ref, "input_1", { confirmed: false })).toEqual({
       kind: "stale",
       message: "This request is no longer current.",
     });
@@ -91,7 +89,7 @@ describe("what the console answered", () => {
     answering(
       Response.json({ error: "OTHER was not asked for", reason: "invalid" }, { status: 400 }),
     );
-    expect(await respondToJob(ref, "input_1", { kind: "confirmation", confirmed: true })).toEqual({
+    expect(await respondToJob(ref, "input_1", { confirmed: true })).toEqual({
       kind: "failed",
       message: "OTHER was not asked for",
     });

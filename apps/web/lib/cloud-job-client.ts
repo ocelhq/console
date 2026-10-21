@@ -63,6 +63,6 @@ export function respondToJob(
   return call(apiURL(ref, "respond"), {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ inputId, answer }),
+    body: JSON.stringify({ inputId, ...answer }),
   });
 }

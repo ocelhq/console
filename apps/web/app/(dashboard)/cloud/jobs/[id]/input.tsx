@@ -144,12 +144,7 @@ function ConfirmationForm({
     setError(null);
     setPending(confirmed);
     setError(
-      await answerWith(
-        answering,
-        input.id,
-        { kind: "confirmation", confirmed },
-        "The answer wasn’t sent. Try again.",
-      ),
+      await answerWith(answering, input.id, { confirmed }, "The answer wasn’t sent. Try again."),
     );
     setPending(null);
   }
@@ -250,7 +245,7 @@ function VariablesForm({ input, answering }: { input: VariablesInput; answering:
       await answerWith(
         answering,
         input.id,
-        { kind: "variables", values: answerOf(ordered, typed) },
+        { variables: { values: answerOf(ordered, typed) } },
         "The values weren’t sent. Try again.",
       ),
     );
