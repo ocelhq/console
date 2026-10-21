@@ -12,9 +12,17 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cancelJob, type JobRef, refusalOf } from "@/lib/cloud-job-client";
+import { cancelJob, type JobRef, type Lost } from "@/lib/cloud-job-client";
 
-export function CancelJob({ job, onCanceled }: { job: JobRef; onCanceled(job: CloudJob): void }) {
+export function CancelJob({
+  job,
+  onCanceled,
+  onLost,
+}: {
+  job: JobRef;
+  onCanceled(job: CloudJob): void;
+  onLost(why: Lost): void;
+}) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,12 +32,14 @@ export function CancelJob({ job, onCanceled }: { job: JobRef; onCanceled(job: Cl
     setPending(true);
     const reply = await cancelJob(job);
     setPending(false);
-    if (reply.kind !== "ok") {
-      setError(refusalOf(reply, "The job wasn’t canceled. Try again."));
-      return;
+    if (reply.kind === "lost") {
+      onLost(reply.why);
+    } else if (reply.kind === "ok") {
+      onCanceled(reply.value);
+      setOpen(false);
+    } else {
+      setError(reply.message ?? "The job wasn’t canceled. Try again.");
     }
-    onCanceled(reply.value);
-    setOpen(false);
   }
 
   return (

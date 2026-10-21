@@ -5,6 +5,7 @@ import { ArrowLeftIcon, ArrowSquareOutIcon, TerminalIcon } from "@phosphor-icons
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { commandOf, isTerminal, type JobTone, phaseWord, stateOf, titleOf } from "@/lib/cloud-job";
+import { jobHref } from "@/lib/cloud-job-client";
 import type { JobPlace } from "@/lib/cloud-job-place";
 import { spanOf } from "@/lib/deployment-view";
 import { absoluteTime } from "@/lib/relative-time";
@@ -16,7 +17,7 @@ import { CancelJob } from "./cancel";
 import { useJobFeed } from "./feed";
 import { InputRequired } from "./input";
 import { JobLog } from "./log";
-import { JobGone } from "./states";
+import { JobGone, JobSignedOut } from "./states";
 
 const dots: Record<JobTone, string> = {
   go: "bg-go",
@@ -169,8 +170,11 @@ export function JobView({
     ? spanOf(Date.parse(job.startedAt), job.endedAt ? Date.parse(job.endedAt) : at)
     : null;
 
-  if (feed.gone) {
+  if (feed.lost === "gone") {
     return <JobGone />;
+  }
+  if (feed.lost === "signed-out") {
+    return <JobSignedOut href={jobHref(ref)} />;
   }
 
   return (
@@ -225,7 +229,7 @@ export function JobView({
               </div>
             )}
           </div>
-          {!ended && <CancelJob job={ref} onCanceled={feed.show} />}
+          {!ended && <CancelJob job={ref} onCanceled={feed.show} onLost={feed.lose} />}
         </div>
       </header>
 
@@ -241,6 +245,7 @@ export function JobView({
               feed.refresh();
             },
             onStale: feed.refresh,
+            onLost: feed.lose,
           }}
         />
       )}

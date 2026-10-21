@@ -18,6 +18,26 @@ export function JobGone() {
   );
 }
 
+export function JobSignedOut({ href }: { href: string }) {
+  return (
+    <PageShell title="Ocel Cloud job">
+      <PageNotice heading="You’re signed out">
+        <p className={noticeBody}>
+          Your session ended, so this page stopped following the job. The job carries on either way.
+          Sign in again to pick it back up.
+        </p>
+        <Button
+          variant="outline"
+          nativeButton={false}
+          render={<Link href={`/sign-in?redirect=${encodeURIComponent(href)}`} />}
+        >
+          Sign in
+        </Button>
+      </PageNotice>
+    </PageShell>
+  );
+}
+
 export function JobLoadError({ href, message }: { href: string; message: string }) {
   return (
     <PageShell title="Ocel Cloud job">

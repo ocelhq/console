@@ -101,12 +101,32 @@ describe("pollFeed", () => {
   });
 
   it("stops for good once the job is gone", async () => {
-    const { read, feed } = polling(running, { kind: "gone" });
+    const { read, feed } = polling(running, { kind: "lost", why: "gone" });
     await vi.advanceTimersByTimeAsync(1500);
-    expect(feed()?.gone).toBe(true);
+    expect(feed()?.lost).toBe("gone");
     expect(feed()?.polling).toBe(false);
     await vi.advanceTimersByTimeAsync(60_000);
     expect(read).toHaveBeenCalledOnce();
+  });
+
+  it("stops for good once the reader is signed out, rather than retrying", async () => {
+    const { read, feed } = polling(running, { kind: "lost", why: "signed-out" });
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(feed()?.lost).toBe("signed-out");
+    expect(feed()?.trouble).toBeNull();
+    expect(feed()?.polling).toBe(false);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(read).toHaveBeenCalledOnce();
+  });
+
+  it("stops when a cancel or an answer finds the job lost", async () => {
+    const { read, poll, feed } = polling(running);
+    poll.lose("signed-out");
+    expect(feed()?.lost).toBe("signed-out");
+    expect(feed()?.polling).toBe(false);
+    poll.poke();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(read).not.toHaveBeenCalled();
   });
 
   it("reads nothing more once stopped, even with a read in flight", async () => {

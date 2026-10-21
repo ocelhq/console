@@ -3,13 +3,13 @@
 import type { CloudJob, JobEvents } from "@console/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { type JobRef, readEvents } from "@/lib/cloud-job-client";
+import { type JobRef, type Lost, readEvents } from "@/lib/cloud-job-client";
 import { type Feed, type FeedPoll, feedOf, pollFeed } from "@/lib/cloud-job-feed";
 
 export function useJobFeed(
   ref: JobRef,
   initial: JobEvents,
-): Feed & { show(job: CloudJob): void; refresh(): void } {
+): Feed & { show(job: CloudJob): void; lose(why: Lost): void; refresh(): void } {
   const router = useRouter();
   const start = useRef({ ref, initial });
   const [feed, setFeed] = useState(() => feedOf(initial));
@@ -31,6 +31,7 @@ export function useJobFeed(
   return {
     ...feed,
     show: (job) => poll.current?.show(job),
+    lose: (why) => poll.current?.lose(why),
     refresh: () => poll.current?.poke(),
   };
 }

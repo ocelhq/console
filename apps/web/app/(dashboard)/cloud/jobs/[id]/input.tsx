@@ -6,7 +6,7 @@ import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } fr
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { type JobRef, refusalOf, respondToJob } from "@/lib/cloud-job-client";
+import { type JobRef, type Lost, respondToJob } from "@/lib/cloud-job-client";
 import {
   answerOf,
   blankFields,
@@ -29,10 +29,11 @@ interface Answering {
   job: JobRef;
   onAnswered(inputId: string, job: CloudJob): void;
   onStale(): void;
+  onLost(why: Lost): void;
 }
 
 async function answerWith(
-  { job, onAnswered, onStale }: Answering,
+  { job, onAnswered, onStale, onLost }: Answering,
   inputId: string,
   answer: JobAnswer,
   fallback: string,
@@ -42,8 +43,12 @@ async function answerWith(
     onAnswered(inputId, reply.value);
     return null;
   }
+  if (reply.kind === "lost") {
+    onLost(reply.why);
+    return null;
+  }
   if (reply.kind === "stale") onStale();
-  return refusalOf(reply, fallback);
+  return reply.message ?? fallback;
 }
 
 function plural(count: number, one: string, many: string): string {
