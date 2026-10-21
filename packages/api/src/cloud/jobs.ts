@@ -55,7 +55,6 @@ export interface JobEvents {
 }
 
 export interface CloudJobs {
-  get(jobId: string): Promise<CloudAnswer<CloudJob>>;
   events(jobId: string, afterSeq: number, limit?: number): Promise<CloudAnswer<JobEvents>>;
   cancel(jobId: string): Promise<CloudAnswer<CloudJob>>;
   respond(request: RespondJobRequest): Promise<CloudAnswer<CloudJob>>;
@@ -140,8 +139,6 @@ export function cloudJobsFor(caller: CloudCaller): CloudJobs | null {
   };
 
   return {
-    get: (jobId) =>
-      call([Scope.APPS_READ], async (client) => jobOf((await client.getJob({ jobId })).job)),
     events: (jobId, afterSeq, limit = JOB_EVENTS_LIMIT) =>
       call([Scope.APPS_READ], async (client) => {
         const answer = await client.listJobEvents({

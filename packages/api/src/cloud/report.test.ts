@@ -129,7 +129,7 @@ describe("a finished Ocel Cloud job's deployment report", () => {
       const errors = vi.spyOn(console, "error").mockImplementation(() => {});
 
       await jobs?.events("job_report_twice", 0);
-      await jobs?.get("job_report_twice");
+      await jobs?.events("job_report_twice", 0);
       await jobs?.events("job_report_twice", 0);
 
       expect(await recorded(projectId)).toHaveLength(1);

@@ -63,6 +63,11 @@ async function verified(authorization: string) {
   return payload;
 }
 
+async function read(jobId: string) {
+  const answer = await cloudJobsFor(caller)?.events(jobId, 0);
+  return answer?.ok ? { ok: true, result: answer.result.job } : answer;
+}
+
 describe("cloudJobsFor", () => {
   beforeAll(async () => {
     await setupTestDatabase();
@@ -91,7 +96,7 @@ describe("cloudJobsFor", () => {
     offer();
     cloud.add("org-1", cloudJob({ id: "job_read" }));
 
-    const answer = await cloudJobsFor(caller)?.get("job_read");
+    const answer = await read("job_read");
 
     expect(answer).toMatchObject({
       ok: true,
@@ -138,9 +143,9 @@ describe("cloudJobsFor", () => {
       connectNodeAdapter({
         routes(router) {
           router.service(JobService, {
-            async getJob(_, context) {
-              timeouts.set("GetJob", context.timeoutMs());
-              return { job };
+            async listJobEvents(_, context) {
+              timeouts.set("ListJobEvents", context.timeoutMs());
+              return { job, events: [], more: false };
             },
             async cancelJob(_, context) {
               timeouts.set("CancelJob", context.timeoutMs());
@@ -155,11 +160,11 @@ describe("cloudJobsFor", () => {
     const port = typeof address === "object" && address !== null ? address.port : 0;
     offered.cloud = { apiUrl: `http://127.0.0.1:${port}`, providerUrl: "", audience: "ocel-cloud" };
     try {
-      await cloudJobsFor(caller)?.get("job_timed");
+      await cloudJobsFor(caller)?.events("job_timed", 0);
       await cloudJobsFor(caller)?.cancel("job_timed");
 
       expect(timeouts.get("CancelJob")).toBeGreaterThan(20_000);
-      expect(timeouts.get("GetJob")).toBeLessThanOrEqual(10_000);
+      expect(timeouts.get("ListJobEvents")).toBeLessThanOrEqual(10_000);
     } finally {
       server.closeAllConnections();
       await new Promise((resolve) => server.close(resolve));
@@ -234,7 +239,7 @@ describe("cloudJobsFor", () => {
     offer();
     cloud.add("org-1", waitingForVariables("job_waiting"));
 
-    const answer = await cloudJobsFor(caller)?.get("job_waiting");
+    const answer = await read("job_waiting");
 
     expect(answer).toMatchObject({
       ok: true,
@@ -286,7 +291,7 @@ describe("cloudJobsFor", () => {
     );
     cloud.add("org-1", cloudJob({ id: "job_no_input" }));
 
-    expect(await cloudJobsFor(caller)?.get("job_confirm_read")).toMatchObject({
+    expect(await read("job_confirm_read")).toMatchObject({
       ok: true,
       result: {
         input: {
@@ -297,7 +302,7 @@ describe("cloudJobsFor", () => {
         },
       },
     });
-    expect(await cloudJobsFor(caller)?.get("job_no_input")).toMatchObject({
+    expect(await read("job_no_input")).toMatchObject({
       ok: true,
       result: { input: null },
     });
@@ -460,7 +465,7 @@ describe("cloudJobsFor", () => {
     offer();
     cloud.add("org-2", cloudJob({ id: "job_theirs" }));
 
-    expect(await cloudJobsFor(caller)?.get("job_theirs")).toMatchObject({
+    expect(await read("job_theirs")).toMatchObject({
       ok: false,
       reason: "not-found",
     });
@@ -469,7 +474,7 @@ describe("cloudJobsFor", () => {
   it("answers unreachable when nothing listens at the Ocel Cloud URL", async () => {
     offered.cloud = { apiUrl: "http://127.0.0.1:9", providerUrl: "", audience: "ocel-cloud" };
 
-    expect(await cloudJobsFor(caller)?.get("job_1")).toMatchObject({
+    expect(await read("job_1")).toMatchObject({
       ok: false,
       reason: "unreachable",
     });
@@ -480,7 +485,7 @@ describe("cloudJobsFor", () => {
     cloud.add("org-1", cloudJob({ id: "job_refused" }));
     cloud.failWith(new ConnectError("bad audience", Code.Unauthenticated));
 
-    expect(await cloudJobsFor(caller)?.get("job_refused")).toEqual({
+    expect(await read("job_refused")).toEqual({
       ok: false,
       reason: "refused",
       message: "Ocel Cloud refused the console's token: bad audience",
