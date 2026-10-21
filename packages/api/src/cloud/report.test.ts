@@ -12,12 +12,12 @@ import {
 } from "../../test/auth-harness";
 import { cloudJob, type FakeCloud, startFakeCloud } from "../../test/cloud-harness";
 import { deploymentRecord, projectIn, TRACE_ID } from "../../test/connect-harness";
-import type { CloudOffer } from "../routes/connect/cloud";
 import { cloudJobsFor } from "./jobs";
+import type { CloudOffer } from "./offer";
 
 const offered = vi.hoisted(() => ({ cloud: undefined as CloudOffer | undefined }));
 
-vi.mock("../routes/connect/cloud", () => ({ readCloudOffer: () => offered.cloud }));
+vi.mock("./offer", () => ({ readCloudOffer: () => offered.cloud }));
 
 const cloudReport = (overrides: { id?: string; error?: string } = {}) =>
   create(

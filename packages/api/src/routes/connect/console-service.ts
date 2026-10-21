@@ -4,8 +4,8 @@ import type { Scope } from "@console/connectors/gen/cloud/v1/scope_pb";
 import type { ConsoleService } from "@console/connectors/gen/console/v1/console_pb";
 import { version } from "../../../package.json";
 import { cloudCallerOf } from "../../cloud/caller";
+import { readCloudOffer } from "../../cloud/offer";
 import { claimOf, lackedScope, scopeOf, signCloudToken } from "../../cloud/token";
-import { readCloudOffer } from "./cloud";
 
 const cloudTokenLifetime = 5 * 60;
 

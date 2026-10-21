@@ -10,8 +10,8 @@ import { type Connector, connector } from "@console/db/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { importJWK, jwtVerify } from "jose";
 import { uuidv7 } from "uuidv7";
+import { computeKindOf, computeKinds } from "../../deployments/compute";
 import { liveness } from "../connectors/liveness";
-import { computeKindOf, computeKinds } from "./compute";
 import { sessionOf } from "./session";
 
 function connectorMessage(row: Connector) {

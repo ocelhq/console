@@ -6,12 +6,12 @@ import { setupTestDatabase } from "@console/db/testing";
 import { createLocalJWKSet, jwtVerify } from "jose";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cloudEvent, cloudJob, type FakeCloud, startFakeCloud } from "../../test/cloud-harness";
-import type { CloudOffer } from "../routes/connect/cloud";
 import { cloudJobsFor, refusalOf, respondRefusalOf, STALE_INPUT } from "./jobs";
+import type { CloudOffer } from "./offer";
 
 const offered = vi.hoisted(() => ({ cloud: undefined as CloudOffer | undefined }));
 
-vi.mock("../routes/connect/cloud", () => ({ readCloudOffer: () => offered.cloud }));
+vi.mock("./offer", () => ({ readCloudOffer: () => offered.cloud }));
 
 const caller = { userId: "user-1", organizationId: "org-1", role: "owner" };
 

@@ -1,7 +1,7 @@
 import { type Job, JobState } from "@console/connectors/gen/cloud/v1/job_pb";
 import { DeploymentSchema } from "@console/connectors/gen/console/v1/deployment_pb";
-import { projectInOrganization, recordDeployment } from "../routes/connect/report";
-import { validator } from "../routes/connect/validator";
+import { projectInOrganization, recordDeployment } from "../deployments/report";
+import { validator } from "../validator";
 
 const terminal = new Set([JobState.SUCCEEDED, JobState.FAILED, JobState.CANCELED]);
 

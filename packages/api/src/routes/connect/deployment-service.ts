@@ -4,8 +4,13 @@ import { db } from "@console/db";
 import { environmentEvent } from "@console/db/schema";
 import { and, eq } from "drizzle-orm";
 import { uuidv7 } from "uuidv7";
-import { environmentEventValues } from "./record";
-import { projectInOrganization, type Recording, recordDeployment, recordOnce } from "./report";
+import { environmentEventValues } from "../../deployments/record";
+import {
+  projectInOrganization,
+  type Recording,
+  recordDeployment,
+  recordOnce,
+} from "../../deployments/report";
 import { sessionOf } from "./session";
 
 async function ownedProject(context: HandlerContext, projectId: string): Promise<string> {

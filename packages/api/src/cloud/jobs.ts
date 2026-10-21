@@ -14,8 +14,8 @@ import {
   VariableValuesSchema,
 } from "@console/connectors/gen/cloud/v1/job_pb";
 import { Scope } from "@console/connectors/gen/cloud/v1/scope_pb";
-import { readCloudOffer } from "../routes/connect/cloud";
 import type { CloudCaller } from "./caller";
+import { readCloudOffer } from "./offer";
 import { recordJobReport } from "./report";
 import { signCloudToken } from "./token";
 import { type CloudJob, type CloudJobEvent, cloudJobEventOf, cloudJobOf } from "./view";

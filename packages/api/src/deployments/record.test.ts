@@ -1,7 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { DeploymentSchema } from "@console/connectors/gen/console/v1/deployment_pb";
 import { describe, expect, it } from "vitest";
-import { deploymentRecord } from "../../../test/connect-harness";
+import { deploymentRecord } from "../../test/connect-harness";
 import { deploymentValues } from "./record";
 
 describe("deploymentValues", () => {
