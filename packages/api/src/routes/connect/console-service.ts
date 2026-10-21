@@ -2,7 +2,7 @@ import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError, type ServiceImpl } from "@connectrpc/connect";
 import type { Scope } from "@console/connectors/gen/cloud/v1/scope_pb";
 import type { ConsoleService } from "@console/connectors/gen/console/v1/console_pb";
-import { version } from "../../../package.json";
+import { version } from "../../../../../apps/web/package.json";
 import { cloudCallerOf } from "../../cloud/caller";
 import { readCloudOffer } from "../../cloud/offer";
 import { claimOf, lackedScope, scopeOf, signCloudToken } from "../../cloud/token";
