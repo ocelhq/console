@@ -167,9 +167,9 @@ export function hostnamesOf(apps: DeploymentApp[]) {
   return apps.flatMap((app) => app.hostnames.map((hostname) => ({ app: app.name, hostname })));
 }
 
-export function Domains({ apps, ocelCloud }: { apps: DeploymentApp[]; ocelCloud: boolean }) {
+export function Domains({ apps, own }: { apps: DeploymentApp[]; own: boolean }) {
   const rows = hostnamesOf(apps);
-  if (rows.length === 0 && ocelCloud) {
+  if (rows.length === 0 && !own) {
     return (
       <div className="flex flex-col items-start gap-3 p-4">
         <p className="text-sm text-muted-foreground">

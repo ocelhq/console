@@ -30,7 +30,7 @@ import {
   shortId,
 } from "@/lib/deployment-view";
 import { findDeployment } from "@/lib/deployments";
-import { edgeLabel, isOcelCloud, providerLabel } from "@/lib/providers";
+import { targetOf } from "@/lib/providers";
 import { absoluteTime } from "@/lib/relative-time";
 import { labelType } from "@/lib/type";
 import { EdgeMark, ProviderMark } from "../../../../marks";
@@ -103,6 +103,8 @@ export default async function DeploymentPage({
   const isActive = active?.id === deployment.id;
   const superseded = !isActive && deployment.outcome === "succeeded" && active;
   const took = duration(deployment);
+  const target = targetOf(deployment.providerName);
+  const edge = deployment.edgeKind ? target.edge(deployment.edgeKind) : null;
   const url = deployment.topology.apps.flatMap((app) => app.urls)[0] ?? null;
   const title =
     shortId(deployment.promotionId) ??
@@ -174,7 +176,7 @@ export default async function DeploymentPage({
             tier={deployment.tier}
             environmentIdentity={deployment.environmentIdentity}
             active={isActive}
-            ocelCloud={isOcelCloud(deployment.providerName)}
+            own={target.own}
           />
         </div>
       </header>
@@ -190,16 +192,14 @@ export default async function DeploymentPage({
         <Field name="Provider">
           <span className="inline-flex items-center gap-2">
             <ProviderMark provider={deployment.providerName} size={18} />
-            {[providerLabel(deployment.providerName), deployment.providerRegion]
-              .filter(Boolean)
-              .join(" · ")}
+            {[target.label, deployment.providerRegion].filter(Boolean).join(" · ")}
           </span>
         </Field>
         <Field name="Edge">
-          {deployment.edgeKind ? (
+          {edge ? (
             <span className="inline-flex items-center gap-2">
-              <EdgeMark edge={deployment.edgeKind} provider={deployment.providerName} size={16} />
-              {edgeLabel(deployment.edgeKind, deployment.providerName)}
+              <EdgeMark edge={edge.kind} size={16} />
+              {edge.label}
             </span>
           ) : (
             <NotReported />
@@ -288,10 +288,7 @@ export default async function DeploymentPage({
             <span className={aside}>{countOf(hostnames, "hostname")}</span>
           </AccordionTrigger>
           <AccordionContent className={panel}>
-            <Domains
-              apps={deployment.topology.apps}
-              ocelCloud={isOcelCloud(deployment.providerName)}
-            />
+            <Domains apps={deployment.topology.apps} own={target.own} />
           </AccordionContent>
         </AccordionItem>
         <AccordionItem value="checks">

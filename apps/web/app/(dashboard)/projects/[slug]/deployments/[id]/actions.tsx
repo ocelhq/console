@@ -55,7 +55,7 @@ export function DeploymentActions({
   tier,
   environmentIdentity,
   active,
-  ocelCloud,
+  own,
 }: {
   url: string | null;
   outcome: DeploymentOutcome;
@@ -63,12 +63,12 @@ export function DeploymentActions({
   tier: Tier;
   environmentIdentity: string;
   active: boolean;
-  ocelCloud: boolean;
+  own: boolean;
 }) {
   const preview = tier === "preview";
-  const planned = ocelCloud
-    ? "Starting this from the console is planned."
-    : "A connector in your account will let the console do this. Planned.";
+  const planned = own
+    ? "A connector in your account will let the console do this. Planned."
+    : "Starting this from the console is planned.";
   const rollback = !preview && outcome === "succeeded" && promotionId && !active;
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -99,9 +99,9 @@ export function DeploymentActions({
         Icon={ArrowsClockwiseIcon}
         command={preview ? `ocel preview up ${environmentIdentity}`.trim() : "ocel deploy"}
         why={
-          ocelCloud
-            ? "Uploads the current tree from your machine; Ocel Cloud builds and ships it."
-            : "Builds and ships the current tree from your machine into your own cloud."
+          own
+            ? "Builds and ships the current tree from your machine into your own cloud."
+            : "Uploads the current tree from your machine; Ocel Cloud builds and ships it."
         }
         planned={planned}
       />

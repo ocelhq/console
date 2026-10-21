@@ -2,7 +2,7 @@ import { type Liveness, liveness } from "@console/api";
 import { capabilities } from "@console/connectors";
 import { requireOrganization } from "@/lib/access";
 import { connectorsOf, dial } from "@/lib/connectors";
-import { connectorLabel } from "@/lib/providers";
+import { targetOf } from "@/lib/providers";
 import { labelType } from "@/lib/type";
 import { CommandPane } from "../../command-pane";
 import { ProviderMark } from "../../marks";
@@ -57,6 +57,7 @@ export default async function OrganizationConnectorsPage() {
         {rows.map((row, at) => {
           const reached = seen[at];
           const live: Liveness = reached?.done ? "online" : liveness(row);
+          const target = targetOf(row.vendor);
           return (
             <div
               key={row.id}
@@ -66,7 +67,7 @@ export default async function OrganizationConnectorsPage() {
                 <ProviderMark provider={row.vendor} size={18} />
               </span>
               <div className="flex min-w-56 flex-1 flex-col gap-1">
-                <p className="font-medium">{connectorLabel(row)}</p>
+                <p className="font-medium">{target.own ? row.target : target.label}</p>
                 <p className="font-mono text-xs break-all text-muted-foreground">
                   {row.url ?? "no address published"}
                 </p>

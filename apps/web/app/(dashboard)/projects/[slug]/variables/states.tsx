@@ -1,5 +1,5 @@
 import type { RefusalReason } from "@console/connectors";
-import { isOcelCloud } from "@/lib/providers";
+import { targetOf } from "@/lib/providers";
 import { CommandPane } from "../../../command-pane";
 import { PageNotice as Notice, noticeBody } from "../../../page-shell";
 
@@ -17,7 +17,7 @@ export function NeverDeployed() {
 }
 
 export function NoConnector({ vendor }: { vendor: string | null }) {
-  if (isOcelCloud(vendor)) {
+  if (!targetOf(vendor).own) {
     return (
       <Notice heading="Values live in Ocel Cloud">
         <p className={noticeBody}>
@@ -82,7 +82,7 @@ export function Refused({
   provider: string | null;
 }) {
   const refusal = refusals[reason];
-  const command = isOcelCloud(provider) ? undefined : refusal.command;
+  const command = targetOf(provider).own ? refusal.command : undefined;
   return (
     <Notice heading={refusal.heading} role="alert">
       <p className={noticeBody}>{refusal.body}</p>

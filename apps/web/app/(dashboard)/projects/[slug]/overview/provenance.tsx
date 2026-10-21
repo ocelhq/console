@@ -7,7 +7,7 @@ import {
 } from "@phosphor-icons/react";
 import { useReactFlow } from "@xyflow/react";
 import { useEffect, useRef, useState } from "react";
-import { providerLabel } from "@/lib/providers";
+import { targetOf } from "@/lib/providers";
 import { labelType } from "@/lib/type";
 import { EnvironmentSwitcher } from "../../../environment-switcher";
 import { Stamp } from "../../../stamp";
@@ -80,7 +80,7 @@ export function ProvenanceStrip({
     ? [
         provenance.promotionId ? `promotion ${provenance.promotionId.slice(0, 7)}` : null,
         provenance.tag,
-        providerLabel(provenance.providerName),
+        targetOf(provenance.providerName).label,
         provenance.providerRegion,
       ].filter((part): part is string => Boolean(part))
     : [];
