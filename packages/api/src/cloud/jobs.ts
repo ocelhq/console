@@ -17,7 +17,7 @@ import { Scope } from "@console/connectors/gen/cloud/v1/scope_pb";
 import type { CloudCaller } from "./caller";
 import { readCloudOffer } from "./offer";
 import { recordJobReport } from "./report";
-import { signCloudToken } from "./token";
+import { lackedScope, signCloudToken } from "./token";
 import { type CloudJob, type CloudJobEvent, cloudJobEventOf, cloudJobOf } from "./view";
 
 export const JOB_ID = /^[A-Za-z0-9_-]{1,128}$/;
@@ -33,7 +33,7 @@ const cancelTimeout = 30_000;
 
 export type CloudRefusal =
   | "not-found"
-  | "ended"
+  | "forbidden"
   | "stale"
   | "invalid"
   | "refused"
@@ -41,6 +41,8 @@ export type CloudRefusal =
   | "internal";
 
 export const STALE_INPUT = "This request is no longer current. The job has moved on.";
+
+export const NOT_ALLOWED = "Your role in this organization does not allow this.";
 
 export const CONSOLE_FAILED = "The console failed to ask Ocel Cloud. Its server logs say why.";
 
@@ -82,10 +84,9 @@ export function refusalOf(thrown: unknown): CloudAnswer<never> {
   }
   switch (thrown.code) {
     case Code.NotFound:
-    case Code.PermissionDenied:
       return refuse("not-found", thrown.rawMessage);
-    case Code.FailedPrecondition:
-      return refuse("ended", thrown.rawMessage);
+    case Code.PermissionDenied:
+      return refuse("forbidden", NOT_ALLOWED);
     case Code.Unauthenticated:
       return refuse("refused", `Ocel Cloud refused the console's token: ${thrown.rawMessage}`);
     default:
@@ -138,12 +139,15 @@ export function cloudJobsFor(caller: CloudCaller): CloudJobs | null {
   }
 
   const call = async <T>(
-    scope: Scope,
+    scopes: Scope[],
     run: (client: Client<typeof JobService>) => Promise<CloudAnswer<T>>,
     { refusal = refusalOf, timeoutMs = callTimeout } = {},
   ): Promise<CloudAnswer<T>> => {
+    if (lackedScope(caller.role, scopes) !== undefined) {
+      return refuse("forbidden", NOT_ALLOWED);
+    }
     try {
-      const { token } = await signCloudToken(cloud, caller, [scope], tokenLifetime);
+      const { token } = await signCloudToken(cloud, caller, scopes, tokenLifetime);
       const client = createClient(
         JobService,
         createConnectTransport({
@@ -161,9 +165,9 @@ export function cloudJobsFor(caller: CloudCaller): CloudJobs | null {
 
   return {
     get: (jobId) =>
-      call(Scope.APPS_READ, async (client) => jobOf((await client.getJob({ jobId })).job)),
+      call([Scope.APPS_READ], async (client) => jobOf((await client.getJob({ jobId })).job)),
     events: (jobId, afterSeq, limit = JOB_EVENTS_LIMIT) =>
-      call(Scope.APPS_READ, async (client) => {
+      call([Scope.APPS_READ], async (client) => {
         const answer = await client.listJobEvents({
           jobId,
           afterSeq: BigInt(afterSeq),
@@ -186,12 +190,16 @@ export function cloudJobsFor(caller: CloudCaller): CloudJobs | null {
         };
       }),
     cancel: (jobId) =>
-      call(Scope.APPS_WRITE, async (client) => jobOf((await client.cancelJob({ jobId })).job), {
-        timeoutMs: cancelTimeout,
-      }),
+      call(
+        [Scope.APPS_READ, Scope.APPS_WRITE],
+        async (client) => jobOf((await client.cancelJob({ jobId })).job),
+        { timeoutMs: cancelTimeout },
+      ),
     respond: (jobId, inputId, answer) =>
       call(
-        Scope.APPS_WRITE,
+        answer.kind === "variables"
+          ? [Scope.APPS_READ, Scope.APPS_WRITE, Scope.VARIABLES_WRITE]
+          : [Scope.APPS_READ, Scope.APPS_WRITE],
         async (client) =>
           jobOf((await client.respondJob({ jobId, inputId, answer: answerOf(answer) })).job),
         { refusal: respondRefusalOf },

@@ -468,4 +468,22 @@ describe("the Ocel Cloud job routes", () => {
       await stranger.cleanup();
     }
   });
+
+  it("answer 403 to a member giving values their role does not allow, without asking Ocel Cloud", async () => {
+    offer();
+    const owner = await createTestSessionWithOrganization();
+    const member = await createTestSessionWithRole(owner.organization.id, "member");
+    try {
+      cloud.add(owner.organization.id, waiting("job_route_member_values"));
+
+      const response = await respond(member, "job_route_member_values", answer);
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ reason: "forbidden" });
+      expect(cloud.seen).toEqual([]);
+    } finally {
+      await member.cleanup();
+      await owner.cleanup();
+    }
+  });
 });

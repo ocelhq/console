@@ -155,6 +155,47 @@ describe("the fake Ocel Cloud answers as Ocel Cloud does", () => {
       );
     });
 
+    it("answers variables only for a token with cloud.variables.write, and a confirmation for one with cloud.apps.write", async () => {
+      cloud.add("org-1", cloudJob({ id: "job_answer_scope" }));
+      const writer = await as({ scope: ["cloud.apps.read", "cloud.apps.write"] });
+      const variables = {
+        case: "variables" as const,
+        value: { values: [{ key: "TOKEN", folder: "", value: "s3cret" }] },
+      };
+
+      expect(
+        (
+          await refusal(
+            writer.respondJob({ jobId: "job_answer_scope", inputId: "input_1", answer: variables }),
+          )
+        ).code,
+      ).toBe(Code.PermissionDenied);
+      expect(
+        (
+          await refusal(
+            (
+              await as({ scope: ["cloud.variables.write"] })
+            ).respondJob({
+              jobId: "job_answer_scope",
+              inputId: "input_1",
+              answer: variables,
+            }),
+          )
+        ).code,
+      ).not.toBe(Code.PermissionDenied);
+      expect(
+        (
+          await refusal(
+            writer.respondJob({
+              jobId: "job_answer_scope",
+              inputId: "input_1",
+              answer: { case: "confirmed", value: true },
+            }),
+          )
+        ).code,
+      ).not.toBe(Code.PermissionDenied);
+    });
+
     it("refuses an invalid request as invalid before it reads the token, as the validate interceptor runs first", async () => {
       expect((await refusal(client(null).getJob({ jobId: "job.1" }))).code).toBe(
         Code.InvalidArgument,
@@ -270,6 +311,9 @@ describe("the fake Ocel Cloud answers as Ocel Cloud does", () => {
   });
 
   describe("RespondJob, as jobService.RespondJob and answerFor check an answer", () => {
+    const answerer = () =>
+      as({ scope: ["cloud.apps.read", "cloud.apps.write", "cloud.variables.write"] });
+
     const values = (...names: [string, string][]) => ({
       case: "variables" as const,
       value: { values: names.map(([folder, key]) => ({ folder, key, value: "v" })) },
@@ -278,7 +322,7 @@ describe("the fake Ocel Cloud answers as Ocel Cloud does", () => {
     it("refuses an answer to a job that waits on no input as a failed precondition", async () => {
       cloud.add("org-1", cloudJob({ id: "job_busy" }));
       cloud.add("org-1", cloudJob({ id: "job_over", state: JobState.SUCCEEDED }));
-      const caller = await as();
+      const caller = await answerer();
 
       for (const [jobId, state] of [
         ["job_busy", "running"],
@@ -300,7 +344,7 @@ describe("the fake Ocel Cloud answers as Ocel Cloud does", () => {
       cloud.add("org-1", waiting("job_moved"));
 
       const refused = await refusal(
-        (await as()).respondJob({
+        (await answerer()).respondJob({
           jobId: "job_moved",
           inputId: "input_0",
           answer: values(["", "DATABASE_URL"]),
@@ -339,7 +383,7 @@ describe("the fake Ocel Cloud answers as Ocel Cloud does", () => {
       cloud.add("org-1", jobId === "job_kind_question" ? asking(jobId) : waiting(jobId));
       const inputId = jobId === "job_kind_question" ? "input_c" : "input_1";
 
-      const refused = await refusal((await as()).respondJob({ jobId, inputId, answer }));
+      const refused = await refusal((await answerer()).respondJob({ jobId, inputId, answer }));
 
       expect(refused.code).toBe(Code.InvalidArgument);
       expect(refused.rawMessage).toBe(message);
@@ -349,7 +393,7 @@ describe("the fake Ocel Cloud answers as Ocel Cloud does", () => {
       cloud.add("org-1", waiting("job_unstorable"));
 
       const refused = await refusal(
-        (await as()).respondJob({
+        (await answerer()).respondJob({
           jobId: "job_unstorable",
           inputId: "input_1",
           answer: values(["/.", "HIDDEN"]),
@@ -362,7 +406,7 @@ describe("the fake Ocel Cloud answers as Ocel Cloud does", () => {
 
     it("resumes the job with the answer, logging the keys given and never a value", async () => {
       cloud.add("org-1", waiting("job_answered"));
-      const caller = await as();
+      const caller = await answerer();
 
       const { job } = await caller.respondJob({
         jobId: "job_answered",
@@ -391,7 +435,7 @@ describe("the fake Ocel Cloud answers as Ocel Cloud does", () => {
 
     it("resumes the job with the answer to its question", async () => {
       cloud.add("org-1", asking("job_said_no"));
-      const caller = await as();
+      const caller = await answerer();
 
       const { job } = await caller.respondJob({
         jobId: "job_said_no",

@@ -9,7 +9,14 @@ import { setupTestDatabase } from "@console/db/testing";
 import { createLocalJWKSet, jwtVerify } from "jose";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cloudEvent, cloudJob, type FakeCloud, startFakeCloud } from "../../test/cloud-harness";
-import { CONSOLE_FAILED, cloudJobsFor, refusalOf, respondRefusalOf, STALE_INPUT } from "./jobs";
+import {
+  CONSOLE_FAILED,
+  cloudJobsFor,
+  NOT_ALLOWED,
+  refusalOf,
+  respondRefusalOf,
+  STALE_INPUT,
+} from "./jobs";
 import type { CloudOffer } from "./offer";
 
 const offered = vi.hoisted(() => ({ cloud: undefined as CloudOffer | undefined }));
@@ -85,14 +92,17 @@ describe("cloudJobsFor", () => {
     expect((payload.exp ?? 0) - (payload.iat ?? 0)).toBe(60);
   });
 
-  it("cancels with a write token", async () => {
+  it("cancels with a read and write token", async () => {
     offer();
     cloud.add("org-1", cloudJob({ id: "job_cancel" }));
 
     const answer = await cloudJobsFor(caller)?.cancel("job_cancel");
 
     expect(answer).toMatchObject({ ok: true, result: { state: "canceled" } });
-    expect((await verified(cloud.seen[0].authorization)).scope).toEqual(["cloud.apps.write"]);
+    expect((await verified(cloud.seen[0].authorization)).scope).toEqual([
+      "cloud.apps.read",
+      "cloud.apps.write",
+    ]);
   });
 
   it("waits on a cancel longer than Ocel Cloud waits for the run to stop", async () => {
@@ -267,7 +277,7 @@ describe("cloudJobsFor", () => {
     });
   });
 
-  it("answers the variables a job asked for with a write token, and the job resumes", async () => {
+  it("answers the variables a job asked for with a token that writes variables, and the job resumes", async () => {
     offer();
     cloud.add("org-1", waitingForVariables("job_respond"));
 
@@ -294,10 +304,14 @@ describe("cloudJobsFor", () => {
         },
       },
     });
-    expect((await verified(cloud.seen[0].authorization)).scope).toEqual(["cloud.apps.write"]);
+    expect((await verified(cloud.seen[0].authorization)).scope).toEqual([
+      "cloud.apps.read",
+      "cloud.apps.write",
+      "cloud.variables.write",
+    ]);
   });
 
-  it("answers a confirmation", async () => {
+  it("answers a confirmation with a read and write token", async () => {
     offer();
     cloud.add(
       "org-1",
@@ -318,6 +332,88 @@ describe("cloudJobsFor", () => {
 
     expect(answer).toMatchObject({ ok: true, result: { state: "running" } });
     expect(cloud.seen[0].answer).toEqual({ case: "confirmed", value: false });
+    expect((await verified(cloud.seen[0].authorization)).scope).toEqual([
+      "cloud.apps.read",
+      "cloud.apps.write",
+    ]);
+  });
+
+  it.each(["member", "admin", "owner"])("lets a %s read, cancel and confirm", async (role) => {
+    offer();
+    cloud.add("org-1", cloudJob({ id: `job_${role}_cancel` }));
+    cloud.add(
+      "org-1",
+      cloudJob({
+        id: `job_${role}_confirm`,
+        state: JobState.INPUT_REQUIRED,
+        input: { id: "input_c", need: { case: "confirmation", value: { question: "Go?" } } },
+      }),
+    );
+    const jobs = cloudJobsFor({ ...caller, role });
+
+    expect(await jobs?.events(`job_${role}_cancel`, 0)).toMatchObject({ ok: true });
+    expect(await jobs?.cancel(`job_${role}_cancel`)).toMatchObject({ ok: true });
+    expect(
+      await jobs?.respond(`job_${role}_confirm`, "input_c", {
+        kind: "confirmation",
+        confirmed: true,
+      }),
+    ).toMatchObject({ ok: true });
+  });
+
+  it.each([
+    ["admin", true],
+    ["owner", true],
+    ["member,admin", true],
+    ["member", false],
+  ])("lets a role of %s answer variables: %s", async (role, allowed) => {
+    offer();
+    const id = `job_${role.replace(",", "_")}_values`;
+    cloud.add("org-1", waitingForVariables(id));
+
+    const answer = await cloudJobsFor({ ...caller, role })?.respond(id, "input_1", {
+      kind: "variables",
+      values: [{ key: "DATABASE_URL", folder: "", value: "x" }],
+    });
+
+    expect(answer?.ok).toBe(allowed);
+  });
+
+  it("refuses a member's variables without asking Ocel Cloud", async () => {
+    offer();
+    cloud.add("org-1", waitingForVariables("job_member_values"));
+
+    const answer = await cloudJobsFor({ ...caller, role: "member" })?.respond(
+      "job_member_values",
+      "input_1",
+      { kind: "variables", values: [{ key: "DATABASE_URL", folder: "", value: "x" }] },
+    );
+
+    expect(answer).toEqual({ ok: false, reason: "forbidden", message: NOT_ALLOWED });
+    expect(cloud.seen).toEqual([]);
+  });
+
+  it.each([
+    ["no role", ""],
+    ["a role it does not know", "visitor"],
+  ])("refuses a caller with %s before it signs a token", async (_, role) => {
+    offer();
+    cloud.add("org-1", waitingForVariables("job_no_role"));
+    const jobs = cloudJobsFor({ ...caller, role });
+    const signing = vi.spyOn(auth.api, "signJWT");
+    try {
+      for (const answer of [
+        await jobs?.events("job_no_role", 0),
+        await jobs?.cancel("job_no_role"),
+        await jobs?.respond("job_no_role", "input_1", { kind: "confirmation", confirmed: true }),
+      ]) {
+        expect(answer).toEqual({ ok: false, reason: "forbidden", message: NOT_ALLOWED });
+      }
+      expect(signing).not.toHaveBeenCalled();
+      expect(cloud.seen).toEqual([]);
+    } finally {
+      signing.mockRestore();
+    }
   });
 
   it("says an answer to an input that is no longer pending is stale", async () => {
@@ -383,8 +479,7 @@ describe("cloudJobsFor", () => {
 describe("refusalOf", () => {
   it.each([
     [Code.NotFound, "not-found"],
-    [Code.PermissionDenied, "not-found"],
-    [Code.FailedPrecondition, "ended"],
+    [Code.PermissionDenied, "forbidden"],
     [Code.Unauthenticated, "refused"],
     [Code.Unavailable, "unreachable"],
     [Code.Internal, "unreachable"],
@@ -413,7 +508,7 @@ describe("respondRefusalOf", () => {
     [Code.FailedPrecondition, "stale"],
     [Code.InvalidArgument, "invalid"],
     [Code.NotFound, "not-found"],
-    [Code.PermissionDenied, "not-found"],
+    [Code.PermissionDenied, "forbidden"],
     [Code.Unauthenticated, "refused"],
     [Code.Unavailable, "unreachable"],
   ])("maps %s to %s", (code, reason) => {

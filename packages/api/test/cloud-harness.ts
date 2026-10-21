@@ -1,5 +1,11 @@
 import { createServer, type Server } from "node:http";
-import { create, type DescMethod, type Message, type MessageInitShape } from "@bufbuild/protobuf";
+import {
+  create,
+  type DescMethod,
+  isMessage,
+  type Message,
+  type MessageInitShape,
+} from "@bufbuild/protobuf";
 import { timestampFromDate, timestampNow } from "@bufbuild/protobuf/wkt";
 import { createValidator } from "@bufbuild/protovalidate";
 import { Code, ConnectError, type HandlerContext } from "@connectrpc/connect";
@@ -16,6 +22,7 @@ import {
   JobService,
   JobState,
   type RespondJobRequest,
+  RespondJobRequestSchema,
 } from "@console/connectors/gen/cloud/v1/job_pb";
 import { SetValueRequestSchema } from "@console/connectors/gen/provider/variablestore/v1/variablestore_pb";
 import { decodeJwt, type JWTPayload } from "jose";
@@ -59,12 +66,18 @@ const defaultEventsLimit = 200;
 const scopes = new Map<DescMethod, string>([
   [JobService.method.startJob, "cloud.apps.write"],
   [JobService.method.cancelJob, "cloud.apps.write"],
-  [JobService.method.respondJob, "cloud.apps.write"],
   [JobService.method.getJob, "cloud.apps.read"],
   [JobService.method.listJobEvents, "cloud.apps.read"],
 ]);
 
 const validator = createValidator();
+
+function scopeFor(method: DescMethod, request: Message): string | undefined {
+  if (isMessage(request, RespondJobRequestSchema)) {
+    return request.answer.case === "variables" ? "cloud.variables.write" : "cloud.apps.write";
+  }
+  return scopes.get(method);
+}
 
 export function cloudJob(overrides: MessageInitShape<typeof JobSchema> = {}) {
   return {
@@ -110,7 +123,7 @@ function claimsOf(authorization: string): JWTPayload {
   }
 }
 
-function organizationOf(method: DescMethod, authorization: string): string {
+function organizationOf(needed: string | undefined, authorization: string): string {
   const claims = claimsOf(authorization);
   const now = Date.now() / 1000;
   if (claims.iss?.replace(/\/+$/, "") !== trustedConsole) {
@@ -136,7 +149,6 @@ function organizationOf(method: DescMethod, authorization: string): string {
   if (!Array.isArray(scope) || !scope.every((name) => typeof name === "string")) {
     throw untrusted("the token's scope is not a list of names");
   }
-  const needed = scopes.get(method);
   if (!needed || !scope.includes(needed)) {
     throw new ConnectError(`the token has no ${needed ?? ""} scope`, Code.PermissionDenied);
   }
@@ -228,7 +240,7 @@ export async function startFakeCloud(): Promise<FakeCloud> {
     if (result.kind !== "valid") {
       throw new ConnectError(result.error.message, Code.InvalidArgument);
     }
-    return organizationOf(context.method, authorization);
+    return organizationOf(scopeFor(context.method, request), authorization);
   }
 
   function owned(

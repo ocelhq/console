@@ -30,7 +30,7 @@ export async function reachJobs(request: Request, id: string): Promise<Reached> 
 
 const statuses: Record<CloudRefusal, number> = {
   "not-found": 404,
-  ended: 409,
+  forbidden: 403,
   stale: 409,
   invalid: 400,
   refused: 502,
