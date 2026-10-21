@@ -21,9 +21,9 @@ such; jargon that is not axiomatic is still avoided.
 
 ## Product Purpose
 
-The console is Ocel's optional hosted control plane and the visual half of a CLI-first
-product. It is a viewer: it shows what the CLI did and where things landed in the
-customer's own cloud. Everything starts from the CLI except creating an account and an
+The console is the optional UI over Ocel and the visual half of a CLI-first product.
+It is a viewer: it shows what the CLI did and where things landed, in the customer's
+own cloud or on Ocel Cloud, the zero-config managed target a console may offer. Everything starts from the CLI except creating an account and an
 organization. The console never triggers a deploy, creates a project, or edits
 infrastructure.
 
@@ -32,8 +32,11 @@ terminal, and trusting that what they see is exactly what the CLI last reported.
 
 ## Positioning
 
-- **A viewer, not a cloud.** Infrastructure lives in the customer's account. The
-  console stores only what the CLI reports to it and what a connector lets it pull.
+- **A viewer, not a cloud.** Infrastructure lives in the customer's account or on Ocel
+  Cloud, never in the console. The console stores only what the CLI reports to it and
+  what a connector or Ocel Cloud lets it pull. On an Ocel Cloud job page it relays the
+  answers a paused job asks for (missing variable values, a confirmation) and a cancel;
+  it starts no deploy.
 - **CLI-first.** Every mutating action the console cannot perform names the command
   that can. The command pane is the console's call to action.
 - **Own the history, borrow the state.** The console stores events the CLI pushes
@@ -78,7 +81,7 @@ overview that renders the latest one as a service map.
 - Monitoring and spend backed by real data.
 
 **Undecided:** whether the console ever gains a mutating action beyond account and
-organization setup.
+organization setup and relaying an Ocel Cloud job's answers or cancel.
 
 **Status:** pre-release alpha. Nothing is released, so nothing has consumers, and the
 codebase makes clean breaks.
@@ -86,7 +89,8 @@ codebase makes clean breaks.
 **Terminology:** "your own cloud", "provider", "environment" (production, preview),
 "promotion" (one deploy of the whole project), "deployment" (one app inside a
 promotion), "app", "resource", "binding", "usage" (an app reads a resource), "slug",
-"link", "connector", "console". Never call the console or Ocel a cloud.
+"link", "connector", "console", "target", "Ocel Cloud" (the zero-config managed target).
+Never call the console a cloud, and never call the console Ocel Cloud.
 
 ## Brand Commitments
 
