@@ -16,7 +16,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
     "@changesets/cli": "^3.0.3",
-    "ocel": "latest",
+    "ocel": "catalog:",
     "typescript": "catalog:",
     "zod": "^4.4.3"
   },
@@ -31,6 +31,7 @@
       "drizzle-kit": "1.0.0-rc.4",
       "drizzle-orm": "1.0.0-rc.4",
       "next": "16.2.10",
+      "ocel": "0.0.2",
       "react": "19.2.8",
       "react-dom": "19.2.8",
       "typescript": "5.9.3"

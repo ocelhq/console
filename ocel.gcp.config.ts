@@ -9,7 +9,6 @@ const target = buildEnv({
 });
 
 export default defineConfig({
-  $schema: "https://ocel.dev/schema/0.0.1/ocel.schema.json",
   slug: "console",
   provider: gcpProvider({ project: target.GCP_PROJECT, region: target.GCP_REGION }),
   apps: [{ name: "console", path: "apps/web" }],

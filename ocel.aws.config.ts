@@ -10,11 +10,8 @@ const target = buildEnv({
 });
 
 export default defineConfig({
-  $schema: "https://ocel.dev/schema/0.0.1/ocel.schema.json",
   slug: "console",
-  provider: awsProvider({ region: target.AWS_REGION }),
-  edge: cloudflare(),
-  dns: cloudflareDns(),
+  provider: awsProvider({ region: target.AWS_REGION, edge: cloudflare(), dns: cloudflareDns() }),
   apps: [{ name: "console", path: "apps/web" }],
   discovery: { paths: ["packages/infra/src", "packages/jobs/src/tasks"] },
   bindings: { postgres: { main: { url: { $env: "NEON_DATABASE_URL" } } } },
