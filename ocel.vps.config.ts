@@ -10,7 +10,6 @@ const target = buildEnv({
 });
 
 export default defineConfig({
-  $schema: "https://ocel.dev/schema/0.0.1/ocel.schema.json",
   slug: "console",
   provider: vpsProvider({
     ssh: {
@@ -23,8 +22,7 @@ export default defineConfig({
     {
       name: "console",
       path: "apps/web",
-      compute: "container",
-      health: { path: "/api/health" },
+      compute: { container: { health: { path: "/api/health" } } },
     },
   ],
   discovery: { paths: ["packages/infra/src", "packages/jobs/src/tasks"] },

@@ -32,7 +32,7 @@
     "@connectrpc/connect-web": "^2.2.0",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
-    "ocel": "latest",
+    "ocel": "catalog:",
     "typescript": "catalog:",
     "vite": "^8.1.3",
     "vitest": "^4.1.9"

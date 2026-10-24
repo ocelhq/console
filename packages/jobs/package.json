@@ -17,7 +17,7 @@
     "@console/db": "workspace:*",
     "@console/git": "workspace:*",
     "drizzle-orm": "catalog:",
-    "ocel": "latest"
+    "ocel": "catalog:"
   },
   "devDependencies": {
     "@console/infra": "workspace:*",

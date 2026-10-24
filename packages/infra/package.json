@@ -9,7 +9,7 @@
     "./env": "./src/env.ts"
   },
   "dependencies": {
-    "ocel": "latest",
+    "ocel": "catalog:",
     "zod": "^4.4.3"
   },
   "devDependencies": {
