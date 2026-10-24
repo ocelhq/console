@@ -702,8 +702,6 @@ export const AppBuildSchema: GenMessage<AppBuild> = /*@__PURE__*/
   messageDesc(file_cloud_v1_job, 23);
 
 /**
- * The builder derives each event from the `--json` stream (cli.stream.v1.RunEvent) of the `ocel` run the job runs.
- *
  * @generated from message cloud.v1.JobEvent
  */
 export type JobEvent = Message<"cloud.v1.JobEvent"> & {
