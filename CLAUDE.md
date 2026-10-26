@@ -23,8 +23,8 @@ the commands; CONTRIBUTING.md is binding for every change.
   ocel commit `buf.gen.yaml` pins). Never edit it by hand; CI fails when it differs from a
   fresh generate.
 - The schema changes through migrations: edit `packages/db/src/schema`, then `bun run db:generate`
-  writes `packages/db/drizzle/` and the embedded `src/migrations.gen.ts`. The app applies them at
-  start (`apps/web/instrumentation.ts`). Never hand-edit either output.
+  writes `packages/db/drizzle/`. Never hand-edit it. Each deploy applies them in `lifecycle.preBuild`
+  (`drizzle-kit migrate` against `postgres("main")`), never the app at start.
 - Shared versions (next, react, drizzle, better-auth, typescript) live in the root
   `workspaces.catalog`; packages depend on them as `catalog:`.
 - Before pushing: `bun run lint`, `bun run typecheck`, `bun run test`.

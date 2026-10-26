@@ -4,13 +4,14 @@
   "license": "Apache-2.0",
   "private": true,
   "scripts": {
-    "dev": "node --env-file-if-exists=.env.local scripts/dev-env.mjs",
+    "dev": "bun run db:migrate && node --env-file-if-exists=.env.local scripts/dev-env.mjs next dev",
     "dev:ocel": "ocel dev -c ../../ocel.aws.config.ts -- next dev",
     "build": "next build",
     "start": "next start",
     "auth:generate": "bun run --filter @console/auth auth:generate",
     "db:generate": "bun run --filter @console/db db:generate",
-    "db:studio": "bun run --filter @console/db db:studio",
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/dev-env.mjs bun run --filter @console/db db:migrate",
+    "db:studio": "node --env-file-if-exists=.env.local scripts/dev-env.mjs bun run --filter @console/db db:studio",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p ."
   },

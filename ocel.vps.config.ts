@@ -26,5 +26,6 @@ export default defineConfig({
     },
   ],
   discovery: { paths: ["packages/infra/src", "packages/jobs/src/tasks"] },
+  lifecycle: { preBuild: "bun run --filter @console/db db:migrate" },
   ...(target.CONSOLE_DOMAIN ? { domains: { production: target.CONSOLE_DOMAIN } } : {}),
 });
