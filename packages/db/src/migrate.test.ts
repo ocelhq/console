@@ -1,15 +1,14 @@
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { readMigrationFiles } from "drizzle-orm/migrator";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/pg-core/async/session";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { migrateDatabase } from "./migrate";
-import { migrations } from "./migrations.gen";
+import { migrateDatabase } from "./testing";
 
-describe("migrations.gen.ts", () => {
-  it("matches drizzle/, so run `bun run db:generate` after changing the schema", () => {
-    expect(migrations).toEqual(readMigrationFiles({ migrationsFolder: "drizzle" }));
-  });
+const migrations = readMigrationFiles({
+  migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)),
 });
 
 describe("migrateDatabase", () => {
@@ -76,6 +75,48 @@ describe("migrateDatabase", () => {
     } finally {
       await old.end();
       await admin.query(`DROP DATABASE "${before}"`);
+    }
+  });
+
+  it('lets `bun run db:migrate` migrate the database postgres("main") binds, as lifecycle.preBuild does', async () => {
+    const target = `${database}_prebuild`;
+    await admin.query(`CREATE DATABASE "${target}"`);
+    const bound = new Pool({ connectionString: new URL(`/${target}`, url).toString() });
+    try {
+      const { DATABASE_URL: _, ...env } = process.env;
+      execFileSync("bun", ["run", "db:migrate"], {
+        cwd: fileURLToPath(new URL("..", import.meta.url)),
+        env: {
+          ...env,
+          OCEL_RESOURCE_POSTGRES_main: JSON.stringify({
+            name: "main",
+            postgres: {
+              host: url.hostname,
+              port: Number(url.port || 5432),
+              database: target,
+              username: decodeURIComponent(url.username),
+              password: decodeURIComponent(url.password),
+            },
+          }),
+        },
+        stdio: "pipe",
+      });
+
+      const tables = await bound.query<{ table_name: string }>(
+        "select table_name from information_schema.tables where table_schema = 'public'",
+      );
+      expect(tables.rows.map((row) => row.table_name)).toEqual(
+        expect.arrayContaining(["user", "session", "organization", "invitation", "connector"]),
+      );
+      const applied = await bound.query("select hash from drizzle.__drizzle_migrations");
+      expect(applied.rowCount).toBe(migrations.length);
+
+      await migrateDatabase(bound);
+      const reapplied = await bound.query("select hash from drizzle.__drizzle_migrations");
+      expect(reapplied.rowCount).toBe(migrations.length);
+    } finally {
+      await bound.end();
+      await admin.query(`DROP DATABASE "${target}"`);
     }
   });
 

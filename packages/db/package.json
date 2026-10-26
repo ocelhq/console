@@ -6,12 +6,12 @@
   "type": "module",
   "exports": {
     ".": "./src/client.ts",
-    "./migrate": "./src/migrate.ts",
     "./schema": "./src/schema/index.ts",
     "./testing": "./src/testing.ts"
   },
   "scripts": {
-    "db:generate": "drizzle-kit generate && node scripts/embed-migrations.mjs",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p ."

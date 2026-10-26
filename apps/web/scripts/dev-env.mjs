@@ -2,9 +2,7 @@ import { spawn } from "node:child_process";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
-  console.error(
-    "DATABASE_URL is not set. Set it in apps/web/.env.local (see .env.example) before running `bun run dev`.",
-  );
+  console.error("DATABASE_URL is not set. Set it in apps/web/.env.local (see .env.example) first.");
   process.exit(1);
 }
 
@@ -20,8 +18,8 @@ process.env.OCEL_RESOURCE_POSTGRES_main = JSON.stringify({
   },
 });
 
-const extraArgs = process.argv.slice(2);
-const child = spawn("next", ["dev", ...extraArgs], {
+const [command, ...args] = process.argv.slice(2);
+const child = spawn(command, args, {
   stdio: "inherit",
   env: process.env,
 });
@@ -37,6 +35,6 @@ child.on("exit", (code, signal) => {
 });
 
 child.on("error", (err) => {
-  console.error(`Failed to start \`next dev\`: ${err.message}`);
+  console.error(`Failed to start \`${command}\`: ${err.message}`);
   process.exit(1);
 });

@@ -14,6 +14,7 @@ export default defineConfig({
   provider: awsProvider({ region: target.AWS_REGION, edge: cloudflare(), dns: cloudflareDns() }),
   apps: [{ name: "console", path: "apps/web" }],
   discovery: { paths: ["packages/infra/src", "packages/jobs/src/tasks"] },
+  lifecycle: { preBuild: "bun run --filter @console/db db:migrate" },
   bindings: { postgres: { main: { url: { $env: "NEON_DATABASE_URL" } } } },
   ...(target.CONSOLE_DOMAIN ? { domains: { production: target.CONSOLE_DOMAIN } } : {}),
 });

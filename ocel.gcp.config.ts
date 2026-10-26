@@ -13,5 +13,6 @@ export default defineConfig({
   provider: gcpProvider({ project: target.GCP_PROJECT, region: target.GCP_REGION }),
   apps: [{ name: "console", path: "apps/web" }],
   discovery: { paths: ["packages/infra/src", "packages/jobs/src/tasks"] },
+  lifecycle: { preBuild: "bun run --filter @console/db db:migrate" },
   ...(target.CONSOLE_DOMAIN ? { domains: { production: target.CONSOLE_DOMAIN } } : {}),
 });

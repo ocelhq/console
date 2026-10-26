@@ -1,5 +1,27 @@
+import { fileURLToPath } from "node:url";
+import { readMigrationFiles } from "drizzle-orm/migrator";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/pg-core/async/session";
 import { Pool } from "pg";
-import { migrateDatabase } from "./migrate";
+
+const MIGRATE_LOCK = 815_214;
+
+export async function migrateDatabase(pool: Pool): Promise<void> {
+  const migrations = readMigrationFiles({
+    migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)),
+  });
+  const client = await pool.connect();
+  try {
+    await client.query("SELECT pg_advisory_lock($1)", [MIGRATE_LOCK]);
+    try {
+      await migrate(migrations, drizzle({ client }), "__drizzle_migrations");
+    } finally {
+      await client.query("SELECT pg_advisory_unlock($1)", [MIGRATE_LOCK]);
+    }
+  } finally {
+    client.release();
+  }
+}
 
 const DATABASE_EXISTS_CODES = new Set(["42P04", "23505"]);
 

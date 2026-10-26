@@ -42,18 +42,19 @@ bun run dev                                     # http://localhost:3000
 tests. Set `POSTGRES_PORT` to publish it on another host port, and change the URLs in
 `.env.local` to match.
 
-`bun run dev` reads `DATABASE_URL` from `.env.local` and hands it to the app as its
-`postgres("main")` binding. `bun run dev:ocel` runs `next dev` under `ocel dev` instead, which
-supplies the binding itself.
+`bun run dev` reads `DATABASE_URL` from `.env.local`, applies the migrations to it, and hands
+it to the app as its `postgres("main")` binding. `bun run dev:ocel` runs `next dev` under
+`ocel dev` instead, which supplies the binding itself; migrate its database with
+`ocel run -c ../../ocel.aws.config.ts -- bun run --filter @console/db db:migrate`.
 
 Sign-in methods come from the env: `CONSOLE_EMAIL_AUTH=true` enables email and password, and
 `GITHUB_CLIENT_ID` with `GITHUB_CLIENT_SECRET` enables GitHub, from an OAuth app whose callback
 is `http://localhost:3000/api/auth/callback/github`. The console refuses to start with neither.
 `CONSOLE_SIGNUP` is `invite` unless set to `open`.
 
-The app applies the migrations in `packages/db/drizzle` when it starts. After changing the schema
-in `packages/db/src/schema`, run `bun run db:generate`. A database made by the old `db:push` has
-no migration record: recreate it (`docker compose down -v`).
+After changing the schema in `packages/db/src/schema`, run `bun run db:generate`, then
+`bun run db:migrate` to apply it. A database made by the old `db:push` has no migration record:
+recreate it (`docker compose down -v`).
 
 ## Self-host
 
@@ -78,7 +79,11 @@ ocel env set CONSOLE_EMAIL_AUTH=true
 CONSOLE_DOMAIN=console.example.com ocel deploy
 ```
 
-The app applies its migrations when it starts.
+Each deploy applies the migrations in `packages/db/drizzle` before it builds, from the machine
+running `ocel deploy`, through `lifecycle.preBuild`: `drizzle-kit migrate` against the deployed
+`postgres("main")`. A failed migration stops the deploy, so the running release keeps serving.
+To migrate without deploying, run
+`ocel run --env production -- bun run --filter @console/db db:migrate`.
 
 Sign-in is configured with these variables:
 
