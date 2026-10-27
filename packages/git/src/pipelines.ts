@@ -3,6 +3,7 @@ import {
   type CredentialGrant,
   pipelineToken,
   projectRepo,
+  TIERS,
   type TrustedPipeline,
   trustedPipeline,
 } from "@console/db/schema";
@@ -27,12 +28,17 @@ export function parseWorkflow(input: string): string | undefined | null {
   return WORKFLOW.test(workflow) ? workflow : undefined;
 }
 
-export function parseBranches(input: string): string[] {
-  const branches = input
+export function parsePatterns(input: string): string[] {
+  const patterns = input
     .split(/[\s,]+/)
-    .map((branch) => branch.trim())
+    .map((pattern) => pattern.trim())
     .filter(Boolean);
-  return branches.length === 0 ? ["*"] : [...new Set(branches)];
+  return [...new Set(patterns)];
+}
+
+export function parseBranches(input: string): string[] {
+  const branches = parsePatterns(input);
+  return branches.length === 0 ? ["*"] : branches;
 }
 
 export interface NewPipeline {
@@ -102,14 +108,35 @@ export async function narrowPipeline(
   return narrowed.length > 0;
 }
 
+function grantProblem(credentials: CredentialGrant): string | undefined {
+  for (const tier of TIERS) {
+    const grant = credentials[tier];
+    if (grant && grant.branches.length === 0) {
+      return `a ${tier} credential grant names at least one branch pattern; * names every branch`;
+    }
+  }
+  if (credentials.preview?.environment !== undefined) {
+    return "only a production credential grant names a GitHub environment";
+  }
+  return undefined;
+}
+
 export async function grantCredentials(
   projectId: string,
   id: string,
   credentials: CredentialGrant,
 ): Promise<boolean> {
+  const problem = grantProblem(credentials);
+  if (problem) throw new Error(problem);
+  const asked = sql`${JSON.stringify(credentials)}::jsonb`;
+  const productionBranch = sql`(select ${projectRepo.productionBranch} from ${projectRepo} where ${projectRepo.projectId} = ${trustedPipeline.projectId})`;
   const granted = await db
     .update(trustedPipeline)
-    .set({ credentials })
+    .set({
+      credentials: sql`case when ${trustedPipeline.origin} = 'linked' and ${asked} -> 'production' is not null and ${productionBranch} is not null
+        then jsonb_set(${asked}, '{production,branches}', jsonb_build_array(${productionBranch}))
+        else ${asked} end`,
+    })
     .where(and(eq(trustedPipeline.projectId, projectId), eq(trustedPipeline.id, id)))
     .returning({ id: trustedPipeline.id });
   return granted.length > 0;

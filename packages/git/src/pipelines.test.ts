@@ -9,6 +9,7 @@ import {
   claimPipeline,
   forgetExpiredPipelineTokens,
   parseBranches,
+  parsePatterns,
   parseRepository,
   parseWorkflow,
   pipelinesOf,
@@ -51,6 +52,12 @@ describe("parsing what an admin types", () => {
   it("takes branch patterns separated by commas or spaces, all branches when none", () => {
     expect(parseBranches("main, release/*  main")).toEqual(["main", "release/*"]);
     expect(parseBranches("  ")).toEqual(["*"]);
+  });
+
+  it("takes patterns with no default, so nothing named is nothing, not every branch", () => {
+    expect(parsePatterns("main, release/*")).toEqual(["main", "release/*"]);
+    expect(parsePatterns(", ,")).toEqual([]);
+    expect(parsePatterns("*")).toEqual(["*"]);
   });
 });
 
