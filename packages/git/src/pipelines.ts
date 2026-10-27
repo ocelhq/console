@@ -45,6 +45,7 @@ export interface NewPipeline {
   branches: string[];
   origin: TrustedPipeline["origin"];
   createdBy: string | null;
+  credentials?: CredentialGrant;
 }
 
 export async function pipelinesOf(projectId: string): Promise<TrustedPipeline[]> {
