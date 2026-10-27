@@ -1,12 +1,12 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { db } from "@console/db";
-import { organization, project } from "@console/db/schema";
+import { type CredentialGrant, organization, project } from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
 import { addPipeline, claimPipeline, type NewPipeline, pipelinesOf } from "@console/git";
 import { eq } from "drizzle-orm";
 import { createLocalJWKSet, SignJWT } from "jose";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { admitPipeline, claimAdmission, type ReportTier } from "./admit";
+import { admitCredential, admitPipeline, claimAdmission, type ReportTier } from "./admit";
 import { AUDIENCE, githubActions } from "./testing";
 
 const suffix = crypto.randomUUID();
@@ -304,5 +304,160 @@ describe("a pipeline added for a repository the console could not see", () => {
 
     expect(error.code).toBe(Code.PermissionDenied);
     expect((await pipelinesOf(projectId))[0]?.repositoryId).toBeNull();
+  });
+});
+
+async function credential(token: string, tier: ReportTier, into = projectId) {
+  const admitted = await admitCredential(token, { projectId: into, tier }, deps);
+  await db.transaction((tx) => claimAdmission(tx, admitted));
+  return admitted;
+}
+
+async function credentialRefusal(token: string, tier: ReportTier) {
+  const error = await credential(token, tier).then(
+    () => undefined,
+    (thrown: unknown) => thrown,
+  );
+  expect(error).toBeInstanceOf(ConnectError);
+  return error as ConnectError;
+}
+
+describe("a token asking for credentials", () => {
+  const granted = {
+    production: { branches: ["main"] },
+    preview: { branches: ["feat/*"] },
+  };
+
+  it("is admitted for production from a push to a granted branch", async () => {
+    await trust({ credentials: granted });
+
+    await expect(credential(await gha.push("main"), "production")).resolves.toBeDefined();
+  });
+
+  it("is admitted for a preview from a pull request whose head branch is granted", async () => {
+    await trust({ credentials: granted });
+
+    expect((await credential(await gha.sign(), "preview")).pr).toBe(7);
+  });
+
+  it("is gated by the credential grant, not the branches the pipeline may report from", async () => {
+    await trust({ branches: ["*"], credentials: granted });
+
+    await expect(admit(await gha.push("release/1"), "production")).resolves.toBeDefined();
+    const error = await credentialRefusal(await gha.push("release/2"), "production");
+
+    expect(error.code).toBe(Code.PermissionDenied);
+    expect(error.rawMessage).toContain(
+      "This run may not get credentials for the project: branch release/2 matches none of the pipeline's production credential branches: main",
+    );
+  });
+
+  it("still holds the run to the pipeline's repository", async () => {
+    await trust({ credentials: granted });
+
+    const error = await credentialRefusal(
+      await gha.push("main", { repository_id: "999" }),
+      "production",
+    );
+
+    expect(error.rawMessage).toContain("repository_id 999");
+  });
+
+  it.each<[string, CredentialGrant, () => Promise<string>, ReportTier, RegExp]>([
+    [
+      "a pipeline granted nothing",
+      {},
+      () => gha.push("main"),
+      "production",
+      /no production credential grant/,
+    ],
+    [
+      "a pull request run asking for production",
+      { production: { branches: ["*"] } },
+      () => gha.sign(),
+      "production",
+      /pull_request run gets no production credentials/,
+    ],
+    [
+      "a pull_request_target run asking for a preview",
+      { preview: { branches: ["*"] } },
+      () => gha.sign({ event_name: "pull_request_target" }),
+      "preview",
+      /pull_request_target run gets no preview credentials/,
+    ],
+    ...(["production", "preview"] as const).flatMap((tier) =>
+      (["workflow_run", "issue_comment", "schedule"] as const).map(
+        (event): [string, CredentialGrant, () => Promise<string>, ReportTier, RegExp] => [
+          `a ${event} run on refs/heads/main asking for ${tier}`,
+          { production: { branches: ["*"] }, preview: { branches: ["*"] } },
+          () => gha.push("main", { event_name: event }),
+          tier,
+          new RegExp(`a ${event} run gets no ${tier} credentials`),
+        ],
+      ),
+    ),
+
+    [
+      "a preview from a pipeline granted only production",
+      { production: { branches: ["*"] } },
+      () => gha.sign(),
+      "preview",
+      /no preview credential grant/,
+    ],
+    [
+      "a production run outside the environment the grant names",
+      { production: { branches: ["main"], environment: "production" } },
+      () => gha.push("main", { environment: "staging" }),
+      "production",
+      /environment staging is not the one the production credential grant names: production/,
+    ],
+  ])("is refused for %s", async (_, credentials, token, tier, problem) => {
+    await trust({ credentials, branches: ["main", "release/*", "feat/*"] });
+
+    const error = await credentialRefusal(await token(), tier);
+
+    expect(error.code).toBe(Code.PermissionDenied);
+    expect(error.rawMessage).toMatch(problem);
+  });
+
+  it("is refused on a branch the pipeline itself does not take, whatever the grant says", async () => {
+    await trust({ branches: ["release/*"], credentials: { preview: { branches: ["*"] } } });
+
+    const error = await credentialRefusal(await gha.push("feature/x"), "preview");
+
+    expect(error.code).toBe(Code.PermissionDenied);
+    expect(error.rawMessage).toContain(
+      "branch feature/x matches none of the pipeline's branches: release/*",
+    );
+  });
+
+  it("is admitted for production from a workflow_dispatch run on a granted branch", async () => {
+    await trust({ credentials: granted });
+
+    await expect(
+      credential(await gha.push("main", { event_name: "workflow_dispatch" }), "production"),
+    ).resolves.toBeDefined();
+  });
+
+  it("is admitted for a preview from a push to a granted branch", async () => {
+    await trust({ credentials: granted });
+
+    await expect(credential(await gha.push("feat/y"), "preview")).resolves.toBeDefined();
+  });
+
+  it("is admitted for production in the environment the grant names", async () => {
+    await trust({ credentials: { production: { branches: ["main"], environment: "production" } } });
+
+    await expect(
+      credential(await gha.push("main", { environment: "production" }), "production"),
+    ).resolves.toBeDefined();
+  });
+
+  it("is spent like a report's, so it is refused a second time", async () => {
+    await trust({ credentials: granted });
+    const token = await gha.push("main");
+    await credential(token, "production");
+
+    expect((await credentialRefusal(token, "production")).code).toBe(Code.Unauthenticated);
   });
 });

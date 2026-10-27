@@ -56,8 +56,8 @@ function unauthenticated(why: string): ConnectError {
   return new ConnectError(`The GitHub Actions token is not valid: ${why}`, Code.Unauthenticated);
 }
 
-function denied(why: string): ConnectError {
-  return new ConnectError(`This run may not report to the project: ${why}`, Code.PermissionDenied);
+function denied(refused: string, why: string): ConnectError {
+  return new ConnectError(`${refused}: ${why}`, Code.PermissionDenied);
 }
 
 async function verified(token: string, deps: PipelineKeys): Promise<GithubActionsClaims> {
@@ -113,9 +113,77 @@ function workflowOf(claims: GithubActionsClaims): string | undefined {
   return at?.toLowerCase().startsWith(prefix.toLowerCase()) ? at.slice(prefix.length) : undefined;
 }
 
+interface Gate {
+  refused: string;
+  problem(pipeline: TrustedPipeline, claims: GithubActionsClaims, run: Run): string | undefined;
+}
+
+function branchProblem(
+  patterns: readonly string[],
+  claims: GithubActionsClaims,
+  run: Run,
+  whose: string,
+): string | undefined {
+  const { branch } = run;
+  if (branch === undefined) {
+    return `ref ${claims.ref} of a ${claims.event_name} run names no branch`;
+  }
+  if (!patterns.some((pattern) => branchMatches(pattern, branch))) {
+    return `branch ${branch} matches none of ${whose}: ${patterns.join(", ")}`;
+  }
+  return undefined;
+}
+
+function reporting(tier: ReportTier): Gate {
+  return {
+    refused: "This run may not report to the project",
+    problem(pipeline, claims, run) {
+      return (
+        branchProblem(pipeline.branches, claims, run, "the pipeline's branches") ??
+        (run.pullRequest && tier === "production"
+          ? `a ${claims.event_name} run may report only a preview`
+          : undefined)
+      );
+    },
+  };
+}
+
+const CREDENTIAL_EVENTS: Record<ReportTier, ReadonlySet<string>> = {
+  production: new Set(["push", "workflow_dispatch"]),
+  preview: new Set(["pull_request", "push", "workflow_dispatch"]),
+};
+
+function credentials(tier: ReportTier): Gate {
+  return {
+    refused: "This run may not get credentials for the project",
+    problem(pipeline, claims, run) {
+      if (!CREDENTIAL_EVENTS[tier].has(claims.event_name)) {
+        return `a ${claims.event_name} run gets no ${tier} credentials`;
+      }
+      const grant = pipeline.credentials[tier];
+      if (!grant) {
+        return `the pipeline holds no ${tier} credential grant`;
+      }
+      const branch =
+        branchProblem(pipeline.branches, claims, run, "the pipeline's branches") ??
+        branchProblem(grant.branches, claims, run, `the pipeline's ${tier} credential branches`);
+      if (branch) return branch;
+      if (grant.environment && claims.environment !== grant.environment) {
+        return `environment ${claims.environment || "(none)"} is not the one the ${tier} credential grant names: ${grant.environment}`;
+      }
+      return undefined;
+    },
+  };
+}
+
 type Verdict = { ok: true } | { ok: false; repository: boolean; why: string };
 
-function judge(pipeline: TrustedPipeline, claims: GithubActionsClaims, run: Run): Verdict {
+function judge(
+  pipeline: TrustedPipeline,
+  claims: GithubActionsClaims,
+  run: Run,
+  gate: Gate,
+): Verdict {
   if (pipeline.repositoryId === null) {
     if (pipeline.repository.toLowerCase() !== claims.repository.toLowerCase()) {
       return {
@@ -152,40 +220,46 @@ function judge(pipeline: TrustedPipeline, claims: GithubActionsClaims, run: Run)
       `environment ${claims.environment || "(none)"} is not the pipeline's: ${pipeline.environment}`,
     );
   }
-  const { branch } = run;
-  if (branch === undefined) {
-    return fail(`ref ${claims.ref} of a ${claims.event_name} run names no branch`);
-  }
-  if (!pipeline.branches.some((pattern) => branchMatches(pattern, branch))) {
-    return fail(
-      `branch ${branch} matches none of the pipeline's branches: ${pipeline.branches.join(", ")}`,
-    );
-  }
-  return { ok: true };
+  const problem = gate.problem(pipeline, claims, run);
+  return problem === undefined ? { ok: true } : fail(problem);
 }
 
-function chosen(pipelines: TrustedPipeline[], claims: GithubActionsClaims, run: Run) {
+function chosen(pipelines: TrustedPipeline[], claims: GithubActionsClaims, run: Run, gate: Gate) {
   let closest: Extract<Verdict, { ok: false }> | undefined;
   for (const pipeline of pipelines) {
-    const verdict = judge(pipeline, claims, run);
+    const verdict = judge(pipeline, claims, run, gate);
     if (verdict.ok) return pipeline;
     if (!closest || (verdict.repository && !closest.repository)) closest = verdict;
   }
-  throw denied(closest?.why ?? "the project trusts no pipeline");
+  throw denied(gate.refused, closest?.why ?? "the project trusts no pipeline");
 }
 
-export async function admitPipeline(
+async function admit(
   token: string,
-  request: { projectId: string; tier: ReportTier },
+  projectId: string,
+  gate: Gate,
   deps: PipelineKeys,
 ): Promise<AdmittedPipeline> {
   const claims = await verified(token, deps);
   const run = runOf(claims);
-  const pipeline = chosen(await pipelinesOf(request.projectId), claims, run);
-  if (run.pullRequest && request.tier === "production") {
-    throw denied(`a ${claims.event_name} run may report only a preview`);
-  }
+  const pipeline = chosen(await pipelinesOf(projectId), claims, run, gate);
   return { pipeline, claims, ...(run.pr === undefined ? {} : { pr: run.pr }) };
+}
+
+export function admitPipeline(
+  token: string,
+  request: { projectId: string; tier: ReportTier },
+  deps: PipelineKeys,
+): Promise<AdmittedPipeline> {
+  return admit(token, request.projectId, reporting(request.tier), deps);
+}
+
+export function admitCredential(
+  token: string,
+  request: { projectId: string; tier: ReportTier },
+  deps: PipelineKeys,
+): Promise<AdmittedPipeline> {
+  return admit(token, request.projectId, credentials(request.tier), deps);
 }
 
 export async function claimAdmission(tx: Executor, admitted: AdmittedPipeline): Promise<void> {
@@ -199,6 +273,9 @@ export async function claimAdmission(tx: Executor, admitted: AdmittedPipeline): 
     repositoryOwnerId: claims.repository_owner_id,
   });
   if (!claimed) {
-    throw denied(`pipeline ${pipeline.id} is gone or was pinned to another repository`);
+    throw new ConnectError(
+      `Pipeline ${pipeline.id} is gone or was pinned to another repository`,
+      Code.PermissionDenied,
+    );
   }
 }
