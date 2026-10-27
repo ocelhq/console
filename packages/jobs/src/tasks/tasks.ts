@@ -1,4 +1,4 @@
-import { configuredGit } from "@console/git";
+import { configuredGit, forgetExpiredPipelineTokens } from "@console/git";
 import { task } from "ocel/task";
 import { type GitEventPayload, handleGitEvent } from "../events";
 import { jobQueue } from "../queue";
@@ -21,7 +21,7 @@ export const gitEvent = task<GitEventPayload>("git-event", {
   ordered: true,
   retry: { maxAttempts: 5, minDelay: "5s", maxDelay: "5m" },
   run: async (payload) => {
-    await handleGitEvent(payload, { store: git().store, notify });
+    await handleGitEvent(payload, { store: git().store, notify: jobChanged });
   },
 });
 
@@ -42,7 +42,11 @@ export const leaseSweep = task("lease-sweep", {
     try {
       await queue.sweep();
     } finally {
-      await queue.resync();
+      try {
+        await queue.resync();
+      } finally {
+        await forgetExpiredPipelineTokens();
+      }
     }
   },
 });
@@ -52,8 +56,8 @@ const triggers: Triggers = {
   gitSync: (payload, options) => gitSync.trigger(payload, options),
 };
 
-const notify = notifyJobChanged(triggers, linkedRepo);
+export const jobChanged = notifyJobChanged(triggers, linkedRepo);
 
 export const webhookEvents = queueGitEvent(triggers);
 
-export const runnerQueue = () => jobQueue({ notify });
+export const runnerQueue = () => jobQueue({ notify: jobChanged });

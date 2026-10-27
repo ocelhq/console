@@ -35,7 +35,11 @@ const provider = {
   async removeEnvironment(...args: unknown[]) {
     calls.push(["removeEnvironment", ...args]);
   },
+  async pullRequestHasCommit(_installation: unknown, _repo: unknown, _pr: number, commit: string) {
+    return !outside.has(commit);
+  },
 } as unknown as GitProvider;
+let outside = new Set<string>();
 const deps = { store, providerFor: () => provider };
 
 let serial = 0;
@@ -110,6 +114,7 @@ beforeEach(async () => {
   await db.delete(job).where(inArray(job.projectId, [web, api]));
   await db.delete(deployment).where(inArray(deployment.projectId, [web, api]));
   calls = [];
+  outside = new Set();
 });
 
 afterAll(async () => {
@@ -308,6 +313,46 @@ describe("a preview", () => {
     await syncJob(row.id, deps);
 
     expect(calls.map((call) => call[0])).toEqual(["upsertComment", "upsertDeployment"]);
+  });
+});
+
+describe("a preview CI reported", () => {
+  const RUN_URL = "https://github.com/acme/web/actions/runs/9/attempts/1";
+
+  it("links the run's log from the commit status, the comment and the deployment", async () => {
+    const row = await queued({ projectId: web, status: "failed", runUrl: RUN_URL, error: "boom" });
+
+    await syncJob(row.id, deps);
+
+    expect(calls[0]?.[3]).toMatchObject({ state: "failure", targetUrl: RUN_URL });
+    expect(arg<{ body: string }>(calls[1]).body).toContain(`[Run log](${RUN_URL})`);
+    expect(calls[2]?.[3]).toMatchObject({ state: "failure", logUrl: RUN_URL });
+  });
+
+  it("only updates the comment when it built a commit that is not the pull request's", async () => {
+    outside.add(sha("e"));
+    const row = await queued({ projectId: web, status: "done", sha: sha("e"), runUrl: RUN_URL });
+
+    await syncJob(row.id, deps);
+
+    expect(calls.map((call) => call[0])).toEqual(["upsertComment"]);
+    expect(arg<{ body: string }>(calls[0]).body).toContain(sha("e").slice(0, 7));
+  });
+
+  it("is shown at the latest run to start, not the latest report to arrive", async () => {
+    await queued({ projectId: web, status: "done", sha: sha("2"), eventAt: new Date(2000) });
+    const late = await queued({
+      projectId: web,
+      status: "done",
+      sha: sha("1"),
+      eventAt: new Date(1000),
+    });
+
+    await syncJob(late.id, deps);
+
+    const body = arg<{ body: string }>(calls[1]).body;
+    expect(body).toContain(sha("2").slice(0, 7));
+    expect(body).not.toContain(sha("1").slice(0, 7));
   });
 });
 

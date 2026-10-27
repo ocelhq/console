@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { db } from "@console/db";
-import { type Job, job, organization, project } from "@console/db/schema";
+import { type Job, job, organization, project, projectRepo } from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
 import { envKeyStore, type GitEvent, gitStore } from "@console/git";
 import { pg } from "@console/infra";
@@ -324,4 +324,40 @@ it("ignores an event from an installation it does not know", async () => {
 it("ignores an uninstall", async () => {
   await run({ type: "uninstalled", installation: "556" });
   expect(await jobs()).toEqual([]);
+});
+
+describe("a project whose deploys run in its own CI", () => {
+  it("has nothing queued for it by a push or a pull request, while the runners' projects do", async () => {
+    await db
+      .update(projectRepo)
+      .set({ deploys: "ci" })
+      .where(eq(projectRepo.projectId, projects[0] as string));
+    try {
+      await run(
+        {
+          type: "push",
+          installation: "556",
+          repo,
+          branch: "main",
+          sha: sha("b"),
+          deleted: false,
+          at: at(0),
+        },
+        "push-ci",
+      );
+      await run(opened(), "opened-ci");
+      await run(closed(5), "closed-ci");
+
+      expect(await jobs()).toEqual([]);
+      expect((await jobs(projects[1])).map((row) => row.kind)).toEqual([
+        "preview-up",
+        "preview-rm",
+      ]);
+    } finally {
+      await db
+        .update(projectRepo)
+        .set({ deploys: "runners" })
+        .where(eq(projectRepo.projectId, projects[0] as string));
+    }
+  });
 });

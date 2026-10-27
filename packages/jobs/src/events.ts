@@ -33,6 +33,7 @@ interface Wanted {
 }
 
 function wanted(event: RepoEvent, project: ProjectRepo): Wanted | undefined {
+  if (project.deploys === "ci") return undefined;
   switch (event.type) {
     case "push":
       if (event.deleted || event.branch !== project.productionBranch) return undefined;
