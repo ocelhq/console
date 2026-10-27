@@ -71,6 +71,7 @@ export const job = pgTable(
     claims: integer("claims").notNull().default(0),
     deploymentId: text("deployment_id"),
     error: text("error"),
+    runUrl: text("run_url"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     claimedAt: timestamp("claimed_at"),
     startedAt: timestamp("started_at"),

@@ -48,6 +48,10 @@ export const gitInstallation = pgTable(
 
 export type GitInstallation = typeof gitInstallation.$inferSelect;
 
+export const DEPLOY_MODES = ["runners", "ci"] as const;
+export type DeployMode = (typeof DEPLOY_MODES)[number];
+export const deployMode = pgEnum("deploy_mode", DEPLOY_MODES);
+
 export const projectRepo = pgTable(
   "project_repo",
   {
@@ -58,9 +62,11 @@ export const projectRepo = pgTable(
       .notNull()
       .references(() => gitInstallation.id, { onDelete: "cascade" }),
     repoId: text("repo_id").notNull(),
+    repoOwnerId: text("repo_owner_id"),
     fullName: text("full_name").notNull(),
     productionBranch: text("production_branch").notNull(),
     jobLabels: text("job_labels").array().notNull().default([]),
+    deploys: deployMode("deploys").notNull().default("runners"),
   },
   (table) => [
     index("project_repo_installationId_repoId_idx").on(table.installationId, table.repoId),
