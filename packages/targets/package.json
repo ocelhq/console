@@ -1,0 +1,27 @@
+{
+  "name": "@console/targets",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "the console as an OIDC issuer, and the targets that trust it",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@aws-sdk/client-kms": "^3.1157.0",
+    "@console/db": "workspace:*",
+    "@console/infra": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "jose": "^6.2.12"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "catalog:",
+    "vitest": "^4.1.9"
+  }
+}
