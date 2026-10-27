@@ -12,6 +12,7 @@ export {
   narrowPipeline,
   type PipelineNarrowing,
   parseBranches,
+  parsePatterns,
   parseRepository,
   parseWorkflow,
   pipelinesOf,

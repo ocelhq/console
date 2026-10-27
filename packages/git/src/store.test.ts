@@ -535,6 +535,38 @@ describe("where a linked project's deploys run", () => {
     });
   });
 
+  it("gives the linked pipeline's production grant the production branch, whatever it was asked for", async () => {
+    const { projectId } = await linked("pinned", "412");
+    await fromCi(projectId);
+    const [pipeline] = await pipelinesOf(projectId);
+    if (!pipeline) throw new Error("none");
+
+    await grantCredentials(projectId, pipeline.id, {
+      production: { branches: ["*"], environment: "production" },
+      preview: { branches: ["feat/*"] },
+    });
+
+    expect((await pipelinesOf(projectId))[0]?.credentials).toEqual({
+      production: { branches: ["main"], environment: "production" },
+      preview: { branches: ["feat/*"] },
+    });
+  });
+
+  it("refuses a grant naming no branch, or an environment for previews", async () => {
+    const { projectId } = await linked("invalid", "413");
+    const added = await manual(projectId);
+
+    await expect(
+      grantCredentials(projectId, added.id, { production: { branches: [] } }),
+    ).rejects.toThrow(/production/);
+    await expect(
+      grantCredentials(projectId, added.id, {
+        preview: { branches: ["*"], environment: "preview" },
+      }),
+    ).rejects.toThrow(/environment/);
+    expect((await pipelinesOf(projectId))[0]?.credentials).toEqual({});
+  });
+
   it("gives a pipeline an admin adds no credentials until one grants them", async () => {
     const { projectId } = await linked("manual", "411");
 
