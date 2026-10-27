@@ -40,13 +40,58 @@ describe("listRepos", () => {
   it("returns every repository the installation reaches, across pages", async () => {
     const { github, provider } = setup();
     for (let id = 1; id <= 150; id++) {
-      github.repositories.push({ id, full_name: `acme/repo-${id}`, default_branch: "trunk" });
+      github.repositories.push({
+        id,
+        full_name: `acme/repo-${id}`,
+        default_branch: "trunk",
+        owner: { id: 42 },
+      });
     }
 
     const repos = await provider.listRepos(installation);
 
     expect(repos).toHaveLength(150);
-    expect(repos[0]).toEqual({ id: "1", fullName: "acme/repo-1", defaultBranch: "trunk" });
+    expect(repos[0]).toEqual({
+      id: "1",
+      fullName: "acme/repo-1",
+      defaultBranch: "trunk",
+      ownerId: "42",
+    });
+  });
+});
+
+describe("findRepo", () => {
+  it("finds a repository the installation reaches by its id, with its owner's id", async () => {
+    const { github, provider } = setup();
+    github.repositories.push({
+      id: 1234,
+      full_name: "acme/renamed",
+      default_branch: "main",
+      owner: { id: 42 },
+    });
+
+    expect(await provider.findRepo(installation, "1234")).toEqual({
+      id: "1234",
+      fullName: "acme/renamed",
+      defaultBranch: "main",
+      ownerId: "42",
+    });
+    expect(await provider.findRepo(installation, "999")).toBeUndefined();
+  });
+});
+
+describe("pullRequestHasCommit", () => {
+  it("answers whether a commit is one of the pull request's, across pages", async () => {
+    const { github, provider } = setup();
+    github.pullCommits.set(
+      7,
+      Array.from({ length: 120 }, (_, at) => String(at).padStart(40, "0")),
+    );
+
+    expect(
+      await provider.pullRequestHasCommit(installation, repo, 7, "119".padStart(40, "0")),
+    ).toBe(true);
+    expect(await provider.pullRequestHasCommit(installation, repo, 7, "f".repeat(40))).toBe(false);
   });
 });
 

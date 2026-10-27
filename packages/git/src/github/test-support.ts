@@ -66,7 +66,14 @@ export function fakeGithub() {
   const calls: Call[] = [];
   const deployments: FakeDeployment[] = [];
   const comments: FakeComment[] = [];
-  const repositories: { id: number; full_name: string; default_branch: string }[] = [];
+  const repositories: {
+    id: number;
+    full_name: string;
+    default_branch: string;
+    owner?: { id: number };
+    private?: boolean;
+  }[] = [];
+  const pullCommits = new Map<number, string[]>();
   const oauth = {
     codes: new Map<string, string>(),
     revoked: [] as string[],
@@ -155,6 +162,29 @@ export function fakeGithub() {
         repositories: repositories.slice((page - 1) * size, page * size),
       });
     }
+    const byId = at.match(/^GET \/repositories\/(\d+)$/);
+    if (byId) {
+      const found = repositories.find((repository) => repository.id === Number(byId[1]));
+      return found ? reply(found) : reply({ message: "Not Found" }, 404);
+    }
+    const byName = at.match(/^GET \/repos\/([^/]+\/[^/]+)$/);
+    if (byName) {
+      const found = repositories.find(
+        (repository) =>
+          repository.full_name.toLowerCase() ===
+            decodeURIComponent(byName[1] ?? "").toLowerCase() &&
+          (!repository.private || authorization !== ""),
+      );
+      return found ? reply(found) : reply({ message: "Not Found" }, 404);
+    }
+    const commitsOf = at.match(/^GET \/repos\/[^/]+\/[^/]+\/pulls\/(\d+)\/commits$/);
+    if (commitsOf) {
+      const page = Number(url.searchParams.get("page") ?? "1");
+      const size = Number(url.searchParams.get("per_page") ?? "30");
+      const shas = pullCommits.get(Number(commitsOf[1]));
+      if (!shas) return reply({ message: "Not Found" }, 404);
+      return reply(shas.slice((page - 1) * size, page * size).map((sha) => ({ sha })));
+    }
     if (/^POST \/repos\/[^/]+\/[^/]+\/statuses\/\w+$/.test(at)) return reply({ id: nextId++ }, 201);
     if (/^GET \/repos\/[^/]+\/[^/]+\/deployments$/.test(at)) {
       const environment = url.searchParams.get("environment");
@@ -219,6 +249,7 @@ export function fakeGithub() {
     deployments,
     comments,
     repositories,
+    pullCommits,
     oauth,
     callsTo(method: string, pattern: RegExp) {
       return calls.filter((call) => call.method === method && pattern.test(call.path));

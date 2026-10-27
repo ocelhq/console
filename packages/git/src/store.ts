@@ -1,13 +1,15 @@
 import { db } from "@console/db";
 import {
+  type DeployMode,
   type GitInstallation,
   type GitKind,
   gitApp,
   gitInstallation,
   project,
   projectRepo,
+  trustedPipeline,
 } from "@console/db/schema";
-import { and, eq, isNull, ne, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import type { KeyStore } from "./keystore";
 import type { Repo } from "./provider";
 import { openSecret, sealSecret } from "./secrets";
@@ -19,6 +21,18 @@ export interface ProjectRepo {
   organizationId: string;
   productionBranch: string;
   jobLabels: string[];
+  deploys: DeployMode;
+}
+
+export interface LinkedRepo {
+  installationId: string;
+  account: string;
+  externalId: string;
+  gitAppId: string;
+  repoId: string;
+  fullName: string;
+  productionBranch: string;
+  deploys: DeployMode;
 }
 
 export const systemAppId = (kind: GitKind) => `system-${kind}`;
@@ -205,18 +219,32 @@ export function gitStore(keys: KeyStore) {
     },
 
     async removeInstallation(gitAppId: string, externalId: string): Promise<void> {
-      await db
-        .delete(gitInstallation)
-        .where(
-          and(eq(gitInstallation.gitAppId, gitAppId), eq(gitInstallation.externalId, externalId)),
-        );
+      await db.transaction(async (tx) => {
+        const linked = tx
+          .select({ projectId: projectRepo.projectId })
+          .from(projectRepo)
+          .innerJoin(gitInstallation, eq(gitInstallation.id, projectRepo.installationId))
+          .where(
+            and(eq(gitInstallation.gitAppId, gitAppId), eq(gitInstallation.externalId, externalId)),
+          );
+        await tx
+          .delete(trustedPipeline)
+          .where(
+            and(eq(trustedPipeline.origin, "linked"), inArray(trustedPipeline.projectId, linked)),
+          );
+        await tx
+          .delete(gitInstallation)
+          .where(
+            and(eq(gitInstallation.gitAppId, gitAppId), eq(gitInstallation.externalId, externalId)),
+          );
+      });
     },
 
     async linkProjectRepo(input: {
       projectId: string;
       organizationId: string;
       installationId: string;
-      repo: Repo;
+      repo: Pick<Repo, "id" | "fullName" | "defaultBranch">;
       productionBranch?: string;
       jobLabels?: string[];
     }): Promise<void> {
@@ -241,17 +269,72 @@ export function gitStore(keys: KeyStore) {
           );
         if (!owned) throw new Error("the project was not found");
 
+        const [previous] = await tx
+          .select({ installationId: projectRepo.installationId, repoId: projectRepo.repoId })
+          .from(projectRepo)
+          .where(eq(projectRepo.projectId, input.projectId));
+        const moved =
+          previous !== undefined &&
+          (previous.installationId !== input.installationId || previous.repoId !== input.repo.id);
+        if (moved) {
+          await tx
+            .delete(trustedPipeline)
+            .where(
+              and(
+                eq(trustedPipeline.projectId, input.projectId),
+                eq(trustedPipeline.origin, "linked"),
+              ),
+            );
+        }
+
         const link = {
           installationId: input.installationId,
           repoId: input.repo.id,
           fullName: input.repo.fullName,
           productionBranch: input.productionBranch ?? input.repo.defaultBranch,
           jobLabels: input.jobLabels ?? [],
+          ...(moved ? { deploys: "runners" as const } : {}),
         };
         await tx
           .insert(projectRepo)
           .values({ projectId: input.projectId, ...link })
           .onConflictDoUpdate({ target: projectRepo.projectId, set: link });
+      });
+    },
+
+    async linkedRepo(projectId: string): Promise<LinkedRepo | undefined> {
+      const [linked] = await db
+        .select({
+          installationId: gitInstallation.id,
+          account: gitInstallation.account,
+          externalId: gitInstallation.externalId,
+          gitAppId: gitInstallation.gitAppId,
+          repoId: projectRepo.repoId,
+          fullName: projectRepo.fullName,
+          productionBranch: projectRepo.productionBranch,
+          deploys: projectRepo.deploys,
+        })
+        .from(projectRepo)
+        .innerJoin(gitInstallation, eq(gitInstallation.id, projectRepo.installationId))
+        .where(eq(projectRepo.projectId, projectId));
+      return linked;
+    },
+
+    async setProductionBranch(projectId: string, branch: string): Promise<void> {
+      await db
+        .update(projectRepo)
+        .set({ productionBranch: branch })
+        .where(eq(projectRepo.projectId, projectId));
+    },
+
+    async unlinkProjectRepo(projectId: string): Promise<void> {
+      await db.transaction(async (tx) => {
+        await tx
+          .delete(trustedPipeline)
+          .where(
+            and(eq(trustedPipeline.projectId, projectId), eq(trustedPipeline.origin, "linked")),
+          );
+        await tx.delete(projectRepo).where(eq(projectRepo.projectId, projectId));
       });
     },
 
@@ -262,6 +345,7 @@ export function gitStore(keys: KeyStore) {
           organizationId: project.organizationId,
           productionBranch: projectRepo.productionBranch,
           jobLabels: projectRepo.jobLabels,
+          deploys: projectRepo.deploys,
         })
         .from(projectRepo)
         .innerJoin(project, eq(project.id, projectRepo.projectId))

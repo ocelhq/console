@@ -6,6 +6,7 @@ import type {
   DeploymentState,
   GitProvider,
   InstallationRef,
+  Repo,
   RepoRef,
   UserInstallation,
 } from "../provider";
@@ -46,6 +47,20 @@ async function everyPage<T>(page: (number: number) => Promise<T[]>): Promise<T[]
     if (items.length < PAGE) return all;
   }
 }
+
+interface GithubRepo {
+  id: number | bigint;
+  full_name: string;
+  default_branch: string;
+  owner: { id: number | bigint };
+}
+
+const repoOf = (repo: GithubRepo): Repo => ({
+  id: String(repo.id),
+  fullName: repo.full_name,
+  defaultBranch: repo.default_branch,
+  ownerId: String(repo.owner.id),
+});
 
 function signatureMatches(body: string, signature: string, secret: string): boolean {
   const expected = Buffer.from(
@@ -167,11 +182,30 @@ export function githubProvider(github: GithubApp, options: GithubOptions = {}): 
         });
         return data.repositories;
       });
-      return repos.map((repo) => ({
-        id: String(repo.id),
-        fullName: repo.full_name,
-        defaultBranch: repo.default_branch,
-      }));
+      return repos.map(repoOf);
+    },
+
+    async findRepo(installation, id) {
+      const octokit = await installationClient(installation);
+      try {
+        const { data } = await octokit.request("GET /repositories/{id}", { id: Number(id) });
+        return repoOf(data as GithubRepo);
+      } catch (error) {
+        if (error instanceof RequestError && error.status === 404) return undefined;
+        throw error;
+      }
+    },
+
+    async pullRequestHasCommit(installation, repo, pr, sha) {
+      const octokit = await installationClient(installation);
+      const commits = await everyPage(async (page) => {
+        const { data } = await octokit.request(
+          "GET /repos/{owner}/{repo}/pulls/{pull_number}/commits",
+          { ...ownerAndName(repo), pull_number: pr, per_page: PAGE, page },
+        );
+        return data;
+      });
+      return commits.some((commit) => commit.sha === sha);
     },
 
     async repoToken(installation, repo, access) {
