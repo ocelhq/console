@@ -1,6 +1,13 @@
 import { randomBytes } from "node:crypto";
 import { db } from "@console/db";
-import { type Job, job, organization, project, trustedPipeline } from "@console/db/schema";
+import {
+  type Job,
+  job,
+  organization,
+  project,
+  projectRepo,
+  trustedPipeline,
+} from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
 import { addPipeline, envKeyStore, gitStore, pipelinesOf } from "@console/git";
 import { pg } from "@console/infra";
@@ -62,7 +69,7 @@ beforeAll(async () => {
     projectId,
     organizationId: orgId,
     installationId: bound.id,
-    repo: { id: "1234", fullName: "acme/web", defaultBranch: "main" },
+    repo: { id: "1234", fullName: "acme/web", defaultBranch: "main", ownerId: "42" },
   });
 });
 
@@ -82,7 +89,7 @@ describe("moving a project's deploys to its own CI", () => {
     await queued("queued");
     await queued("running");
 
-    await deployIn(projectId, { mode: "ci", pipeline: { ...repo, createdBy: null } }, notify);
+    await deployIn(projectId, { mode: "ci", by: null }, notify);
 
     expect(await store.linkedRepo(projectId)).toMatchObject({ deploys: "ci" });
     const statuses = (await db.select().from(job).where(eq(job.projectId, projectId)))
@@ -96,8 +103,8 @@ describe("moving a project's deploys to its own CI", () => {
   });
 
   it("trusts one linked pipeline however often it is chosen", async () => {
-    await deployIn(projectId, { mode: "ci", pipeline: { ...repo, createdBy: null } }, notify);
-    await deployIn(projectId, { mode: "ci", pipeline: { ...repo, createdBy: null } }, notify);
+    await deployIn(projectId, { mode: "ci", by: null }, notify);
+    await deployIn(projectId, { mode: "ci", by: null }, notify);
 
     expect(await pipelinesOf(projectId)).toHaveLength(1);
   });
@@ -105,7 +112,7 @@ describe("moving a project's deploys to its own CI", () => {
 
 describe("moving a project's deploys back to the runners", () => {
   it("forgets the linked pipeline and keeps the ones added by hand", async () => {
-    await deployIn(projectId, { mode: "ci", pipeline: { ...repo, createdBy: null } }, notify);
+    await deployIn(projectId, { mode: "ci", by: null }, notify);
     const manual = await addPipeline({
       projectId,
       ...repo,
@@ -116,7 +123,7 @@ describe("moving a project's deploys back to the runners", () => {
       createdBy: null,
     });
 
-    await deployIn(projectId, { mode: "runners" }, notify);
+    await deployIn(projectId, { mode: "runners", by: null }, notify);
 
     expect(await store.linkedRepo(projectId)).toMatchObject({ deploys: "runners" });
     expect((await pipelinesOf(projectId)).map((kept) => kept.id)).toEqual([manual.id]);
@@ -124,7 +131,24 @@ describe("moving a project's deploys back to the runners", () => {
 });
 
 it("refuses a project linked to no repo", async () => {
-  await expect(deployIn(`missing-${suffix}`, { mode: "runners" }, notify)).rejects.toThrow(
-    /linked/,
-  );
+  await expect(
+    deployIn(`missing-${suffix}`, { mode: "runners", by: null }, notify),
+  ).rejects.toThrow(/linked/);
+});
+
+it("refuses to trust a linked repository whose owner it never learned, and changes nothing", async () => {
+  await db
+    .update(projectRepo)
+    .set({ repoOwnerId: null })
+    .where(eq(projectRepo.projectId, projectId));
+  try {
+    await expect(deployIn(projectId, { mode: "ci", by: null }, notify)).rejects.toThrow(/again/);
+    expect(await store.linkedRepo(projectId)).toMatchObject({ deploys: "runners" });
+    expect(await pipelinesOf(projectId)).toEqual([]);
+  } finally {
+    await db
+      .update(projectRepo)
+      .set({ repoOwnerId: "42" })
+      .where(eq(projectRepo.projectId, projectId));
+  }
 });

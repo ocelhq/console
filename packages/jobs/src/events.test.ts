@@ -13,7 +13,7 @@ const orgId = `org-${suffix}`;
 const appRowId = `app-${suffix}`;
 const projects = [`p1-${suffix}`, `p2-${suffix}`];
 const store = gitStore(envKeyStore(randomBytes(32).toString("base64")));
-const repo = { id: "1234", fullName: "acme/web", defaultBranch: "main" };
+const repo = { id: "1234", fullName: "acme/web", defaultBranch: "main", ownerId: "42" };
 const at = (minute: number) => new Date(Date.UTC(2026, 9, 8, 10, minute));
 const sha = (c: string) => c.repeat(40);
 

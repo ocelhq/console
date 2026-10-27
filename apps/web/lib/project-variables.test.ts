@@ -17,7 +17,7 @@ import { createTestSessionWithOrganization } from "@/test/auth-harness";
 import { connectorFor } from "./connectors";
 import { latestTopology } from "./project-variables";
 
-const connect = connectHandler();
+const connect = connectHandler({ notify: async () => {}, git: () => undefined });
 
 const TARGET = "aws/123456789012/us-east-1/main";
 

@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createTestSessionWithOrganization } from "../test/auth-harness";
 import { CONNECT_PREFIX, connectHandler } from "./routes/connect/route";
 
-const connect = connectHandler();
+const connect = connectHandler({ notify: async () => {}, git: () => undefined });
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 

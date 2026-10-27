@@ -79,6 +79,7 @@ export default async function ProjectGitPage({ params }: { params: Promise<{ slu
       <Pipelines
         projectId={found.id}
         administers={organization.administers}
+        deploysFromCi={linked?.deploys === "ci"}
         now={now}
         pipelines={pipelines.map((pipeline) => ({
           id: pipeline.id,

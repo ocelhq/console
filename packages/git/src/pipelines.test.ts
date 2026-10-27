@@ -6,11 +6,11 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   addPipeline,
+  claimPipeline,
   forgetExpiredPipelineTokens,
   parseBranches,
   parseRepository,
   parseWorkflow,
-  pinPipeline,
   pipelinesOf,
   removePipeline,
   spendPipelineToken,
@@ -55,7 +55,7 @@ describe("parsing what an admin types", () => {
 });
 
 describe("a trusted pipeline", () => {
-  it("is pinned to the first repository ids seen, and only once", async () => {
+  it("is claimed by the first repository ids seen, then only by them, and notes each use", async () => {
     const added = await addPipeline({
       projectId,
       repository: "acme/private",
@@ -68,21 +68,27 @@ describe("a trusted pipeline", () => {
       createdBy: null,
     });
 
+    const ids = { repositoryId: "1", repositoryOwnerId: "2" };
+    expect(await claimPipeline(db, added.id, ids)).toMatchObject({
+      ...ids,
+      lastUsedAt: expect.any(Date),
+    });
+    expect(await claimPipeline(db, added.id, ids)).toMatchObject(ids);
     expect(
-      await pinPipeline(added.id, { repositoryId: "1", repositoryOwnerId: "2" }),
-    ).toMatchObject({ repositoryId: "1", repositoryOwnerId: "2" });
-    expect(
-      await pinPipeline(added.id, { repositoryId: "9", repositoryOwnerId: "9" }),
+      await claimPipeline(db, added.id, { repositoryId: "9", repositoryOwnerId: "9" }),
     ).toBeUndefined();
-    expect((await pipelinesOf(projectId))[0]).toMatchObject({ repositoryId: "1" });
+    expect(
+      await claimPipeline(db, added.id, { repositoryId: "1", repositoryOwnerId: "9" }),
+    ).toBeUndefined();
+    expect((await pipelinesOf(projectId))[0]).toMatchObject(ids);
   });
 
   it("is removed only from its own project", async () => {
     const [added] = await pipelinesOf(projectId);
     if (!added) throw new Error("none");
 
-    expect(await removePipeline("another-project", added.id)).toBe(false);
-    expect(await removePipeline(projectId, added.id)).toBe(true);
+    expect(await removePipeline("another-project", added.id)).toBe("missing");
+    expect(await removePipeline(projectId, added.id)).toBe("removed");
     expect(await pipelinesOf(projectId)).toEqual([]);
   });
 });
@@ -92,9 +98,9 @@ describe("a pipeline token", () => {
     const jti = `jti-${suffix}`;
     const expired = `expired-${suffix}`;
 
-    expect(await spendPipelineToken("iss", jti, new Date(Date.now() + 60_000))).toBe(true);
-    expect(await spendPipelineToken("iss", jti, new Date(Date.now() + 60_000))).toBe(false);
-    expect(await spendPipelineToken("iss", expired, new Date(Date.now() - 1000))).toBe(true);
+    expect(await spendPipelineToken(db, "iss", jti, new Date(Date.now() + 60_000))).toBe(true);
+    expect(await spendPipelineToken(db, "iss", jti, new Date(Date.now() + 60_000))).toBe(false);
+    expect(await spendPipelineToken(db, "iss", expired, new Date(Date.now() - 1000))).toBe(true);
 
     await forgetExpiredPipelineTokens();
 

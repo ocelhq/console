@@ -73,7 +73,7 @@ export function fakeGithub() {
     owner?: { id: number };
     private?: boolean;
   }[] = [];
-  const pullCommits = new Map<number, string[]>();
+  const pulls = new Map<number, { head: { sha: string }; merge_commit_sha: string | null }>();
   const oauth = {
     codes: new Map<string, string>(),
     revoked: [] as string[],
@@ -177,13 +177,12 @@ export function fakeGithub() {
       );
       return found ? reply(found) : reply({ message: "Not Found" }, 404);
     }
-    const commitsOf = at.match(/^GET \/repos\/[^/]+\/[^/]+\/pulls\/(\d+)\/commits$/);
-    if (commitsOf) {
-      const page = Number(url.searchParams.get("page") ?? "1");
-      const size = Number(url.searchParams.get("per_page") ?? "30");
-      const shas = pullCommits.get(Number(commitsOf[1]));
-      if (!shas) return reply({ message: "Not Found" }, 404);
-      return reply(shas.slice((page - 1) * size, page * size).map((sha) => ({ sha })));
+    const pullOf = at.match(/^GET \/repos\/[^/]+\/[^/]+\/pulls\/(\d+)$/);
+    if (pullOf) {
+      const pull = pulls.get(Number(pullOf[1]));
+      return pull
+        ? reply({ number: Number(pullOf[1]), ...pull })
+        : reply({ message: "Not Found" }, 404);
     }
     if (/^POST \/repos\/[^/]+\/[^/]+\/statuses\/\w+$/.test(at)) return reply({ id: nextId++ }, 201);
     if (/^GET \/repos\/[^/]+\/[^/]+\/deployments$/.test(at)) {
@@ -249,7 +248,7 @@ export function fakeGithub() {
     deployments,
     comments,
     repositories,
-    pullCommits,
+    pulls,
     oauth,
     callsTo(method: string, pattern: RegExp) {
       return calls.filter((call) => call.method === method && pattern.test(call.path));

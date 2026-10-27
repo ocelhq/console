@@ -1,11 +1,13 @@
-import { db } from "@console/db";
+import { db, type Executor } from "@console/db";
 import {
   type Deployment,
   type EnvironmentEvent,
+  gitInstallation,
   type Job,
   job,
   projectRepo,
 } from "@console/db/schema";
+import type { GitRuntime } from "@console/git";
 import { and, eq } from "drizzle-orm";
 
 export type ReportedDeployment = Pick<
@@ -25,7 +27,18 @@ export type ReportedFromCi = {
   runUrl: string;
 } & ({ deployment: ReportedDeployment } | { event: ReportedEvent });
 
+export type ReportedGit = Pick<GitRuntime, "providerFor"> & {
+  store: Pick<GitRuntime["store"], "loadApp">;
+};
+
 type JobValues = Omit<typeof job.$inferInsert, "id" | "projectId" | "dedupeKey" | "runUrl">;
+
+export interface PlannedJob {
+  projectId: string;
+  dedupeKey: string;
+  runUrl: string;
+  values: JobValues;
+}
 
 function jobOf(reported: ReportedFromCi): JobValues | undefined {
   if ("event" in reported) {
@@ -63,15 +76,54 @@ function jobOf(reported: ReportedFromCi): JobValues | undefined {
   };
 }
 
-export async function reportedFromCi(
+interface Followed {
+  fullName: string;
+  repoId: string;
+  externalId: string;
+  gitAppId: string;
+}
+
+async function pullRequestCommit(
+  git: ReportedGit | undefined,
+  followed: Followed,
+  pr: number,
+  sha: string | null | undefined,
+): Promise<string | null> {
+  if (!git || !sha) return null;
+  try {
+    const app = await git.store.loadApp(followed.gitAppId);
+    if (!app) return null;
+    const head = await git
+      .providerFor(app)
+      .pullRequest(
+        { externalId: followed.externalId },
+        { id: followed.repoId, fullName: followed.fullName },
+        pr,
+      );
+    if (!head) return null;
+    // A pull_request run builds GitHub's test merge commit, which the pull request does not have.
+    return sha === head.headSha || sha === head.mergeCommitSha ? head.headSha : null;
+  } catch (error) {
+    console.error("jobs: the reported preview's pull request was not read", { pr, error });
+    return null;
+  }
+}
+
+export async function planReportedJob(
   reported: ReportedFromCi,
-  notify: (changed: Job) => Promise<void>,
-): Promise<Job[]> {
+  git: ReportedGit | undefined,
+): Promise<PlannedJob | undefined> {
   const values = jobOf(reported);
-  if (!values) return [];
+  if (!values) return undefined;
   const [followed] = await db
-    .select({ projectId: projectRepo.projectId })
+    .select({
+      fullName: projectRepo.fullName,
+      repoId: projectRepo.repoId,
+      externalId: gitInstallation.externalId,
+      gitAppId: gitInstallation.gitAppId,
+    })
     .from(projectRepo)
+    .innerJoin(gitInstallation, eq(gitInstallation.id, projectRepo.installationId))
     .where(
       and(
         eq(projectRepo.projectId, reported.projectId),
@@ -79,25 +131,45 @@ export async function reportedFromCi(
         eq(projectRepo.repoId, reported.repositoryId),
       ),
     );
-  if (!followed) return [];
-
+  if (!followed) return undefined;
+  if (values.kind === "preview-up") {
+    values.sha = await pullRequestCommit(git, followed, values.pr ?? 0, values.sha);
+  }
   const id = "event" in reported ? reported.event.deploymentId : reported.deployment.deploymentId;
-  const made = await db
+  return {
+    projectId: reported.projectId,
+    dedupeKey: `report:${id}`,
+    runUrl: reported.runUrl,
+    values,
+  };
+}
+
+export async function recordReportedJob(
+  tx: Executor,
+  planned: PlannedJob | undefined,
+): Promise<Job[]> {
+  if (!planned) return [];
+  return tx
     .insert(job)
     .values({
       id: crypto.randomUUID(),
-      projectId: reported.projectId,
-      dedupeKey: `report:${id}`,
-      runUrl: reported.runUrl,
-      ...values,
+      projectId: planned.projectId,
+      dedupeKey: planned.dedupeKey,
+      runUrl: planned.runUrl,
+      ...planned.values,
     })
     .onConflictDoNothing()
     .returning();
+}
+
+export async function notifyReported(
+  made: Job[],
+  notify: (changed: Job) => Promise<void>,
+): Promise<void> {
   for (const changed of made) {
     // The job is stored; a report lost here is sent again by the resync.
     await notify(changed).catch((error: unknown) => {
       console.error("jobs: a reported job went unreported until resync", { id: changed.id, error });
     });
   }
-  return made;
 }

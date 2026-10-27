@@ -92,8 +92,9 @@ export function DeploysIn({
               The workflow requests its OIDC token with{" "}
               <span className="font-mono">permissions: id-token: write</span> and the audience{" "}
               <span className="font-mono">{audience}</span>. Switching to your CI cancels deploys
-              still waiting for a runner and trusts {linked.fullName}’s pipelines below; switching
-              back stops trusting them.
+              still waiting for a runner and trusts {linked.fullName}’s pipeline below, which you
+              can narrow but not remove while deploys run in your CI; switching back stops trusting
+              it.
             </p>
           )}
           {!administers && <p className={hint}>{readOnly}</p>}

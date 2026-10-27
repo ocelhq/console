@@ -1,6 +1,11 @@
-import { db } from "@console/db";
-import { pipelineToken, type TrustedPipeline, trustedPipeline } from "@console/db/schema";
-import { and, asc, eq, isNull, lt, sql } from "drizzle-orm";
+import { db, type Executor } from "@console/db";
+import {
+  pipelineToken,
+  projectRepo,
+  type TrustedPipeline,
+  trustedPipeline,
+} from "@console/db/schema";
+import { and, asc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
 
 export const GITHUB_ACTIONS_ISSUER = "https://token.actions.githubusercontent.com";
 
@@ -58,39 +63,130 @@ export async function addPipeline(input: NewPipeline): Promise<TrustedPipeline> 
   return added;
 }
 
-export async function removePipeline(projectId: string, id: string): Promise<boolean> {
+export type Removal = "removed" | "missing" | "linked";
+
+const deploysFromCi = (projectId: string) =>
+  sql`exists (select 1 from ${projectRepo} where ${projectRepo.projectId} = ${projectId} and ${projectRepo.deploys} = 'ci')`;
+
+export async function removePipeline(projectId: string, id: string): Promise<Removal> {
+  const mine = and(eq(trustedPipeline.projectId, projectId), eq(trustedPipeline.id, id));
   const removed = await db
     .delete(trustedPipeline)
-    .where(and(eq(trustedPipeline.projectId, projectId), eq(trustedPipeline.id, id)))
+    .where(
+      and(mine, or(ne(trustedPipeline.origin, "linked"), sql`not ${deploysFromCi(projectId)}`)),
+    )
     .returning({ id: trustedPipeline.id });
-  return removed.length > 0;
+  if (removed.length > 0) return "removed";
+  const [kept] = await db.select({ id: trustedPipeline.id }).from(trustedPipeline).where(mine);
+  return kept ? "linked" : "missing";
 }
 
-export async function pinPipeline(
+export interface PipelineNarrowing {
+  workflow: string | null;
+  environment: string | null;
+  branches: string[];
+}
+
+export async function narrowPipeline(
+  projectId: string,
+  id: string,
+  narrowing: PipelineNarrowing,
+): Promise<boolean> {
+  const narrowed = await db
+    .update(trustedPipeline)
+    .set(narrowing)
+    .where(and(eq(trustedPipeline.projectId, projectId), eq(trustedPipeline.id, id)))
+    .returning({ id: trustedPipeline.id });
+  return narrowed.length > 0;
+}
+
+export async function syncLinkedPipeline(
+  tx: Executor,
+  projectId: string,
+  createdBy: string | null = null,
+): Promise<void> {
+  const linkedRows = and(
+    eq(trustedPipeline.projectId, projectId),
+    eq(trustedPipeline.origin, "linked"),
+  );
+  const [link] = await tx
+    .select({
+      deploys: projectRepo.deploys,
+      repoId: projectRepo.repoId,
+      repoOwnerId: projectRepo.repoOwnerId,
+      fullName: projectRepo.fullName,
+    })
+    .from(projectRepo)
+    .where(eq(projectRepo.projectId, projectId));
+  if (link?.deploys !== "ci" || link.repoOwnerId === null) {
+    await tx.delete(trustedPipeline).where(linkedRows);
+    return;
+  }
+
+  await tx
+    .delete(trustedPipeline)
+    .where(
+      and(
+        linkedRows,
+        or(isNull(trustedPipeline.repositoryId), ne(trustedPipeline.repositoryId, link.repoId)),
+      ),
+    );
+  const ids = {
+    repository: link.fullName,
+    repositoryId: link.repoId,
+    repositoryOwnerId: link.repoOwnerId,
+  };
+  const [kept] = await tx
+    .update(trustedPipeline)
+    .set(ids)
+    .where(and(linkedRows, eq(trustedPipeline.repositoryId, link.repoId)))
+    .returning({ id: trustedPipeline.id });
+  if (kept) return;
+  await tx.insert(trustedPipeline).values({
+    id: crypto.randomUUID(),
+    projectId,
+    kind: "github-actions",
+    origin: "linked",
+    createdBy,
+    ...ids,
+  });
+}
+
+export async function claimPipeline(
+  tx: Executor,
   id: string,
   ids: { repositoryId: string; repositoryOwnerId: string },
 ): Promise<TrustedPipeline | undefined> {
-  const [pinned] = await db
+  const [claimed] = await tx
     .update(trustedPipeline)
-    .set(ids)
-    .where(and(eq(trustedPipeline.id, id), isNull(trustedPipeline.repositoryId)))
+    .set({
+      repositoryId: sql`coalesce(${trustedPipeline.repositoryId}, ${ids.repositoryId})`,
+      repositoryOwnerId: sql`coalesce(${trustedPipeline.repositoryOwnerId}, ${ids.repositoryOwnerId})`,
+      lastUsedAt: sql`now()`,
+    })
+    .where(
+      and(
+        eq(trustedPipeline.id, id),
+        or(
+          isNull(trustedPipeline.repositoryId),
+          and(
+            eq(trustedPipeline.repositoryId, ids.repositoryId),
+            eq(trustedPipeline.repositoryOwnerId, ids.repositoryOwnerId),
+          ),
+        ),
+      ),
+    )
     .returning();
-  return pinned;
-}
-
-export async function pipelineUsed(id: string): Promise<void> {
-  await db
-    .update(trustedPipeline)
-    .set({ lastUsedAt: sql`now()` })
-    .where(eq(trustedPipeline.id, id));
+  return claimed;
 }
 
 export async function spendPipelineToken(
+  tx: Executor,
   issuer: string,
   jti: string,
   expiresAt: Date,
 ): Promise<boolean> {
-  const spent = await db
+  const spent = await tx
     .insert(pipelineToken)
     .values({ issuer, jti, expiresAt })
     .onConflictDoNothing()

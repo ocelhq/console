@@ -6,7 +6,13 @@ import { pg } from "@console/infra";
 import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { envKeyStore, type KeyStore } from "./keystore";
-import { addPipeline, pipelinesOf } from "./pipelines";
+import {
+  addPipeline,
+  narrowPipeline,
+  pipelinesOf,
+  removePipeline,
+  syncLinkedPipeline,
+} from "./pipelines";
 import { gitStore, removeSystemApp, systemAppId } from "./store";
 
 const suffix = crypto.randomUUID();
@@ -206,7 +212,7 @@ describe("installations and repos", () => {
       projectId: `p-${suffix}`,
       organizationId: orgA,
       installationId: first.id,
-      repo: { id: "1234", fullName: "acme/web", defaultBranch: "main" },
+      repo: { id: "1234", fullName: "acme/web", defaultBranch: "main", ownerId: "42" },
       productionBranch: "trunk",
       jobLabels: ["target:vps-box-1"],
     });
@@ -230,7 +236,7 @@ describe("installations and repos", () => {
       projectId: `p-${suffix}`,
       organizationId: orgA,
       installationId: installation.id,
-      repo: { id: "1234", fullName: "acme/web", defaultBranch: "develop" },
+      repo: { id: "1234", fullName: "acme/web", defaultBranch: "develop", ownerId: "42" },
     });
 
     expect(await store.projectsForRepo(installation.id, "1234")).toMatchObject([
@@ -280,7 +286,7 @@ describe("installations and repos", () => {
         projectId: `q-${suffix}`,
         organizationId: orgB,
         installationId: installation.id,
-        repo: { id: "5", fullName: "acme/api", defaultBranch: "main" },
+        repo: { id: "5", fullName: "acme/api", defaultBranch: "main", ownerId: "42" },
         productionBranch: "main",
       }),
     ).rejects.toThrow(/installation/);
@@ -311,7 +317,7 @@ describe("installations and repos", () => {
       projectId: `p-${suffix}`,
       organizationId: orgA,
       installationId: installation.id,
-      repo: { id: "1234", fullName: "acme/web", defaultBranch: "main" },
+      repo: { id: "1234", fullName: "acme/web", defaultBranch: "main", ownerId: "42" },
     });
 
     await db.delete(gitApp).where(eq(gitApp.id, app.id));
@@ -332,6 +338,8 @@ describe("installations and repos", () => {
 });
 
 describe("where a linked project's deploys run", () => {
+  const ciRepo = { id: "77", fullName: "acme/ci", defaultBranch: "main", ownerId: "42" };
+
   async function linked(name: string, externalId: string) {
     const app = await organizationApp(`app-${suffix}-${name}`);
     const installation = await store.bindInstallation({
@@ -347,12 +355,17 @@ describe("where a linked project's deploys run", () => {
       projectId,
       organizationId: orgA,
       installationId: installation.id,
-      repo: { id: "77", fullName: "acme/ci", defaultBranch: "main" },
+      repo: ciRepo,
     });
     return { app, installation, projectId };
   }
 
-  async function pipeline(projectId: string, origin: "linked" | "manual") {
+  async function fromCi(projectId: string) {
+    await db.update(projectRepo).set({ deploys: "ci" }).where(eq(projectRepo.projectId, projectId));
+    await syncLinkedPipeline(db, projectId);
+  }
+
+  async function manual(projectId: string) {
     return addPipeline({
       projectId,
       repository: "acme/ci",
@@ -361,10 +374,13 @@ describe("where a linked project's deploys run", () => {
       workflow: null,
       environment: null,
       branches: ["*"],
-      origin,
+      origin: "manual",
       createdBy: null,
     });
   }
+
+  const origins = async (projectId: string) =>
+    (await pipelinesOf(projectId)).map((kept) => kept.origin).sort();
 
   it("is the console's runners until changed, and every project of the repo says so", async () => {
     const { installation, projectId } = await linked("runs", "400");
@@ -378,30 +394,84 @@ describe("where a linked project's deploys run", () => {
       account: "acme",
       deploys: "runners",
     });
+    expect(await pipelinesOf(projectId)).toEqual([]);
   });
 
-  it("forgets the linked pipeline but keeps the manual ones when the project is unlinked", async () => {
-    const { projectId } = await linked("unlinked", "401");
-    await db.update(projectRepo).set({ deploys: "ci" }).where(eq(projectRepo.projectId, projectId));
-    await pipeline(projectId, "linked");
-    const manual = await pipeline(projectId, "manual");
+  it("trusts the linked repository's pipeline by its ids while the project deploys from its CI", async () => {
+    const { projectId } = await linked("trusted", "405");
 
-    await store.unlinkProjectRepo(projectId);
+    await fromCi(projectId);
 
-    expect(await store.linkedRepo(projectId)).toBeUndefined();
-    expect((await pipelinesOf(projectId)).map((kept) => kept.id)).toEqual([manual.id]);
+    expect(await pipelinesOf(projectId)).toMatchObject([
+      {
+        origin: "linked",
+        repository: "acme/ci",
+        repositoryId: "77",
+        repositoryOwnerId: "42",
+        branches: ["*"],
+      },
+    ]);
   });
 
-  it("goes back to the runners, without the linked pipeline, when the link moves to another repo", async () => {
-    const { installation, projectId } = await linked("moved", "402");
-    await db.update(projectRepo).set({ deploys: "ci" }).where(eq(projectRepo.projectId, projectId));
-    await pipeline(projectId, "linked");
+  it("keeps how an admin narrowed the linked pipeline when the link is saved again", async () => {
+    const { installation, projectId } = await linked("narrowed", "406");
+    await fromCi(projectId);
+    const [pipeline] = await pipelinesOf(projectId);
+    if (!pipeline) throw new Error("none");
+    await narrowPipeline(projectId, pipeline.id, {
+      workflow: ".github/workflows/deploy.yml",
+      environment: "production",
+      branches: ["main"],
+    });
 
     await store.linkProjectRepo({
       projectId,
       organizationId: orgA,
       installationId: installation.id,
-      repo: { id: "78", fullName: "acme/other", defaultBranch: "main" },
+      repo: { ...ciRepo, fullName: "acme/renamed" },
+    });
+
+    expect(await pipelinesOf(projectId)).toMatchObject([
+      {
+        id: pipeline.id,
+        repository: "acme/renamed",
+        workflow: ".github/workflows/deploy.yml",
+        environment: "production",
+        branches: ["main"],
+      },
+    ]);
+  });
+
+  it("will not remove the linked pipeline while the project deploys from its CI", async () => {
+    const { projectId } = await linked("kept", "407");
+    await fromCi(projectId);
+    const [pipeline] = await pipelinesOf(projectId);
+    if (!pipeline) throw new Error("none");
+
+    expect(await removePipeline(projectId, pipeline.id)).toBe("linked");
+    expect(await pipelinesOf(projectId)).toHaveLength(1);
+  });
+
+  it("forgets the linked pipeline but keeps the manual ones when the project is unlinked", async () => {
+    const { projectId } = await linked("unlinked", "401");
+    await fromCi(projectId);
+    const added = await manual(projectId);
+
+    await store.unlinkProjectRepo(projectId);
+
+    expect(await store.linkedRepo(projectId)).toBeUndefined();
+    expect((await pipelinesOf(projectId)).map((kept) => kept.id)).toEqual([added.id]);
+  });
+
+  it("goes back to the runners, without the linked pipeline, when the link moves to another repo", async () => {
+    const { installation, projectId } = await linked("moved", "402");
+    await fromCi(projectId);
+
+    await store.linkProjectRepo({
+      projectId,
+      organizationId: orgA,
+      installationId: installation.id,
+      repo: { id: "78", fullName: "acme/other", defaultBranch: "main", ownerId: "42" },
     });
 
     expect(await store.linkedRepo(projectId)).toMatchObject({ repoId: "78", deploys: "runners" });
@@ -410,7 +480,7 @@ describe("where a linked project's deploys run", () => {
 
   it("keeps where deploys run when the link only changes its production branch", async () => {
     const { projectId } = await linked("branch", "403");
-    await db.update(projectRepo).set({ deploys: "ci" }).where(eq(projectRepo.projectId, projectId));
+    await fromCi(projectId);
 
     await store.setProductionBranch(projectId, "release");
 
@@ -418,15 +488,16 @@ describe("where a linked project's deploys run", () => {
       productionBranch: "release",
       deploys: "ci",
     });
+    expect(await origins(projectId)).toEqual(["linked"]);
   });
 
   it("forgets the linked pipelines of the projects linked through an installation that goes", async () => {
     const { app, projectId } = await linked("uninstalled", "404");
-    await pipeline(projectId, "linked");
-    const manual = await pipeline(projectId, "manual");
+    await fromCi(projectId);
+    await manual(projectId);
 
     await store.removeInstallation(app.id, "404");
 
-    expect((await pipelinesOf(projectId)).map((kept) => kept.id)).toEqual([manual.id]);
+    expect(await origins(projectId)).toEqual(["manual"]);
   });
 });

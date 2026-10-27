@@ -1,37 +1,47 @@
 import { create } from "@bufbuild/protobuf";
-import { Code, ConnectError, type HandlerContext, type ServiceImpl } from "@connectrpc/connect";
+import { Code, ConnectError, type ServiceImpl } from "@connectrpc/connect";
 import { Tier } from "@console/connectors/gen/common/environment/v1/environment_pb";
 import {
   CISchema,
+  type Deployment,
   DeploymentKind,
   type DeploymentService,
+  type EnvironmentEvent,
   EnvironmentEventKind,
-  type RecordEnvironmentEventRequest,
-  type ReportRequest,
   TriggerKind,
   TriggerSchema,
 } from "@console/connectors/gen/console/v1/deployment_pb";
-import { db } from "@console/db";
-import { environmentEvent, type Job, type Principal } from "@console/db/schema";
-import { reportedFromCi } from "@console/jobs";
-import { and, eq } from "drizzle-orm";
-import { uuidv7 } from "uuidv7";
-import { environmentEventValues } from "../../deployments/record";
+import { db, type Transaction } from "@console/db";
+import type { Job } from "@console/db/schema";
+import type { GitRuntime } from "@console/git";
 import {
-  organizationOfProject,
+  notifyReported,
+  type PlannedJob,
+  planReportedJob,
+  type ReportedFromCi,
+  recordReportedJob,
+} from "@console/jobs";
+import { uuidv7 } from "uuidv7";
+import { deploymentValues, environmentEventValues } from "../../deployments/record";
+import {
   projectInOrganization,
   type Recording,
   recordDeployment,
-  recordOnce,
+  recordEnvironmentEvent,
 } from "../../deployments/report";
-import type { ReportTier } from "../../pipelines/admit";
-import { type Caller, callerOf, type PipelineReport } from "./caller";
+import {
+  type AdmittedPipeline,
+  admitPipeline,
+  claimAdmission,
+  type PipelineKeys,
+} from "../../pipelines/admit";
+import { callerOf } from "./caller";
 
 export interface DeploymentServiceDeps {
   notify: (changed: Job) => Promise<void>;
+  git: () => GitRuntime | undefined;
+  pipelineKeys: () => PipelineKeys;
 }
-
-type PipelineCaller = Extract<Caller, { kind: "pipeline" }>;
 
 function notOwned(projectId: string): ConnectError {
   return new ConnectError(`No project ${projectId} in the session's organization`, Code.NotFound);
@@ -59,147 +69,145 @@ function accepted(what: string, recording: Recording): void {
   }
 }
 
-const tierOf = (preview: boolean): ReportTier => (preview ? "preview" : "production");
+const previewDeployment = (deployment: Deployment) =>
+  deployment.kind === DeploymentKind.PREVIEW_UP && deployment.environment?.tier === Tier.PREVIEW;
 
-export const reportTier: PipelineReport = (message) => {
-  const { projectId, deployment } = message as ReportRequest;
-  return {
-    projectId,
-    tier: tierOf(
-      deployment?.kind === DeploymentKind.PREVIEW_UP &&
-        deployment.environment?.tier === Tier.PREVIEW,
-    ),
-  };
-};
+const previewRemoval = (event: EnvironmentEvent) =>
+  event.kind === EnvironmentEventKind.PREVIEW_REMOVED && event.environment?.tier === Tier.PREVIEW;
 
-export const environmentEventTier: PipelineReport = (message) => {
-  const { projectId, event } = message as RecordEnvironmentEventRequest;
-  return {
-    projectId,
-    tier: tierOf(
-      event?.kind === EnvironmentEventKind.PREVIEW_REMOVED &&
-        event.environment?.tier === Tier.PREVIEW,
-    ),
-  };
-};
-
-function principalOf(caller: Caller): Principal {
-  return caller.kind === "session"
-    ? { kind: "session", userId: caller.session.userId }
-    : { kind: "pipeline", pipelineId: caller.pipeline.id, jti: caller.claims.jti };
-}
-
-function runUrlOf({ claims }: PipelineCaller): string {
+function runUrlOf({ claims }: AdmittedPipeline): string {
   return `https://github.com/${claims.repository}/actions/runs/${claims.run_id}/attempts/${claims.run_attempt}`;
 }
 
-function ciOf(caller: PipelineCaller) {
+function ciOf(admitted: AdmittedPipeline) {
   return create(CISchema, {
     name: "github-actions",
-    repo: caller.claims.repository,
-    runUrl: runUrlOf(caller),
-    pr: caller.pr ?? 0,
+    repo: admitted.claims.repository,
+    runUrl: runUrlOf(admitted),
+    pr: admitted.pr ?? 0,
   });
 }
 
-async function organizationFor(caller: Caller, projectId: string): Promise<string> {
-  if (caller.kind === "session") return caller.session.activeOrganizationId;
-  if (caller.pipeline.projectId !== projectId) {
-    throw new ConnectError(
-      `The pipeline reports to project ${caller.pipeline.projectId}, not ${projectId}`,
-      Code.PermissionDenied,
-    );
-  }
-  const organizationId = await organizationOfProject(projectId);
-  if (!organizationId) throw new ConnectError(`No project ${projectId}`, Code.NotFound);
-  return organizationId;
-}
-
-async function ownedProject(context: HandlerContext, projectId: string): Promise<string> {
-  const caller = callerOf(context);
-  const found = await projectInOrganization(await organizationFor(caller, projectId), projectId);
-  if (!found) {
-    throw notOwned(projectId);
-  }
-  return found;
-}
-
-function fromPipeline(caller: PipelineCaller) {
+function principalOf(admitted: AdmittedPipeline) {
   return {
-    projectId: caller.pipeline.projectId,
-    repositoryId: caller.claims.repository_id,
-    runUrl: runUrlOf(caller),
-    ...(caller.pr === undefined ? {} : { pr: caller.pr }),
+    kind: "pipeline" as const,
+    pipelineId: admitted.pipeline.id,
+    jti: admitted.claims.jti,
+  };
+}
+
+function reportedBy(admitted: AdmittedPipeline): Omit<ReportedFromCi, "deployment" | "event"> {
+  return {
+    projectId: admitted.pipeline.projectId,
+    repositoryId: admitted.claims.repository_id,
+    runUrl: runUrlOf(admitted),
+    ...(admitted.pr === undefined ? {} : { pr: admitted.pr }),
   };
 }
 
 export function deploymentService(
   deps: DeploymentServiceDeps,
 ): ServiceImpl<typeof DeploymentService> {
+  async function fromPipeline(
+    admitted: AdmittedPipeline,
+    planned: PlannedJob | undefined,
+    record: (tx: Transaction) => Promise<void>,
+  ): Promise<void> {
+    const made = await db.transaction(async (tx) => {
+      await claimAdmission(tx, admitted);
+      await record(tx);
+      return recordReportedJob(tx, planned);
+    });
+    await notifyReported(made, deps.notify);
+  }
+
   return {
     async report(request, context) {
       const caller = callerOf(context);
       const reported = required(request.deployment, "deployment");
-      const organizationId = await organizationFor(caller, request.projectId);
-      if (caller.kind === "pipeline") {
-        reported.trigger = create(TriggerSchema, {
-          kind: TriggerKind.CI,
-          actor: caller.claims.actor,
-        });
-        reported.ci = ciOf(caller);
+      if (caller.kind === "session") {
+        const values = {
+          ...deploymentValues(request.projectId, uuidv7(), reported),
+          principal: { kind: "session" as const, userId: caller.session.userId },
+        };
+        const recording = await recordDeployment(db, values, caller.session.activeOrganizationId);
+        if (!recording) {
+          throw notOwned(request.projectId);
+        }
+        accepted(`Deployment ${values.deploymentId}`, recording);
+        return {};
       }
-      const recorded = await recordDeployment(
-        organizationId,
-        request.projectId,
-        reported,
-        principalOf(caller),
+
+      const admitted = await admitPipeline(
+        caller.token,
+        {
+          projectId: request.projectId,
+          tier: previewDeployment(reported) ? "preview" : "production",
+        },
+        deps.pipelineKeys(),
       );
-      if (!recorded) {
-        throw notOwned(request.projectId);
-      }
-      accepted(`Deployment ${recorded.values.deploymentId}`, recorded.recording);
-      if (caller.kind === "pipeline") {
-        await reportedFromCi({ ...fromPipeline(caller), deployment: recorded.values }, deps.notify);
-      }
+      reported.trigger = create(TriggerSchema, {
+        kind: TriggerKind.CI,
+        actor: admitted.claims.actor,
+      });
+      reported.ci = ciOf(admitted);
+      const values = {
+        ...deploymentValues(request.projectId, uuidv7(), reported),
+        principal: principalOf(admitted),
+      };
+      const planned = await planReportedJob(
+        { ...reportedBy(admitted), deployment: values },
+        deps.git(),
+      );
+      await fromPipeline(admitted, planned, async (tx) => {
+        const recording = await recordDeployment(tx, values);
+        if (!recording) {
+          throw notOwned(request.projectId);
+        }
+        accepted(`Deployment ${values.deploymentId}`, recording);
+      });
       return {};
     },
 
     async recordEnvironmentEvent(request, context) {
       const caller = callerOf(context);
       const event = required(request.event, "event");
-      const projectId = await ownedProject(context, request.projectId);
-      if (caller.kind === "pipeline") {
-        event.ci = ciOf(caller);
+      if (caller.kind === "session") {
+        const projectId = await projectInOrganization(
+          caller.session.activeOrganizationId,
+          request.projectId,
+        );
+        if (!projectId) {
+          throw notOwned(request.projectId);
+        }
+        const values = {
+          ...environmentEventValues(projectId, uuidv7(), event),
+          principal: { kind: "session" as const, userId: caller.session.userId },
+        };
+        accepted(
+          `Environment event ${values.deploymentId}`,
+          await recordEnvironmentEvent(db, values),
+        );
+        return {};
       }
-      const values = {
-        ...environmentEventValues(projectId, uuidv7(), event),
-        principal: principalOf(caller),
-      };
-      const recording = await recordOnce(
-        values,
-        (row) =>
-          db
-            .insert(environmentEvent)
-            .values(row)
-            .onConflictDoNothing()
-            .returning({ id: environmentEvent.id }),
-        async () => {
-          const [row] = await db
-            .select()
-            .from(environmentEvent)
-            .where(
-              and(
-                eq(environmentEvent.projectId, projectId),
-                eq(environmentEvent.deploymentId, values.deploymentId),
-              ),
-            );
-          return row;
-        },
+
+      const admitted = await admitPipeline(
+        caller.token,
+        { projectId: request.projectId, tier: previewRemoval(event) ? "preview" : "production" },
+        deps.pipelineKeys(),
       );
-      accepted(`Environment event ${values.deploymentId}`, recording);
-      if (caller.kind === "pipeline") {
-        await reportedFromCi({ ...fromPipeline(caller), event: values }, deps.notify);
-      }
+      event.ci = ciOf(admitted);
+      const values = {
+        ...environmentEventValues(request.projectId, uuidv7(), event),
+        principal: principalOf(admitted),
+      };
+      const planned = await planReportedJob({ ...reportedBy(admitted), event: values }, deps.git());
+      await fromPipeline(admitted, planned, async (tx) => {
+        accepted(
+          `Environment event ${values.deploymentId}`,
+          await recordEnvironmentEvent(tx, values),
+        );
+      });
       return {};
     },
   };

@@ -2,11 +2,11 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { db } from "@console/db";
 import { organization, project } from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
-import { addPipeline, type NewPipeline, pipelinesOf } from "@console/git";
+import { addPipeline, claimPipeline, type NewPipeline, pipelinesOf } from "@console/git";
 import { eq } from "drizzle-orm";
 import { createLocalJWKSet, SignJWT } from "jose";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { admitPipeline, type ReportTier } from "./admit";
+import { admitPipeline, claimAdmission, type ReportTier } from "./admit";
 import { AUDIENCE, githubActions } from "./testing";
 
 const suffix = crypto.randomUUID();
@@ -37,8 +37,10 @@ function trust(over: Partial<NewPipeline> = {}) {
   });
 }
 
-function admit(token: string, tier: ReportTier = "preview", into = projectId) {
-  return admitPipeline(token, { projectId: into, tier }, deps);
+async function admit(token: string, tier: ReportTier = "preview", into = projectId) {
+  const admitted = await admitPipeline(token, { projectId: into, tier }, deps);
+  await db.transaction((tx) => claimAdmission(tx, admitted));
+  return admitted;
 }
 
 async function refusal(token: string, tier: ReportTier = "preview", into = projectId) {
@@ -117,6 +119,7 @@ describe("a token that is not GitHub Actions' for this console", () => {
           .sign(gha.privateKey),
     ],
     ["one naming no repository", () => gha.sign({ repository_id: undefined })],
+    ["one whose head_ref is no string", () => gha.sign({ head_ref: 7 })],
   ])("is refused as unauthenticated: %s", async (_, token) => {
     await trust();
 
@@ -254,6 +257,16 @@ describe("a pipeline's narrowing", () => {
   });
 });
 
+describe("a token admitted but never claimed", () => {
+  it("can still be claimed, so a refused report does not spend it", async () => {
+    await trust();
+    const token = await gha.sign();
+    await admitPipeline(token, { projectId, tier: "preview" }, deps);
+
+    await expect(admit(token)).resolves.toBeDefined();
+  });
+});
+
 describe("a pipeline added for a repository the console could not see", () => {
   it("is pinned to the ids of the first token that names it, then holds to them", async () => {
     await trust({ repository: "Acme/Web", repositoryId: null, repositoryOwnerId: null });
@@ -266,6 +279,22 @@ describe("a pipeline added for a repository the console could not see", () => {
     });
     const error = await refusal(await gha.sign({ repository_id: "555" }));
     expect(error.code).toBe(Code.PermissionDenied);
+  });
+
+  it("refuses a token admitted while another repository's token pinned the pipeline", async () => {
+    const pending = await trust({
+      repository: "acme/web",
+      repositoryId: null,
+      repositoryOwnerId: null,
+    });
+    const admitted = await admitPipeline(await gha.sign(), { projectId, tier: "preview" }, deps);
+    await claimPipeline(db, pending.id, { repositoryId: "555", repositoryOwnerId: "42" });
+
+    const error = await db
+      .transaction((tx) => claimAdmission(tx, admitted))
+      .catch((thrown: unknown) => thrown);
+
+    expect(ConnectError.from(error).code).toBe(Code.PermissionDenied);
   });
 
   it("is not pinned by a token from a repository of another name", async () => {

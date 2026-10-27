@@ -7,10 +7,10 @@ import {
   gitInstallation,
   project,
   projectRepo,
-  trustedPipeline,
 } from "@console/db/schema";
-import { and, eq, inArray, isNull, ne, or } from "drizzle-orm";
+import { and, eq, isNull, ne, or } from "drizzle-orm";
 import type { KeyStore } from "./keystore";
+import { syncLinkedPipeline } from "./pipelines";
 import type { Repo } from "./provider";
 import { openSecret, sealSecret } from "./secrets";
 
@@ -220,7 +220,7 @@ export function gitStore(keys: KeyStore) {
 
     async removeInstallation(gitAppId: string, externalId: string): Promise<void> {
       await db.transaction(async (tx) => {
-        const linked = tx
+        const linked = await tx
           .select({ projectId: projectRepo.projectId })
           .from(projectRepo)
           .innerJoin(gitInstallation, eq(gitInstallation.id, projectRepo.installationId))
@@ -228,15 +228,11 @@ export function gitStore(keys: KeyStore) {
             and(eq(gitInstallation.gitAppId, gitAppId), eq(gitInstallation.externalId, externalId)),
           );
         await tx
-          .delete(trustedPipeline)
-          .where(
-            and(eq(trustedPipeline.origin, "linked"), inArray(trustedPipeline.projectId, linked)),
-          );
-        await tx
           .delete(gitInstallation)
           .where(
             and(eq(gitInstallation.gitAppId, gitAppId), eq(gitInstallation.externalId, externalId)),
           );
+        for (const { projectId } of linked) await syncLinkedPipeline(tx, projectId);
       });
     },
 
@@ -244,7 +240,7 @@ export function gitStore(keys: KeyStore) {
       projectId: string;
       organizationId: string;
       installationId: string;
-      repo: Pick<Repo, "id" | "fullName" | "defaultBranch">;
+      repo: Repo;
       productionBranch?: string;
       jobLabels?: string[];
     }): Promise<void> {
@@ -276,20 +272,11 @@ export function gitStore(keys: KeyStore) {
         const moved =
           previous !== undefined &&
           (previous.installationId !== input.installationId || previous.repoId !== input.repo.id);
-        if (moved) {
-          await tx
-            .delete(trustedPipeline)
-            .where(
-              and(
-                eq(trustedPipeline.projectId, input.projectId),
-                eq(trustedPipeline.origin, "linked"),
-              ),
-            );
-        }
 
         const link = {
           installationId: input.installationId,
           repoId: input.repo.id,
+          repoOwnerId: input.repo.ownerId,
           fullName: input.repo.fullName,
           productionBranch: input.productionBranch ?? input.repo.defaultBranch,
           jobLabels: input.jobLabels ?? [],
@@ -299,6 +286,7 @@ export function gitStore(keys: KeyStore) {
           .insert(projectRepo)
           .values({ projectId: input.projectId, ...link })
           .onConflictDoUpdate({ target: projectRepo.projectId, set: link });
+        await syncLinkedPipeline(tx, input.projectId);
       });
     },
 
@@ -329,12 +317,8 @@ export function gitStore(keys: KeyStore) {
 
     async unlinkProjectRepo(projectId: string): Promise<void> {
       await db.transaction(async (tx) => {
-        await tx
-          .delete(trustedPipeline)
-          .where(
-            and(eq(trustedPipeline.projectId, projectId), eq(trustedPipeline.origin, "linked")),
-          );
         await tx.delete(projectRepo).where(eq(projectRepo.projectId, projectId));
+        await syncLinkedPipeline(tx, projectId);
       });
     },
 

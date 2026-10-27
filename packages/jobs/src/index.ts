@@ -1,8 +1,12 @@
-export { type DeployIn, deployIn } from "./deploys";
+export { deployIn } from "./deploys";
 export { type Finished, type JobQueue, jobQueue } from "./queue";
 export {
+  notifyReported,
+  type PlannedJob,
+  planReportedJob,
   type ReportedDeployment,
   type ReportedEvent,
   type ReportedFromCi,
-  reportedFromCi,
+  type ReportedGit,
+  recordReportedJob,
 } from "./reported";

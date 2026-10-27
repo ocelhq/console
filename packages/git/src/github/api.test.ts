@@ -80,18 +80,16 @@ describe("findRepo", () => {
   });
 });
 
-describe("pullRequestHasCommit", () => {
-  it("answers whether a commit is one of the pull request's, across pages", async () => {
+describe("pullRequest", () => {
+  it("reads a pull request's head commit and its test merge commit", async () => {
     const { github, provider } = setup();
-    github.pullCommits.set(
-      7,
-      Array.from({ length: 120 }, (_, at) => String(at).padStart(40, "0")),
-    );
+    github.pulls.set(7, { head: { sha: "a".repeat(40) }, merge_commit_sha: "b".repeat(40) });
 
-    expect(
-      await provider.pullRequestHasCommit(installation, repo, 7, "119".padStart(40, "0")),
-    ).toBe(true);
-    expect(await provider.pullRequestHasCommit(installation, repo, 7, "f".repeat(40))).toBe(false);
+    expect(await provider.pullRequest(installation, repo, 7)).toEqual({
+      headSha: "a".repeat(40),
+      mergeCommitSha: "b".repeat(40),
+    });
+    expect(await provider.pullRequest(installation, repo, 8)).toBeUndefined();
   });
 });
 
