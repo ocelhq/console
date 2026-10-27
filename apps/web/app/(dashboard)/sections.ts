@@ -43,6 +43,7 @@ export const projectPages: (NoticePage | OwnPage)[] = [
     command: "ocel domain ls",
   },
   { section: "git", label: "Git Integration", own: true },
+  { section: "targets", label: "Targets", own: true },
   {
     section: "monitoring",
     label: "Monitoring",
