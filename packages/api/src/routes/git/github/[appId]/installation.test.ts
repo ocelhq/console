@@ -124,9 +124,7 @@ describe("GET /api/git/github/:appId/setup", () => {
     const member = await createTestSessionWithRole(owner.organization.id, "member");
     try {
       const response = await setup(member, SYSTEM, { installation_id: "41" });
-      expect(response.headers.get("location")).toBe(
-        "http://localhost:3000/organization/git?error=forbidden",
-      );
+      expect(response.headers.get("location")).toBe("http://localhost:3000/git?error=forbidden");
     } finally {
       await member.cleanup();
       await owner.cleanup();
@@ -185,9 +183,7 @@ describe("GET /api/git/github/:appId/authorized", () => {
         ],
       });
 
-      expect(response.headers.get("location")).toBe(
-        "http://localhost:3000/organization/git?notice=installed",
-      );
+      expect(response.headers.get("location")).toBe("http://localhost:3000/git?notice=installed");
       expect(await git.store.findInstallation(SYSTEM, "501")).toMatchObject({
         organizationId: session.organization.id,
         account: "acme",

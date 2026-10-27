@@ -3,7 +3,7 @@ import { requireOrganization } from "@/lib/access";
 import { git } from "@/lib/git";
 import { organizationOf } from "@/lib/organization";
 import { labelType } from "@/lib/type";
-import { noticeBody, PageNotice, PageShell } from "../../page-shell";
+import { noticeBody, PageNotice, PageShell } from "../page-shell";
 import { RegisterGithubApp } from "./register";
 
 const failures: Record<string, string> = {
@@ -28,7 +28,7 @@ const notices: Record<string, string> = {
     "GitHub asked an owner of that account to approve the install. Once they approve it, install again to connect it.",
 };
 
-export default async function OrganizationGitPage({
+export default async function GitIntegrationPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string; notice?: string }>;
@@ -45,7 +45,7 @@ export default async function OrganizationGitPage({
   const runtime = git();
   if (!runtime) {
     return (
-      <PageShell title="Git">
+      <PageShell title="Git Integration">
         <PageNotice heading="Git integrations are off">
           <p className={noticeBody}>
             Set <span className="font-mono text-[13px]">CONSOLE_ENCRYPTION_KEY</span> to 32 random
@@ -64,8 +64,8 @@ export default async function OrganizationGitPage({
 
   return (
     <PageShell
-      title="Git"
-      description="Connect GitHub so pull requests and pushes reach the console."
+      title="Git Integration"
+      description="Connect GitHub so pull requests and pushes reach the console. Link a repository from each project’s Git Integration page."
     >
       {error && (
         <p role="alert" className="max-w-2xl text-sm text-destructive">

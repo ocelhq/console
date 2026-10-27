@@ -33,7 +33,7 @@ export const GIT_REFUSAL_STATUS: Record<GitRefusal, number> = {
 };
 
 export function backToGitPage(params: Record<string, string> = {}): Response {
-  const url = new URL("/organization/git", consoleOrigin());
+  const url = new URL("/git", consoleOrigin());
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
   return Response.redirect(url, 302);
 }

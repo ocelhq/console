@@ -76,6 +76,7 @@ const sectionIcons: Record<string, typeof SquaresFourIcon> = {
   variables: BracketsCurlyIcon,
   resources: CubeIcon,
   domains: GlobeIcon,
+  git: GitBranchIcon,
   monitoring: PulseIcon,
   spend: ReceiptIcon,
 };
@@ -88,7 +89,6 @@ const organizationNavigation = [
   { label: "General", href: "/organization/general", Icon: GearSixIcon },
   { label: "Members", href: "/organization/members", Icon: UsersIcon },
   { label: "Connectors", href: "/organization/connectors", Icon: PlugsIcon },
-  { label: "Git", href: "/organization/git", Icon: GitBranchIcon },
 ];
 
 const themes = [
