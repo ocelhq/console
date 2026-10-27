@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cloud/v1/upload.proto.
  */
 export const file_cloud_v1_upload: GenFile = /*@__PURE__*/
-  fileDesc("ChVjbG91ZC92MS91cGxvYWQucHJvdG8SCGNsb3VkLnYxIkMKDk1pc3NpbmdSZXF1ZXN0EjEKB2RpZ2VzdHMYASADKAlCILpIHZIBGhCgnAEYASISchAyDl5bMC05YS1mXXs2NH0kIiIKD01pc3NpbmdSZXNwb25zZRIPCgdkaWdlc3RzGAEgAygJIvYHCgpTb3VyY2VGaWxlEuUCCgRwYXRoGAEgASgJQtYCukjSAroBxwIKEHNvdXJjZV9maWxlLnBhdGgSoAFhIHBhdGggaXMgcmVsYXRpdmUgYW5kIHNsYXNoLXNlcGFyYXRlZDogZXZlcnkgc2VnbWVudCBtdXN0IGJlIG5vbi1lbXB0eSBhbmQgbmVpdGhlciAiLiIgbm9yICIuLiIsIGFuZCB0aGUgcGF0aCBtYXkgY29udGFpbiBubyBiYWNrc2xhc2ggYW5kIG5vIGNvbnRyb2wgY2hhcmFjdGVyGo8BdGhpcy5zcGxpdCgnLycpLmFsbChzZWdtZW50LCBzZWdtZW50ICE9ICcnICYmIHNlZ21lbnQgIT0gJy4nICYmIHNlZ21lbnQgIT0gJy4uJykgJiYgIXRoaXMuY29udGFpbnMoJ1xcJykgJiYgIXRoaXMubWF0Y2hlcygnW1xceDAwLVxceDFmXFx4N2ZdJylyBRABGIAgEigKBmRpZ2VzdBgCIAEoCUIYukgV2AEBchAyDl5bMC05YS1mXXs2NH0kEgwKBHNpemUYAyABKAQSEgoKZXhlY3V0YWJsZRgEIAEoCBL7AQoOc3ltbGlua190YXJnZXQYBSABKAlC4gG6SN4BugHVAQoac291cmNlX2ZpbGUuc3ltbGlua190YXJnZXQSYWEgc3ltbGluayB0YXJnZXQgaXMgcmVsYXRpdmUgdG8gdGhlIHN5bWxpbmsgYW5kIG1heSBjb250YWluIG5vIGJhY2tzbGFzaCBhbmQgbm8gY29udHJvbCBjaGFyYWN0ZXIaVCF0aGlzLnN0YXJ0c1dpdGgoJy8nKSAmJiAhdGhpcy5jb250YWlucygnXFwnKSAmJiAhdGhpcy5tYXRjaGVzKCdbXFx4MDAtXFx4MWZcXHg3Zl0nKXIDGIAgOrUCukixAhqdAQodc291cmNlX2ZpbGUuZGlnZXN0X29yX3N5bWxpbmsSSGEgZmlsZSBpcyBlaXRoZXIgYSByZWd1bGFyIGZpbGUgd2l0aCBhIGRpZ2VzdCBvciBhIHN5bWxpbmsgd2l0aCBhIHRhcmdldBoyKHRoaXMuZGlnZXN0ID09ICcnKSAhPSAodGhpcy5zeW1saW5rX3RhcmdldCA9PSAnJykajgEKG3NvdXJjZV9maWxlLnN5bWxpbmtfaXNfYmFyZRIrYSBzeW1saW5rIGhhcyBubyBzaXplIGFuZCBpcyBub3QgZXhlY3V0YWJsZRpCdGhpcy5zeW1saW5rX3RhcmdldCA9PSAnJyB8fCAodGhpcy5zaXplID09IDB1ICYmICF0aGlzLmV4ZWN1dGFibGUpIqYBCg5Tb3VyY2VNYW5pZmVzdBIxCgVmaWxlcxgBIAMoCzIULmNsb3VkLnYxLlNvdXJjZUZpbGVCDLpICZIBBggBEMCaDDphukheGlwKHHNvdXJjZV9tYW5pZmVzdC51bmlxdWVfcGF0aHMSGGVhY2ggcGF0aCBpcyBsaXN0ZWQgb25jZRoidGhpcy5maWxlcy5tYXAoZiwgZi5wYXRoKS51bmlxdWUoKSJJChNDb21taXRTb3VyY2VSZXF1ZXN0EjIKCG1hbmlmZXN0GAEgASgLMhguY2xvdWQudjEuU291cmNlTWFuaWZlc3RCBrpIA8gBASIpChRDb21taXRTb3VyY2VSZXNwb25zZRIRCglzb3VyY2VfaWQYASABKAkyngEKDVVwbG9hZFNlcnZpY2USPgoHTWlzc2luZxIYLmNsb3VkLnYxLk1pc3NpbmdSZXF1ZXN0GhkuY2xvdWQudjEuTWlzc2luZ1Jlc3BvbnNlEk0KDENvbW1pdFNvdXJjZRIdLmNsb3VkLnYxLkNvbW1pdFNvdXJjZVJlcXVlc3QaHi5jbG91ZC52MS5Db21taXRTb3VyY2VSZXNwb25zZUIzWjFnaXRodWIuY29tL29jZWxocS9vY2VsL3BrZy9wcm90by9jbG91ZC92MTtjbG91ZHYxYgZwcm90bzM", [file_buf_validate_validate]);
+  fileDesc("ChVjbG91ZC92MS91cGxvYWQucHJvdG8SCGNsb3VkLnYxIkMKDk1pc3NpbmdSZXF1ZXN0EjEKB2RpZ2VzdHMYASADKAlCILpIHZIBGhCgnAEYASISchAyDl5bMC05YS1mXXs2NH0kIqIECgZVcGxvYWQSJQoGZGlnZXN0GAEgASgJQhW6SBJyEDIOXlswLTlhLWZdezY0fSQSlwEKA3VybBgCIAEoCUKJAbpIhQG6AXgKEXVwbG9hZC51cmxfc2NoZW1lEihhbiB1cGxvYWQgdGFyZ2V0IGlzIGFuIGh0dHBzIG9yIGh0dHAgVVJMGjl0aGlzLnN0YXJ0c1dpdGgoJ2h0dHBzOi8vJykgfHwgdGhpcy5zdGFydHNXaXRoKCdodHRwOi8vJylyCBABGIBAiAEBEiAKBm1ldGhvZBgDIAEoCUIQukgNcgtSA1BVVFIEUE9TVBIuCgdoZWFkZXJzGAQgAygLMh0uY2xvdWQudjEuVXBsb2FkLkhlYWRlcnNFbnRyeRIsCgZmaWVsZHMYBSADKAsyHC5jbG91ZC52MS5VcGxvYWQuRmllbGRzRW50cnkaLgoMSGVhZGVyc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaLQoLRmllbGRzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ATp4ukh1GnMKG3VwbG9hZC5maWVsZHNfb25seV9mb3JfcG9zdBIib25seSBhIFBPU1QgcG9saWN5IGhhcyBmb3JtIGZpZWxkcxowdGhpcy5tZXRob2QgPT0gJ1BPU1QnIHx8IHRoaXMuZmllbGRzLnNpemUoKSA9PSAwIqsBCg9NaXNzaW5nUmVzcG9uc2USLQoHdXBsb2FkcxgBIAMoCzIQLmNsb3VkLnYxLlVwbG9hZEIKukgHkgEEEKCcATppukhmGmQKH21pc3NpbmdfcmVzcG9uc2UudW5pcXVlX2RpZ2VzdHMSGWVhY2ggZGlnZXN0IGlzIG5hbWVkIG9uY2UaJnRoaXMudXBsb2Fkcy5tYXAodSwgdS5kaWdlc3QpLnVuaXF1ZSgpIvYHCgpTb3VyY2VGaWxlEuUCCgRwYXRoGAEgASgJQtYCukjSAroBxwIKEHNvdXJjZV9maWxlLnBhdGgSoAFhIHBhdGggaXMgcmVsYXRpdmUgYW5kIHNsYXNoLXNlcGFyYXRlZDogZXZlcnkgc2VnbWVudCBtdXN0IGJlIG5vbi1lbXB0eSBhbmQgbmVpdGhlciAiLiIgbm9yICIuLiIsIGFuZCB0aGUgcGF0aCBtYXkgY29udGFpbiBubyBiYWNrc2xhc2ggYW5kIG5vIGNvbnRyb2wgY2hhcmFjdGVyGo8BdGhpcy5zcGxpdCgnLycpLmFsbChzZWdtZW50LCBzZWdtZW50ICE9ICcnICYmIHNlZ21lbnQgIT0gJy4nICYmIHNlZ21lbnQgIT0gJy4uJykgJiYgIXRoaXMuY29udGFpbnMoJ1xcJykgJiYgIXRoaXMubWF0Y2hlcygnW1xceDAwLVxceDFmXFx4N2ZdJylyBRABGIAgEigKBmRpZ2VzdBgCIAEoCUIYukgV2AEBchAyDl5bMC05YS1mXXs2NH0kEgwKBHNpemUYAyABKAQSEgoKZXhlY3V0YWJsZRgEIAEoCBL7AQoOc3ltbGlua190YXJnZXQYBSABKAlC4gG6SN4BugHVAQoac291cmNlX2ZpbGUuc3ltbGlua190YXJnZXQSYWEgc3ltbGluayB0YXJnZXQgaXMgcmVsYXRpdmUgdG8gdGhlIHN5bWxpbmsgYW5kIG1heSBjb250YWluIG5vIGJhY2tzbGFzaCBhbmQgbm8gY29udHJvbCBjaGFyYWN0ZXIaVCF0aGlzLnN0YXJ0c1dpdGgoJy8nKSAmJiAhdGhpcy5jb250YWlucygnXFwnKSAmJiAhdGhpcy5tYXRjaGVzKCdbXFx4MDAtXFx4MWZcXHg3Zl0nKXIDGIAgOrUCukixAhqdAQodc291cmNlX2ZpbGUuZGlnZXN0X29yX3N5bWxpbmsSSGEgZmlsZSBpcyBlaXRoZXIgYSByZWd1bGFyIGZpbGUgd2l0aCBhIGRpZ2VzdCBvciBhIHN5bWxpbmsgd2l0aCBhIHRhcmdldBoyKHRoaXMuZGlnZXN0ID09ICcnKSAhPSAodGhpcy5zeW1saW5rX3RhcmdldCA9PSAnJykajgEKG3NvdXJjZV9maWxlLnN5bWxpbmtfaXNfYmFyZRIrYSBzeW1saW5rIGhhcyBubyBzaXplIGFuZCBpcyBub3QgZXhlY3V0YWJsZRpCdGhpcy5zeW1saW5rX3RhcmdldCA9PSAnJyB8fCAodGhpcy5zaXplID09IDB1ICYmICF0aGlzLmV4ZWN1dGFibGUpIqYBCg5Tb3VyY2VNYW5pZmVzdBIxCgVmaWxlcxgBIAMoCzIULmNsb3VkLnYxLlNvdXJjZUZpbGVCDLpICZIBBggBEMCaDDphukheGlwKHHNvdXJjZV9tYW5pZmVzdC51bmlxdWVfcGF0aHMSGGVhY2ggcGF0aCBpcyBsaXN0ZWQgb25jZRoidGhpcy5maWxlcy5tYXAoZiwgZi5wYXRoKS51bmlxdWUoKSJJChNDb21taXRTb3VyY2VSZXF1ZXN0EjIKCG1hbmlmZXN0GAEgASgLMhguY2xvdWQudjEuU291cmNlTWFuaWZlc3RCBrpIA8gBASIpChRDb21taXRTb3VyY2VSZXNwb25zZRIRCglzb3VyY2VfaWQYASABKAkyngEKDVVwbG9hZFNlcnZpY2USPgoHTWlzc2luZxIYLmNsb3VkLnYxLk1pc3NpbmdSZXF1ZXN0GhkuY2xvdWQudjEuTWlzc2luZ1Jlc3BvbnNlEk0KDENvbW1pdFNvdXJjZRIdLmNsb3VkLnYxLkNvbW1pdFNvdXJjZVJlcXVlc3QaHi5jbG91ZC52MS5Db21taXRTb3VyY2VSZXNwb25zZUIzWjFnaXRodWIuY29tL29jZWxocS9vY2VsL3BrZy9wcm90by9jbG91ZC92MTtjbG91ZHYxYgZwcm90bzM", [file_buf_validate_validate]);
 
 /**
  * @generated from message cloud.v1.MissingRequest
@@ -31,13 +31,50 @@ export const MissingRequestSchema: GenMessage<MissingRequest> = /*@__PURE__*/
   messageDesc(file_cloud_v1_upload, 0);
 
 /**
+ * @generated from message cloud.v1.Upload
+ */
+export type Upload = Message<"cloud.v1.Upload"> & {
+  /**
+   * @generated from field: string digest = 1;
+   */
+  digest: string;
+
+  /**
+   * @generated from field: string url = 2;
+   */
+  url: string;
+
+  /**
+   * @generated from field: string method = 3;
+   */
+  method: string;
+
+  /**
+   * @generated from field: map<string, string> headers = 4;
+   */
+  headers: { [key: string]: string };
+
+  /**
+   * @generated from field: map<string, string> fields = 5;
+   */
+  fields: { [key: string]: string };
+};
+
+/**
+ * Describes the message cloud.v1.Upload.
+ * Use `create(UploadSchema)` to create a new message.
+ */
+export const UploadSchema: GenMessage<Upload> = /*@__PURE__*/
+  messageDesc(file_cloud_v1_upload, 1);
+
+/**
  * @generated from message cloud.v1.MissingResponse
  */
 export type MissingResponse = Message<"cloud.v1.MissingResponse"> & {
   /**
-   * @generated from field: repeated string digests = 1;
+   * @generated from field: repeated cloud.v1.Upload uploads = 1;
    */
-  digests: string[];
+  uploads: Upload[];
 };
 
 /**
@@ -45,7 +82,7 @@ export type MissingResponse = Message<"cloud.v1.MissingResponse"> & {
  * Use `create(MissingResponseSchema)` to create a new message.
  */
 export const MissingResponseSchema: GenMessage<MissingResponse> = /*@__PURE__*/
-  messageDesc(file_cloud_v1_upload, 1);
+  messageDesc(file_cloud_v1_upload, 2);
 
 /**
  * @generated from message cloud.v1.SourceFile
@@ -82,7 +119,7 @@ export type SourceFile = Message<"cloud.v1.SourceFile"> & {
  * Use `create(SourceFileSchema)` to create a new message.
  */
 export const SourceFileSchema: GenMessage<SourceFile> = /*@__PURE__*/
-  messageDesc(file_cloud_v1_upload, 2);
+  messageDesc(file_cloud_v1_upload, 3);
 
 /**
  * @generated from message cloud.v1.SourceManifest
@@ -99,7 +136,7 @@ export type SourceManifest = Message<"cloud.v1.SourceManifest"> & {
  * Use `create(SourceManifestSchema)` to create a new message.
  */
 export const SourceManifestSchema: GenMessage<SourceManifest> = /*@__PURE__*/
-  messageDesc(file_cloud_v1_upload, 3);
+  messageDesc(file_cloud_v1_upload, 4);
 
 /**
  * @generated from message cloud.v1.CommitSourceRequest
@@ -116,7 +153,7 @@ export type CommitSourceRequest = Message<"cloud.v1.CommitSourceRequest"> & {
  * Use `create(CommitSourceRequestSchema)` to create a new message.
  */
 export const CommitSourceRequestSchema: GenMessage<CommitSourceRequest> = /*@__PURE__*/
-  messageDesc(file_cloud_v1_upload, 4);
+  messageDesc(file_cloud_v1_upload, 5);
 
 /**
  * @generated from message cloud.v1.CommitSourceResponse
@@ -133,7 +170,7 @@ export type CommitSourceResponse = Message<"cloud.v1.CommitSourceResponse"> & {
  * Use `create(CommitSourceResponseSchema)` to create a new message.
  */
 export const CommitSourceResponseSchema: GenMessage<CommitSourceResponse> = /*@__PURE__*/
-  messageDesc(file_cloud_v1_upload, 5);
+  messageDesc(file_cloud_v1_upload, 6);
 
 /**
  * @generated from service cloud.v1.UploadService
