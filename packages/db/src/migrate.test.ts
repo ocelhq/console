@@ -48,8 +48,9 @@ describe("migrateDatabase", () => {
     await admin.query(`CREATE DATABASE "${before}"`);
     const old = new Pool({ connectionString: new URL(`/${before}`, url).toString() });
     try {
-      const earlier = migrations.filter(
-        (migration) => !migration.name.endsWith("_tier_deployment_id_release"),
+      const earlier = migrations.slice(
+        0,
+        migrations.findIndex((migration) => migration.name.endsWith("_tier_deployment_id_release")),
       );
       await migrate(earlier, drizzle({ client: old }), "__drizzle_migrations");
       await old.query(
