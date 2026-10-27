@@ -15,7 +15,7 @@ and using it is optional.
 | `packages/auth`       | better-auth config: sessions, organizations, JWT, the CLI's device flow     |
 | `packages/db`         | Drizzle schema, relations and client                                       |
 | `packages/connectors` | The connector client; `src/gen` is generated from ocel's `proto/`          |
-| `packages/git`        | The git provider port, its GitHub adapter, and the sealed storage of apps  |
+| `packages/git`        | The git provider port, its GitHub adapter, the sealed storage of apps, and the CI pipelines projects trust |
 | `packages/jobs`       | The job queue runners claim from, and the Ocel tasks that fill and report on it |
 | `packages/infra`      | The Ocel resources the console declares (`postgres("main")`)               |
 | `packages/theme`      | The design tokens shared with the other Ocel surfaces                      |
