@@ -4,6 +4,7 @@ import {
   audienceOf,
   identityProblem,
   missingGrants,
+  normalizedGrant,
   sessionNameOf,
   subjectOf,
   subjectPrefixOf,
@@ -138,5 +139,14 @@ describe("missingGrants", () => {
     expect(missingGrants(["roles/run.admin"], ["roles/run.admin", "roles/storage.admin"])).toEqual(
       [],
     );
+  });
+});
+
+describe("normalizedGrant", () => {
+  it("lower-cases an AWS action and leaves its resource and every GCP grant as they are", () => {
+    expect(normalizedGrant("aws", "S3:PutObject arn:aws:s3:::Bucket/*")).toBe(
+      "s3:putobject arn:aws:s3:::Bucket/*",
+    );
+    expect(normalizedGrant("gcp", "roles/run.Admin")).toBe("roles/run.Admin");
   });
 });

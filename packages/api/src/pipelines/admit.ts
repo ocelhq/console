@@ -99,6 +99,10 @@ function runOf(claims: GithubActionsClaims): Run {
   return { pullRequest: false, branch };
 }
 
+export function runUrlOf(claims: GithubActionsClaims): string {
+  return `https://github.com/${claims.repository}/actions/runs/${claims.run_id}/attempts/${claims.run_attempt}`;
+}
+
 export function branchMatches(pattern: string, branch: string): boolean {
   const source = pattern
     .split("*")

@@ -50,6 +50,7 @@ export {
   identityProblem,
   isVendor,
   missingGrants,
+  normalizedGrant,
   sessionNameOf,
   subjectOf,
   subjectPrefixOf,
