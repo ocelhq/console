@@ -9,17 +9,15 @@ import {
   bindProject,
   boundTarget,
   CREDENTIAL_LIFETIME_SECONDS,
+  forgetTier,
   ISSUER_UNCONFIGURED,
   type Issuer,
   identityProblem,
   issue,
   isVendor,
-  missingGrants,
-  normalizedGrant,
   prepareTarget,
   projectInOrganization,
   recordTier,
-  subjectPrefixOf,
   targetOf,
   unsupportedVendor,
 } from "@console/targets";
@@ -37,8 +35,6 @@ export interface TargetServiceDeps {
   issuer: () => Promise<Issuer> | undefined;
   pipelineKeys: () => PipelineKeys;
 }
-
-const LISTED_GRANTS = 10;
 
 async function administered(context: HandlerContext): Promise<ActiveOrganizationSession> {
   const caller = callerOf(context);
@@ -62,12 +58,6 @@ async function ownedProject(organizationId: string, projectId: string): Promise<
   if (projectId && !(await projectInOrganization(organizationId, projectId))) {
     throw new ConnectError(`No project ${projectId} in the session's organization`, Code.NotFound);
   }
-}
-
-function lacking(missing: string[]): string {
-  const listed = missing.slice(0, LISTED_GRANTS).join(", ");
-  const more = missing.length - LISTED_GRANTS;
-  return more > 0 ? `${listed} and ${more} more` : listed;
 }
 
 export function targetService(deps: TargetServiceDeps): ServiceImpl<typeof TargetService> {
@@ -101,7 +91,6 @@ export function targetService(deps: TargetServiceDeps): ServiceImpl<typeof Targe
         organizationId,
         issuer: url,
         audience: audienceOf(target.id),
-        subjectPrefix: subjectPrefixOf(organizationId, target.id),
       };
     },
 
@@ -127,13 +116,25 @@ export function targetService(deps: TargetServiceDeps): ServiceImpl<typeof Targe
           targetId: target.id,
           tier,
           identity,
-          grants: request.grants.map((grant) => normalizedGrant(target.vendor, grant)),
           cliVersion: request.cliVersion,
         });
         if (request.projectId) {
           await bindProject(tx, { projectId: request.projectId, tier, targetId: target.id });
         }
       });
+      return {};
+    },
+
+    async forgetTier(request, context) {
+      const session = await administered(context);
+      const target = await targetOf(session.activeOrganizationId, request.targetId);
+      if (!target) {
+        throw new ConnectError(
+          `No target ${request.targetId} in the session's organization`,
+          Code.NotFound,
+        );
+      }
+      await forgetTier(target.id, tierNamed(request.tier));
       return {};
     },
 
@@ -169,21 +170,10 @@ export function targetService(deps: TargetServiceDeps): ServiceImpl<typeof Targe
       }
       if (!bound.tier) {
         throw new ConnectError(
-          `${target.vendor} account ${target.account} has no ${tier} identity recorded: an admin runs \`ocel bootstrap ${tier}\``,
+          `The ${tier} deploy identity of target ${target.id} (${target.vendor} account ${target.account}, ${target.region}) was removed: an admin runs \`ocel bootstrap ${tier}\``,
           Code.FailedPrecondition,
         );
       }
-      const missing = missingGrants(
-        request.grants.map((grant) => normalizedGrant(target.vendor, grant)),
-        bound.tier.grants,
-      );
-      if (missing.length > 0) {
-        throw new ConnectError(
-          `The ${tier} identity of ${target.vendor} account ${target.account} lacks ${missing.length} grant(s) this deploy needs: ${lacking(missing)}. ocel ${bound.tier.cliVersion} recorded it; to grant them, an admin runs \`ocel bootstrap ${tier}\` with ocel ${request.cliVersion}`,
-          Code.FailedPrecondition,
-        );
-      }
-
       const minted = await db.transaction(async (tx) => {
         await claimAdmission(tx, admitted);
         return issue(tx, minter, {

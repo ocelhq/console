@@ -4,7 +4,12 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { Tier } from "@console/connectors/gen/common/environment/v1/environment_pb";
 import { TargetService } from "@console/connectors/gen/console/v1/target_pb";
 import { db } from "@console/db";
-import { type CredentialGrant, credentialIssuance, targetTier } from "@console/db/schema";
+import {
+  type CredentialGrant,
+  credentialIssuance,
+  targetBinding,
+  targetTier,
+} from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
 import { addPipeline } from "@console/git";
 import { createIssuer, keySigner } from "@console/targets";
@@ -21,7 +26,6 @@ import { AUDIENCE, githubActions } from "../../pipelines/testing";
 const ISSUER = "http://localhost:3000/oidc";
 const PROVIDER = "arn:aws:iam::123456789012:oidc-provider/localhost:3000/oidc";
 const ROLE = "arn:aws:iam::123456789012:role/ocel-deploy-production";
-const GRANTS = ["s3:putobject arn:aws:s3:::ocel-*", "lambda:updatefunctioncode *"];
 
 const issuer = createIssuer("http://localhost:3000", {
   signer: keySigner(
@@ -58,13 +62,12 @@ async function refusal(call: Promise<unknown>) {
 
 const place = { vendor: "aws", account: "123456789012", region: "eu-west-1" };
 
-async function bootstrapped(over: { grants?: string[]; bind?: boolean } = {}) {
+async function bootstrapped(over: { bind?: boolean } = {}) {
   const prepared = await client(owner.token).prepare({ ...place, projectId });
   await client(owner.token).recordTier({
     targetId: prepared.targetId,
     tier: Tier.PRODUCTION,
     identity: { identityProvider: PROVIDER, principal: ROLE },
-    grants: over.grants ?? GRANTS,
     cliVersion: "0.0.3",
     ...(over.bind === false ? {} : { projectId }),
   });
@@ -86,12 +89,11 @@ function trusted(credentials: CredentialGrant = { production: { branches: ["main
   });
 }
 
-const issue = (token: string, over: { grants?: string[]; vendor?: string } = {}) =>
+const issue = (token: string, over: { vendor?: string } = {}) =>
   client(token).issueCredential({
     projectId,
     tier: Tier.PRODUCTION,
     vendor: over.vendor ?? "aws",
-    grants: over.grants ?? GRANTS.slice(0, 1),
     cliVersion: "0.0.4",
   });
 
@@ -121,7 +123,6 @@ describe("preparing a target", () => {
       organizationId: owner.organization.id,
       issuer: ISSUER,
       audience: `ocel-target:${prepared.targetId}`,
-      subjectPrefix: `org:${owner.organization.id}:target:${prepared.targetId}`,
     });
     expect((await client(owner.token).prepare(place)).targetId).toBe(prepared.targetId);
   });
@@ -163,7 +164,7 @@ describe("preparing a target", () => {
 });
 
 describe("recording a tier", () => {
-  it("stores the tier's identity and grants and binds the project's tier to the target", async () => {
+  it("stores the tier's identity and binds the project's tier to the target", async () => {
     const prepared = await bootstrapped();
 
     const [stored] = await db
@@ -174,19 +175,8 @@ describe("recording a tier", () => {
       tier: "production",
       identityProvider: PROVIDER,
       principal: ROLE,
-      grants: GRANTS,
       cliVersion: "0.0.3",
     });
-  });
-
-  it("lower-cases an AWS grant's action, as the CLI does", async () => {
-    const prepared = await bootstrapped({ grants: ["S3:PutObject arn:aws:s3:::Bucket/*"] });
-
-    const [stored] = await db
-      .select()
-      .from(targetTier)
-      .where(eq(targetTier.targetId, prepared.targetId));
-    expect(stored?.grants).toEqual(["s3:putobject arn:aws:s3:::Bucket/*"]);
   });
 
   it.each([
@@ -204,7 +194,6 @@ describe("recording a tier", () => {
         targetId: prepared.targetId,
         tier: Tier.PRODUCTION,
         identity: { identityProvider, principal },
-        grants: GRANTS,
         cliVersion: "0.0.3",
       }),
     );
@@ -220,7 +209,6 @@ describe("recording a tier", () => {
         targetId: theirs.targetId,
         tier: Tier.PRODUCTION,
         identity: { identityProvider: PROVIDER, principal: ROLE },
-        grants: GRANTS,
         cliVersion: "0.0.3",
       }),
     );
@@ -308,28 +296,10 @@ describe("issuing a credential", () => {
       targetId: prepared.targetId,
       tier: Tier.PRODUCTION,
       identity: { identityProvider: PROVIDER, principal: ROLE },
-      grants: GRANTS,
       cliVersion: "0.0.3",
       projectId,
     });
     await expect(issue(token)).resolves.toBeDefined();
-  });
-
-  it("is refused for grants the tier was not given, naming them, the version that recorded it and the fix", async () => {
-    await bootstrapped();
-    await trusted();
-    const asked = Array.from({ length: 12 }, (_, n) => `dynamodb:putitem table-${n}`);
-
-    const error = await refusal(
-      issue(await gha.push("main"), { grants: [GRANTS[0] ?? "", ...asked] }),
-    );
-
-    expect(error.code).toBe(Code.FailedPrecondition);
-    expect(error.rawMessage).toContain("dynamodb:putitem table-9");
-    expect(error.rawMessage).not.toContain("dynamodb:putitem table-10");
-    expect(error.rawMessage).toContain("and 2 more");
-    expect(error.rawMessage).toContain("0.0.3");
-    expect(error.rawMessage).toContain("an admin runs `ocel bootstrap production`");
   });
 
   it("is refused for a vendor other than the bound target's", async () => {
@@ -352,11 +322,75 @@ describe("issuing a credential", () => {
     expect(error.rawMessage).toContain("no production credential grant");
   });
 
+  it("is refused, naming the fix, once an admin forgot the tier's identity", async () => {
+    const prepared = await bootstrapped();
+    await trusted();
+    await client(owner.token).forgetTier({ targetId: prepared.targetId, tier: Tier.PRODUCTION });
+
+    const error = await refusal(issue(await gha.push("main")));
+
+    expect(error.code).toBe(Code.FailedPrecondition);
+    expect(error.rawMessage).toContain(
+      `The production deploy identity of target ${prepared.targetId}`,
+    );
+    expect(error.rawMessage).toContain("was removed: an admin runs `ocel bootstrap production`");
+  });
+
   it("is refused to a session", async () => {
     await bootstrapped();
 
     const error = await refusal(issue(owner.token));
 
     expect(error.code).toBe(Code.PermissionDenied);
+  });
+});
+
+describe("forgetting a tier", () => {
+  it("drops the tier's identity, keeps the project bound, and can be asked again", async () => {
+    const prepared = await bootstrapped();
+    const forget = () =>
+      client(owner.token).forgetTier({ targetId: prepared.targetId, tier: Tier.PRODUCTION });
+
+    await forget();
+    await forget();
+
+    expect(
+      await db.select().from(targetTier).where(eq(targetTier.targetId, prepared.targetId)),
+    ).toEqual([]);
+    expect(
+      await db.select().from(targetBinding).where(eq(targetBinding.projectId, projectId)),
+    ).toMatchObject([{ tier: "production", targetId: prepared.targetId }]);
+  });
+
+  it("is refused to a member who is no owner or admin", async () => {
+    const prepared = await bootstrapped();
+
+    const error = await refusal(
+      client(member.token).forgetTier({ targetId: prepared.targetId, tier: Tier.PRODUCTION }),
+    );
+
+    expect(error.code).toBe(Code.PermissionDenied);
+    expect(
+      await db.select().from(targetTier).where(eq(targetTier.targetId, prepared.targetId)),
+    ).toHaveLength(1);
+  });
+
+  it("is refused for another organization's target", async () => {
+    const theirs = await client(stranger.token).prepare(place);
+    await client(stranger.token).recordTier({
+      targetId: theirs.targetId,
+      tier: Tier.PRODUCTION,
+      identity: { identityProvider: PROVIDER, principal: ROLE },
+      cliVersion: "0.0.3",
+    });
+
+    const error = await refusal(
+      client(owner.token).forgetTier({ targetId: theirs.targetId, tier: Tier.PRODUCTION }),
+    );
+
+    expect(error.code).toBe(Code.NotFound);
+    expect(
+      await db.select().from(targetTier).where(eq(targetTier.targetId, theirs.targetId)),
+    ).toHaveLength(1);
   });
 });

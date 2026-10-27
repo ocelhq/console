@@ -16,6 +16,7 @@ import { keySigner } from "./key";
 import {
   bindProject,
   boundTarget,
+  forgetTier,
   issuancesOf,
   prepareTarget,
   recordTier,
@@ -33,7 +34,6 @@ const identity = {
   principal: "arn:aws:iam::123456789012:role/ocel-deploy-production",
 };
 
-const GRANTS = ["s3:putobject arn:aws:s3:::ocel-*", "lambda:updatefunctioncode *"];
 const issuer = createIssuer("https://console.example.com", {
   signer: keySigner(
     generateKeyPairSync("ec", { namedCurve: "P-256" })
@@ -74,7 +74,7 @@ describe("a target", () => {
   it("records each tier's identity again over the last, keeping when it last issued", async () => {
     const prepared = await prepareTarget(orgId, place("eu-central-1"));
     const recorded = { targetId: prepared.id, tier: "production" as const, identity };
-    await recordTier(db, { ...recorded, grants: ["s3:putobject *"], cliVersion: "0.0.3" });
+    await recordTier(db, { ...recorded, cliVersion: "0.0.3" });
     await issue(db, issuer, {
       target: prepared,
       tier: "production",
@@ -85,14 +85,13 @@ describe("a target", () => {
     });
     const [issued] = await db.select().from(targetTier).where(eq(targetTier.targetId, prepared.id));
 
-    await recordTier(db, { ...recorded, grants: ["s3:getobject *"], cliVersion: "0.0.4" });
+    await recordTier(db, { ...recorded, cliVersion: "0.0.4" });
 
     const [found] = (await targetsOf(orgId)).filter((kept) => kept.id === prepared.id);
     expect(found?.tiers).toMatchObject([
       {
         tier: "production",
         principal: identity.principal,
-        grants: ["s3:getobject *"],
         cliVersion: "0.0.4",
         lastIssuedAt: issued?.lastIssuedAt,
       },
@@ -108,7 +107,6 @@ describe("a project tier's binding", () => {
       targetId: second.id,
       tier: "preview",
       identity,
-      grants: GRANTS,
       cliVersion: "0.0.3",
     });
 
@@ -128,6 +126,28 @@ describe("a project tier's binding", () => {
   });
 });
 
+describe("forgetting a tier", () => {
+  it("drops the tier's identity, leaves its bindings, and is done when there is nothing left", async () => {
+    const prepared = await prepareTarget(orgId, place("ca-central-1"));
+    await recordTier(db, {
+      targetId: prepared.id,
+      tier: "production",
+      identity,
+      cliVersion: "0.0.3",
+    });
+    await bindProject(db, { projectId, tier: "production", targetId: prepared.id });
+
+    await forgetTier(prepared.id, "production");
+    await forgetTier(prepared.id, "production");
+
+    expect(await boundTarget(projectId, "production")).toMatchObject({
+      target: { id: prepared.id },
+      tier: null,
+    });
+    await unbindProject(projectId, "production");
+  });
+});
+
 describe("removing a target", () => {
   it("drops its tiers and bindings but keeps what it issued in the log", async () => {
     const removed = await prepareTarget(orgId, place("sa-east-1"));
@@ -135,7 +155,6 @@ describe("removing a target", () => {
       targetId: removed.id,
       tier: "production",
       identity,
-      grants: GRANTS,
       cliVersion: "0.0.3",
     });
     await bindProject(db, { projectId, tier: "production", targetId: removed.id });

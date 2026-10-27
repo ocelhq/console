@@ -93,35 +93,40 @@ with short-lived credentials instead of stored keys. The issuer publishes
 
 1. From a checkout linked to this console, an owner or admin runs `ocel bootstrap production`
    (or `preview`). Bootstrap calls `console.v1.TargetService.Prepare`, which finds or creates the
-   organization's target for the vendor, account and region and answers the issuer, the target's
-   audience (`ocel-target:{target id}`) and its subject prefix
-   (`org:{organization id}:target:{target id}`). Bootstrap makes the account trust the issuer for
-   that audience and subjects under the prefix, creates the tier's deploy role (AWS) or service
-   account (GCP), then calls `RecordTier`. The console checks the identity lives in the target's
-   account (an IAM OIDC provider for this issuer and a role, or a workload identity provider and a
-   service account of the project), stores it with the grants bootstrap gave it, and binds the
-   linked project's tier to the target.
+   organization's target for the vendor, account and region and answers the organization, the
+   issuer and the target's audience (`ocel-target:{target id}`). Bootstrap makes the account trust
+   the issuer for that audience and the organization's target, creates the tier's deploy role (AWS)
+   or service account (GCP), then calls `RecordTier`. The console checks the identity lives in the
+   target's account (an IAM OIDC provider for this issuer and a role, or a workload identity
+   provider and a service account of the project), stores it with the ocel version that recorded
+   it, and binds the linked project's tier to the target. `ForgetTier`, which
+   `ocel bootstrap --remove` calls, forgets a tier's identity; its bindings stay, and issue nothing
+   until bootstrap records the tier again.
 2. A CI run calls `IssueCredential` with its GitHub Actions token. The console admits the token as
    it admits a report, then gates it by the pipeline's **credential grant**, not the branches it
-   reports from. The project tier must be bound to a target of the vendor the run deploys to, and
-   every grant the run asks for must be one the tier was recorded with; otherwise the refusal names
-   what is missing and says an admin runs `ocel bootstrap <tier>` again.
+   reports from. The project tier must be bound to a target of the vendor the run deploys to, whose
+   tier has a recorded identity. What the identity may do is the cloud's business: a deploy whose
+   identity bootstrap made with an older ocel is refused by the CLI, which says to run
+   `ocel bootstrap` again.
 3. The console mints a ten-minute ES256 token: `aud` the target's audience, `sub`
    `org:{org}:target:{target}:tier:{tier}:project:{project}`, and `org`, `target`, `tier` and
-   `project` claims for GCP's attribute mapping. The run exchanges it at the cloud's STS for the
-   tier's deploy identity.
+   `project` claims. AWS matches the subject against `…:project:*`; GCP maps `google.subject` from
+   the `target`, `tier` and `project` claims and conditions on `org` and `target`. The run exchanges
+   the token at the cloud's STS for the tier's deploy identity.
 
-A trusted pipeline's credential grant names, per tier, the branches whose runs get credentials:
-production from a push or another run outside a pull request, optionally only in one GitHub
-environment, so its protection rules gate them; previews from a run's branch, the head branch of a
-pull request. A `pull_request_target` run gets no credentials. The linked repository's pipeline
-starts granted production from the production branch, which it follows, and previews from every
-branch; a pipeline an admin adds starts with no grant. Grants are edited on a project's Targets page,
-which also binds each tier to one of the organization's targets.
+A trusted pipeline's credential grant names, per tier, the branches whose runs get credentials,
+always within the branches the pipeline itself takes: production from a `push` or
+`workflow_dispatch` run, optionally only in one GitHub environment, so its protection rules gate
+them; previews from a `pull_request` run's head branch or a `push` or `workflow_dispatch` run's
+branch. Every other event, `pull_request_target`, `workflow_run` and `schedule` among them, gets no
+credentials. Only `*` names every branch. The linked repository's pipeline starts granted
+production from the production branch, which it follows, and previews from every branch; a
+pipeline an admin adds starts with no grant. Grants are edited on a project's Targets page, which
+also binds each tier to one of the organization's targets.
 
 The organization's Targets page lists its targets and tiers, the issuer URL and the recent
 issuances. **Test connection** mints a one-minute token for a tier, for the reserved project
-`connection-test` (the trust bootstrap writes admits `…:project:*`) with a `purpose: test` claim,
+`connection-test`, which the trust bootstrap writes admits, with a `purpose: test` claim,
 logs it as a test without touching the tier's last issue, and exchanges it at AWS STS (`AssumeRoleWithWebIdentity`) or Google STS and
 `generateAccessToken`, reports the outcome and discards the credentials. **Remove target** forgets
 its tiers and bindings, so the console stops minting for it; the account trusts the issuer until
