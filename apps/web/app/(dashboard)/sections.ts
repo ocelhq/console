@@ -5,7 +5,7 @@ type ProjectPage = {
   section: string;
   label: string;
   heading?: string;
-  empty: string;
+  empty?: string;
   command?: string;
   aggregate?: string;
 };
@@ -39,6 +39,10 @@ export const projectPages: ProjectPage[] = [
     heading: "Served from your own cloud",
     empty: "Check each hostname's DNS and certificate from the terminal.",
     command: "ocel domain ls",
+  },
+  {
+    section: "git",
+    label: "Git Integration",
   },
   {
     section: "monitoring",

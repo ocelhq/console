@@ -200,9 +200,7 @@ describe("GET /api/git/github/manifest/callback", () => {
 
       const response = await manifestCallback(callback(session.headers, { code: "c", state }), git);
 
-      expect(response.headers.get("location")).toBe(
-        "http://localhost:3000/organization/git?error=unsaved",
-      );
+      expect(response.headers.get("location")).toBe("http://localhost:3000/git?error=unsaved");
       expect(await db.select().from(gitApp).where(eq(gitApp.id, appRowId))).toEqual([]);
     } finally {
       await holder.cleanup();
@@ -219,9 +217,7 @@ describe("GET /api/git/github/manifest/callback", () => {
         git,
       );
       expect(response.status).toBe(302);
-      expect(response.headers.get("location")).toBe(
-        "http://localhost:3000/organization/git?error=state",
-      );
+      expect(response.headers.get("location")).toBe("http://localhost:3000/git?error=state");
       expect(await db.select().from(gitApp).where(eq(gitApp.appId, "4242"))).toEqual([]);
     } finally {
       await session.cleanup();
@@ -255,9 +251,7 @@ describe("GET /api/git/github/manifest/callback", () => {
         refused,
       );
 
-      expect(response.headers.get("location")).toBe(
-        "http://localhost:3000/organization/git?error=github",
-      );
+      expect(response.headers.get("location")).toBe("http://localhost:3000/git?error=github");
     } finally {
       await session.cleanup();
     }
@@ -268,8 +262,6 @@ describe("GET /api/git/github/manifest/callback", () => {
       callback(new Headers(), { code: "c", state: "s" }),
       git,
     );
-    expect(response.headers.get("location")).toBe(
-      "http://localhost:3000/organization/git?error=session",
-    );
+    expect(response.headers.get("location")).toBe("http://localhost:3000/git?error=session");
   });
 });
