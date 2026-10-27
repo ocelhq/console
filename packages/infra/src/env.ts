@@ -53,6 +53,31 @@ export const env = defineEnv({
         "A GitHub App every organization can install. The console stores it as the system git app at start.",
     },
   ),
+  CONSOLE_ISSUER_KMS_KEY_ID: {
+    class: "plain",
+    schema: z.string().min(1).optional(),
+    description:
+      "An AWS KMS ECC_NIST_P256 key (id, alias or ARN) the issuer signs with, over CONSOLE_ISSUER_KEY.",
+  },
+  CONSOLE_ISSUER_PREVIOUS_KMS_KEY_ID: {
+    class: "plain",
+    schema: z.string().min(1).optional(),
+    description: "A retired KMS key whose public half the issuer still publishes.",
+  },
+  issuerKey: group(
+    { CONSOLE_ISSUER_KEY: { class: "secret" } },
+    {
+      optional: true,
+      description: "A P-256 private key, PEM or JWK, the issuer signs with when no KMS key is set.",
+    },
+  ),
+  issuerPreviousKey: group(
+    { CONSOLE_ISSUER_PREVIOUS_KEY: { class: "secret" } },
+    {
+      optional: true,
+      description: "A retired P-256 key, PEM or JWK, whose public half the issuer still publishes.",
+    },
+  ),
   ocelCloud: group(
     {
       CONSOLE_CLOUD_URL: {
