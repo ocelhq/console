@@ -1,16 +1,18 @@
 import type { Tier } from "@console/db/schema";
 import { withTier } from "@/lib/tier";
 
-type ProjectPage = {
+type NoticePage = {
   section: string;
   label: string;
   heading?: string;
-  empty?: string;
+  empty: string;
   command?: string;
   aggregate?: string;
 };
 
-export const projectPages: ProjectPage[] = [
+type OwnPage = { section: string; label: string; own: true };
+
+export const projectPages: (NoticePage | OwnPage)[] = [
   {
     section: "deployments",
     label: "Deployments",
@@ -40,10 +42,7 @@ export const projectPages: ProjectPage[] = [
     empty: "Check each hostname's DNS and certificate from the terminal.",
     command: "ocel domain ls",
   },
-  {
-    section: "git",
-    label: "Git Integration",
-  },
+  { section: "git", label: "Git Integration", own: true },
   {
     section: "monitoring",
     label: "Monitoring",
@@ -62,9 +61,12 @@ export const projectPages: ProjectPage[] = [
   },
 ];
 
-export function projectPage(section: string) {
-  return projectPages.find((page) => page.section === section);
+export function projectPage(section: string): NoticePage | undefined {
+  const page = projectPages.find((candidate) => candidate.section === section);
+  return page && !("own" in page) ? page : undefined;
 }
+
+const isSection = (section: string) => projectPages.some((page) => page.section === section);
 
 export function sectionOf(pathname: string): string | null {
   const parts = pathname.split("/").filter(Boolean);
@@ -74,7 +76,7 @@ export function sectionOf(pathname: string): string | null {
   if (parts[0] === "projects" && parts[1]) {
     return parts[2] ?? "";
   }
-  if (parts.length === 1 && projectPage(parts[0])) {
+  if (parts.length === 1 && parts[0] && isSection(parts[0])) {
     return parts[0];
   }
   return null;
