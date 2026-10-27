@@ -15,7 +15,7 @@ describe("credentialGrantOf", () => {
     expect(
       credentialGrantOf({
         production: { enabled: true, branches: "main, release/*", environment: " production " },
-        preview: { enabled: true, branches: "" },
+        preview: { enabled: true, branches: "*" },
       }),
     ).toEqual({
       ok: true,
@@ -26,21 +26,27 @@ describe("credentialGrantOf", () => {
     });
   });
 
-  it("refuses production credentials for no branch named, rather than every branch", () => {
-    const answer = credentialGrantOf({
-      ...off,
-      production: { enabled: true, branches: " ", environment: "" },
-    });
+  it.each(["", " ", ",", ", ,"])(
+    "refuses production credentials for branches %j, rather than every branch",
+    (branches) => {
+      const answer = credentialGrantOf({
+        ...off,
+        production: { enabled: true, branches, environment: "" },
+      });
 
-    expect(answer).toEqual({ ok: false, message: expect.stringContaining("production") });
+      expect(answer).toEqual({ ok: false, message: expect.stringContaining("production") });
+    },
+  );
+
+  it("refuses preview credentials for no branch named", () => {
+    expect(credentialGrantOf({ ...off, preview: { enabled: true, branches: " , " } }).ok).toBe(
+      false,
+    );
   });
 
-  it("gives a linked pipeline's production the project's production branch, whatever was typed", () => {
+  it("takes every branch only when * is named", () => {
     expect(
-      credentialGrantOf(
-        { ...off, production: { enabled: true, branches: "*", environment: "" } },
-        "trunk",
-      ),
-    ).toEqual({ ok: true, grant: { production: { branches: ["trunk"] } } });
+      credentialGrantOf({ ...off, production: { enabled: true, branches: "*", environment: "" } }),
+    ).toEqual({ ok: true, grant: { production: { branches: ["*"] } } });
   });
 });

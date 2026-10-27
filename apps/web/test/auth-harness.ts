@@ -46,3 +46,26 @@ export async function createTestSessionWithOrganization() {
     },
   };
 }
+
+export async function createTestSessionWithRole(
+  organizationId: string,
+  role: "member" | "admin" | "owner",
+) {
+  const signedUp = await auth.api.signUpEmail({
+    body: {
+      name: "Test Member",
+      email: `test-${crypto.randomUUID()}@example.test`,
+      password: "password1234",
+    },
+  });
+  const headers = new Headers({ Authorization: `Bearer ${signedUp.token}` });
+  await auth.api.addMember({ body: { userId: signedUp.user.id, organizationId, role } });
+  await auth.api.setActiveOrganization({ body: { organizationId }, headers });
+  return {
+    user: signedUp.user,
+    headers,
+    async cleanup() {
+      await db.delete(user).where(eq(user.id, signedUp.user.id));
+    },
+  };
+}

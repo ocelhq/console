@@ -9,8 +9,9 @@ import {
   targetOf,
   tierOf,
 } from "@console/targets";
-import { type Answer, administering, attempt, done, failed, issuer } from "@/lib/targets";
-import { tierOf as tierNamed } from "@/lib/tier";
+import { type Answer, attempt, done, failed } from "@/lib/answer";
+import { administering, issuer } from "@/lib/targets";
+import { parseTier } from "@/lib/tier";
 
 export async function removeOrganizationTarget(targetId: string): Promise<Answer> {
   return attempt(async () => {
@@ -27,7 +28,8 @@ export async function testConnection(targetId: string, tierName: string): Promis
   return attempt(async () => {
     const reached = await administering();
     if (!reached.ok) return reached;
-    const tier = tierNamed(tierName);
+    const tier = parseTier(tierName);
+    if (!tier) return failed("A tier is production or preview.");
     const minter = issuer();
     if (!minter) return failed("This console has no issuer key, so it mints no tokens.");
     const { organizationId, userId } = reached.result;

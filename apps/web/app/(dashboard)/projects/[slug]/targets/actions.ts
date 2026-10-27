@@ -1,21 +1,14 @@
 "use server";
 
 import { db } from "@console/db";
-import { project, projectRepo, trustedPipeline } from "@console/db/schema";
 import { grantCredentials } from "@console/git";
-import { bindProject, targetOf, unbindProject } from "@console/targets";
-import { and, eq } from "drizzle-orm";
+import { bindProject, projectInOrganization, targetOf, unbindProject } from "@console/targets";
+import { type Answer, attempt, done, failed } from "@/lib/answer";
 import { credentialGrantOf, type GrantInput } from "@/lib/credential-grant";
-import { type Answer, administering, attempt, done, failed } from "@/lib/targets";
-import { tierOf } from "@/lib/tier";
+import { administering } from "@/lib/targets";
+import { parseTier } from "@/lib/tier";
 
-async function ownedProject(organizationId: string, projectId: string): Promise<boolean> {
-  const [found] = await db
-    .select({ id: project.id })
-    .from(project)
-    .where(and(eq(project.organizationId, organizationId), eq(project.id, projectId)));
-  return found !== undefined;
-}
+const NOT_OURS = "That project isn’t in this organization.";
 
 export async function bindProjectTier(
   projectId: string,
@@ -25,11 +18,10 @@ export async function bindProjectTier(
   return attempt(async () => {
     const reached = await administering();
     if (!reached.ok) return reached;
+    const tier = parseTier(tierName);
+    if (!tier) return failed("A tier is production or preview.");
     const { organizationId } = reached.result;
-    if (!(await ownedProject(organizationId, projectId))) {
-      return failed("That project isn’t in this organization.");
-    }
-    const tier = tierOf(tierName);
+    if (!(await projectInOrganization(organizationId, projectId))) return failed(NOT_OURS);
     if (!targetId) {
       await unbindProject(projectId, tier);
       return done;
@@ -50,19 +42,10 @@ export async function grantPipelineCredentials(
   return attempt(async () => {
     const reached = await administering();
     if (!reached.ok) return reached;
-    if (!(await ownedProject(reached.result.organizationId, projectId))) {
-      return failed("That project isn’t in this organization.");
+    if (!(await projectInOrganization(reached.result.organizationId, projectId))) {
+      return failed(NOT_OURS);
     }
-    const [pipeline] = await db
-      .select({ origin: trustedPipeline.origin, productionBranch: projectRepo.productionBranch })
-      .from(trustedPipeline)
-      .leftJoin(projectRepo, eq(projectRepo.projectId, trustedPipeline.projectId))
-      .where(and(eq(trustedPipeline.projectId, projectId), eq(trustedPipeline.id, pipelineId)));
-    if (!pipeline) return failed("That pipeline is gone.");
-    const answer = credentialGrantOf(
-      input,
-      pipeline.origin === "linked" ? (pipeline.productionBranch ?? undefined) : undefined,
-    );
+    const answer = credentialGrantOf(input);
     if (!answer.ok) return failed(answer.message);
     if (!(await grantCredentials(projectId, pipelineId, answer.grant))) {
       return failed("That pipeline is gone.");

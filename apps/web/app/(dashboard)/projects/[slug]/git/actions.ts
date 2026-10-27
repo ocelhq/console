@@ -17,16 +17,9 @@ import { deployIn } from "@console/jobs";
 import { jobChanged } from "@console/jobs/tasks";
 import { and, eq } from "drizzle-orm";
 import { requireOrganization } from "@/lib/access";
+import { type Answer, attempt, done, failed } from "@/lib/answer";
 import { git } from "@/lib/git";
 import { organizationOf } from "@/lib/organization";
-
-export type Answer<T = null> = { ok: true; result: T } | { ok: false; message: string };
-
-const done = { ok: true, result: null } as const;
-
-function failed(message: string): Answer<never> {
-  return { ok: false, message };
-}
 
 interface Administered {
   userId: string;
@@ -69,14 +62,6 @@ async function providerFor(runtime: GitRuntime, gitAppId: string) {
 async function installationOf(reached: Administered, installationId: string) {
   const installations = await reached.runtime.store.installationsFor(reached.organizationId);
   return installations.find((installation) => installation.id === installationId);
-}
-
-async function attempt<T>(run: () => Promise<Answer<T>>): Promise<Answer<T>> {
-  try {
-    return await run();
-  } catch (thrown) {
-    return failed(thrown instanceof Error ? thrown.message : String(thrown));
-  }
 }
 
 export async function reposOf(projectId: string, installationId: string): Promise<Answer<Repo[]>> {
