@@ -309,10 +309,13 @@ export function gitStore(keys: KeyStore) {
     },
 
     async setProductionBranch(projectId: string, branch: string): Promise<void> {
-      await db
-        .update(projectRepo)
-        .set({ productionBranch: branch })
-        .where(eq(projectRepo.projectId, projectId));
+      await db.transaction(async (tx) => {
+        await tx
+          .update(projectRepo)
+          .set({ productionBranch: branch })
+          .where(eq(projectRepo.projectId, projectId));
+        await syncLinkedPipeline(tx, projectId);
+      });
     },
 
     async unlinkProjectRepo(projectId: string): Promise<void> {

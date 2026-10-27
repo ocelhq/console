@@ -7,6 +7,7 @@ export {
   claimPipeline,
   forgetExpiredPipelineTokens,
   GITHUB_ACTIONS_ISSUER,
+  grantCredentials,
   type NewPipeline,
   narrowPipeline,
   type PipelineNarrowing,
