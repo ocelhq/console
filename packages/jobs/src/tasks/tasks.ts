@@ -42,12 +42,16 @@ export const leaseSweep = task("lease-sweep", {
     try {
       await queue.sweep();
     } finally {
-      try {
-        await queue.resync();
-      } finally {
-        await forgetExpiredPipelineTokens();
-      }
+      await queue.resync();
     }
+  },
+});
+
+export const pipelineTokenSweep = task("pipeline-token-sweep", {
+  cron: "*/15 * * * *",
+  retry: { maxAttempts: 1 },
+  run: async () => {
+    await forgetExpiredPipelineTokens();
   },
 });
 
