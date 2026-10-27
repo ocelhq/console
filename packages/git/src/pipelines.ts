@@ -1,5 +1,6 @@
 import { db, type Executor } from "@console/db";
 import {
+  type CredentialGrant,
   pipelineToken,
   projectRepo,
   type TrustedPipeline,
@@ -100,6 +101,19 @@ export async function narrowPipeline(
   return narrowed.length > 0;
 }
 
+export async function grantCredentials(
+  projectId: string,
+  id: string,
+  credentials: CredentialGrant,
+): Promise<boolean> {
+  const granted = await db
+    .update(trustedPipeline)
+    .set({ credentials })
+    .where(and(eq(trustedPipeline.projectId, projectId), eq(trustedPipeline.id, id)))
+    .returning({ id: trustedPipeline.id });
+  return granted.length > 0;
+}
+
 export async function syncLinkedPipeline(
   tx: Executor,
   projectId: string,
@@ -115,6 +129,7 @@ export async function syncLinkedPipeline(
       repoId: projectRepo.repoId,
       repoOwnerId: projectRepo.repoOwnerId,
       fullName: projectRepo.fullName,
+      productionBranch: projectRepo.productionBranch,
     })
     .from(projectRepo)
     .where(eq(projectRepo.projectId, projectId));
@@ -138,7 +153,12 @@ export async function syncLinkedPipeline(
   };
   const [kept] = await tx
     .update(trustedPipeline)
-    .set(ids)
+    .set({
+      ...ids,
+      credentials: sql`case when ${trustedPipeline.credentials} -> 'production' is null
+        then ${trustedPipeline.credentials}
+        else jsonb_set(${trustedPipeline.credentials}, '{production,branches}', jsonb_build_array(${link.productionBranch}::text)) end`,
+    })
     .where(and(linkedRows, eq(trustedPipeline.repositoryId, link.repoId)))
     .returning({ id: trustedPipeline.id });
   if (kept) return;
@@ -149,6 +169,10 @@ export async function syncLinkedPipeline(
     origin: "linked",
     createdBy,
     ...ids,
+    credentials: {
+      production: { branches: [link.productionBranch] },
+      preview: { branches: ["*"] },
+    },
   });
 }
 

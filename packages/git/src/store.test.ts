@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { envKeyStore, type KeyStore } from "./keystore";
 import {
   addPipeline,
+  grantCredentials,
   narrowPipeline,
   pipelinesOf,
   removePipeline,
@@ -489,6 +490,61 @@ describe("where a linked project's deploys run", () => {
       deploys: "ci",
     });
     expect(await origins(projectId)).toEqual(["linked"]);
+  });
+
+  it("lets the linked pipeline take production credentials from the production branch and preview ones from any", async () => {
+    const { projectId } = await linked("granted", "408");
+
+    await fromCi(projectId);
+
+    expect((await pipelinesOf(projectId))[0]?.credentials).toEqual({
+      production: { branches: ["main"] },
+      preview: { branches: ["*"] },
+    });
+  });
+
+  it("moves the linked pipeline's production credentials to a new production branch, keeping the rest", async () => {
+    const { projectId } = await linked("followed", "409");
+    await fromCi(projectId);
+    const [pipeline] = await pipelinesOf(projectId);
+    if (!pipeline) throw new Error("none");
+    await grantCredentials(projectId, pipeline.id, {
+      production: { branches: ["main"], environment: "production" },
+      preview: { branches: ["feat/*"] },
+    });
+
+    await store.setProductionBranch(projectId, "release");
+
+    expect((await pipelinesOf(projectId))[0]?.credentials).toEqual({
+      production: { branches: ["release"], environment: "production" },
+      preview: { branches: ["feat/*"] },
+    });
+  });
+
+  it("gives the linked pipeline no production credentials back once an admin took them", async () => {
+    const { projectId } = await linked("withheld", "410");
+    await fromCi(projectId);
+    const [pipeline] = await pipelinesOf(projectId);
+    if (!pipeline) throw new Error("none");
+    await grantCredentials(projectId, pipeline.id, { preview: { branches: ["*"] } });
+
+    await store.setProductionBranch(projectId, "release");
+
+    expect((await pipelinesOf(projectId))[0]?.credentials).toEqual({
+      preview: { branches: ["*"] },
+    });
+  });
+
+  it("gives a pipeline an admin adds no credentials until one grants them", async () => {
+    const { projectId } = await linked("manual", "411");
+
+    const added = await manual(projectId);
+
+    expect(added.credentials).toEqual({});
+    expect(await grantCredentials(projectId, added.id, { preview: { branches: ["*"] } })).toBe(
+      true,
+    );
+    expect(await grantCredentials(`other-${suffix}`, added.id, {})).toBe(false);
   });
 
   it("forgets the linked pipelines of the projects linked through an installation that goes", async () => {
