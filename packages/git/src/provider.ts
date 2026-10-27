@@ -5,6 +5,7 @@ export interface RepoRef {
 
 export interface Repo extends RepoRef {
   defaultBranch: string;
+  ownerId: string;
 }
 
 export interface InstallationRef {
@@ -75,6 +76,13 @@ export interface GitProvider {
     redirectUri: string;
   }): Promise<UserInstallation[]>;
   listRepos(installation: InstallationRef): Promise<Repo[]>;
+  findRepo(installation: InstallationRef, id: string): Promise<Repo | undefined>;
+  pullRequestHasCommit(
+    installation: InstallationRef,
+    repo: RepoRef,
+    pr: number,
+    sha: string,
+  ): Promise<boolean>;
   repoToken(installation: InstallationRef, repo: RepoRef, access: "read"): Promise<RepoToken>;
   setStatus(
     installation: InstallationRef,
