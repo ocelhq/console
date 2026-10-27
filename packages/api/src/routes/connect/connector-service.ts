@@ -12,7 +12,7 @@ import { importJWK, jwtVerify } from "jose";
 import { uuidv7 } from "uuidv7";
 import { computeKindOf, computeKinds } from "../../deployments/compute";
 import { liveness } from "../connectors/liveness";
-import { sessionOf } from "./session";
+import { sessionOf } from "./caller";
 
 function connectorMessage(row: Connector) {
   const denied = row.lastDenied;

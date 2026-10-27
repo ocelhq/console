@@ -13,11 +13,16 @@ import {
 } from "@console/connectors/gen/console/v1/deployment_pb";
 import { db } from "@console/db";
 import { project } from "@console/db/schema";
-import { CONNECT_PREFIX, connect } from "../src/routes/connect/route";
+import { CONNECT_PREFIX, type ConnectDeps, connectHandler } from "../src/routes/connect/route";
 
 export const TRACE_ID = "0af7651916cd43dd8448eb211c80319c";
 
-export function serviceClient<S extends DescService>(service: S, bearer: string | null) {
+export function serviceClient<S extends DescService>(
+  service: S,
+  bearer: string | null,
+  deps: ConnectDeps = {},
+) {
+  const connect = connectHandler(deps);
   const interceptors: Interceptor[] = bearer
     ? [
         (next) => (req) => {

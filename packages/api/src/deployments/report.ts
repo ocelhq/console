@@ -1,18 +1,19 @@
 import { isDeepStrictEqual } from "node:util";
 import type { Deployment } from "@console/connectors/gen/console/v1/deployment_pb";
 import { db } from "@console/db";
-import { deployment, project } from "@console/db/schema";
+import { deployment, type Principal, project } from "@console/db/schema";
 import { and, eq } from "drizzle-orm";
 import { uuidv7 } from "uuidv7";
 import { deploymentValues } from "./record";
 
 export type Recording = "recorded" | "repeated" | "differs" | "gone";
 
-type Recorded = { id: string; createdAt?: Date };
+type Recorded = { id: string; createdAt?: Date; principal?: Principal | null };
 
 function contentOf<Row extends Recorded>({
   id: _id,
   createdAt: _createdAt,
+  principal: _principal,
   ...content
 }: Row): unknown {
   return JSON.parse(JSON.stringify(content));
@@ -45,11 +46,22 @@ export async function projectInOrganization(
   return found?.id ?? null;
 }
 
+export async function organizationOfProject(projectId: string): Promise<string | null> {
+  const [found] = await db
+    .select({ organizationId: project.organizationId })
+    .from(project)
+    .where(eq(project.id, projectId));
+  return found?.organizationId ?? null;
+}
+
+export type DeploymentValues = ReturnType<typeof deploymentValues> & { principal: Principal };
+
 export async function recordDeployment(
   organizationId: string,
   projectId: string,
   reported: Deployment,
-): Promise<{ deploymentId: string; recording: Recording } | null> {
+  principal: Principal,
+): Promise<{ values: DeploymentValues; recording: Recording } | null> {
   const stored = and(eq(deployment.projectId, projectId), eq(deployment.deploymentId, reported.id));
   const [found] = await db
     .select({ first: deployment })
@@ -59,7 +71,7 @@ export async function recordDeployment(
   if (!found) {
     return null;
   }
-  const values = deploymentValues(projectId, uuidv7(), reported);
+  const values = { ...deploymentValues(projectId, uuidv7(), reported), principal };
   const recording = found.first
     ? compared(found.first, values)
     : await recordOnce(
@@ -71,5 +83,5 @@ export async function recordDeployment(
           return row;
         },
       );
-  return { deploymentId: values.deploymentId, recording };
+  return { values, recording };
 }

@@ -4,7 +4,7 @@ import { db } from "@console/db";
 import { project } from "@console/db/schema";
 import { eq } from "drizzle-orm";
 import { uuidv7 } from "uuidv7";
-import { sessionOf } from "./session";
+import { sessionOf } from "./caller";
 
 function isUniqueConstraintViolation(error: unknown): boolean {
   if (typeof error !== "object" || error === null) {

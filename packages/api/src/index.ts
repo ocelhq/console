@@ -18,7 +18,7 @@ export {
   respondCloudJob,
   type VariableAnswer,
 } from "./routes/cloud/jobs/[id]/respond/route";
-export { CONNECT_PREFIX, connect } from "./routes/connect/route";
+export { CONNECT_PREFIX, type ConnectDeps, connectHandler } from "./routes/connect/route";
 export { type Liveness, liveness } from "./routes/connectors/liveness";
 export { githubAuthorized } from "./routes/git/github/[appId]/authorized/route";
 export { githubSetup } from "./routes/git/github/[appId]/setup/route";
