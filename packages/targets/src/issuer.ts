@@ -27,6 +27,7 @@ export const TOKEN_CLAIMS = [
   "target",
   "tier",
   "project",
+  "purpose",
 ] as const;
 
 const encoder = new TextEncoder();

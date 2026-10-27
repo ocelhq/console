@@ -81,7 +81,7 @@ export default async function TargetsPage() {
         )}
         <p className="text-xs text-muted-foreground">
           {organization.administers
-            ? "Removing a target stops the console minting tokens for it and unbinds its projects. The account keeps trusting the issuer until an admin runs ocel bootstrap --remove there. Test connection mints a one-minute token for project test, exchanges it at the cloud’s STS and discards what comes back."
+            ? "Removing a target stops the console minting tokens for it and unbinds its projects. The account keeps trusting the issuer until an admin runs ocel bootstrap --remove there. Test connection mints a one-minute token for the reserved project connection-test, exchanges it at the cloud’s STS and discards what comes back."
             : "Only owners and admins can remove or test a target."}
         </p>
       </section>

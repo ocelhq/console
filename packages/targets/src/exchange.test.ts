@@ -15,7 +15,7 @@ function fetcher(...answers: Response[]) {
 }
 
 const aws = {
-  vendor: "aws",
+  vendor: "aws" as const,
   identity: {
     identityProvider: "arn:aws:iam::123456789012:oidc-provider/console.example.com/oidc",
     principal: "arn:aws:iam::123456789012:role/ocel-deploy-production",
@@ -25,7 +25,7 @@ const aws = {
 };
 
 const gcp = {
-  vendor: "gcp",
+  vendor: "gcp" as const,
   identity: {
     identityProvider:
       "//iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/ocel/providers/console",
@@ -130,11 +130,5 @@ describe("exchanging a tier token on GCP", () => {
       error:
         "Google refused to impersonate ocel-deploy@shop-prod-4821.iam.gserviceaccount.com: PERMISSION_DENIED: Permission denied",
     });
-  });
-});
-
-it("reports a vendor it cannot test", async () => {
-  expect(await exchangeToken({ ...aws, vendor: "azure" }, fetcher().fetch)).toMatchObject({
-    ok: false,
   });
 });

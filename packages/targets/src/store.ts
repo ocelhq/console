@@ -1,7 +1,6 @@
 import { db, type Executor } from "@console/db";
 import {
   credentialIssuance,
-  type IssuancePrincipal,
   project,
   type Target,
   type TargetTier,
@@ -9,12 +8,13 @@ import {
   target,
   targetBinding,
   targetTier,
+  type Vendor,
 } from "@console/db/schema";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { TierIdentity } from "./vendors";
 
 export interface TargetPlace {
-  vendor: string;
+  vendor: Vendor;
   account: string;
   region: string;
 }
@@ -166,25 +166,6 @@ export async function removeTarget(organizationId: string, targetId: string): Pr
   return removed.length > 0;
 }
 
-export interface Issuance {
-  organizationId: string;
-  projectId: string | null;
-  targetId: string;
-  tier: Tier;
-  principal: IssuancePrincipal;
-  tokenJti: string;
-  issuedAt: Date;
-  expiresAt: Date;
-}
-
-export async function recordIssuance(tx: Executor, issuance: Issuance): Promise<void> {
-  await tx.insert(credentialIssuance).values(issuance);
-  await tx
-    .update(targetTier)
-    .set({ lastIssuedAt: issuance.issuedAt })
-    .where(and(eq(targetTier.targetId, issuance.targetId), eq(targetTier.tier, issuance.tier)));
-}
-
 export async function issuancesOf(
   scope: { organizationId: string; projectId?: string },
   limit = 50,
@@ -199,6 +180,7 @@ export async function issuancesOf(
       account: target.account,
       region: target.region,
       tier: credentialIssuance.tier,
+      purpose: credentialIssuance.purpose,
       principal: credentialIssuance.principal,
       tokenJti: credentialIssuance.tokenJti,
       issuedAt: credentialIssuance.issuedAt,

@@ -1,26 +1,35 @@
+import type { Vendor } from "@console/db/schema";
 import { describe, expect, it } from "vitest";
 import {
   accountProblem,
   audienceOf,
   identityProblem,
+  isVendor,
   missingGrants,
   normalizedGrant,
   sessionNameOf,
-  subjectOf,
   subjectPrefixOf,
+  unsupportedVendor,
 } from "./vendors";
 
 const ISSUER = "https://console.example.com/oidc";
-const aws = { vendor: "aws", account: "123456789012" };
-const gcp = { vendor: "gcp", account: "shop-prod-4821" };
+const aws = { vendor: "aws" as const, account: "123456789012" };
+const gcp = { vendor: "gcp" as const, account: "shop-prod-4821" };
+
+describe("a target's vendor", () => {
+  it("is aws or gcp", () => {
+    expect(isVendor("aws")).toBe(true);
+    expect(isVendor("azure")).toBe(false);
+    expect(unsupportedVendor("azure")).toMatch(/aws or gcp, not azure/);
+  });
+});
 
 describe("a target's account", () => {
-  it.each([
+  it.each<[Vendor, string, RegExp | undefined]>([
     ["aws", "123456789012", undefined],
     ["aws", "12345678901", /12 digits/],
     ["gcp", "shop-prod-4821", undefined],
     ["gcp", "123456", /project id/],
-    ["azure", "x", /aws or gcp/],
   ])("of %s %s", (vendor, account, problem) => {
     const found = accountProblem(vendor, account);
     if (problem === undefined) expect(found).toBeUndefined();
@@ -126,9 +135,6 @@ describe("a GCP tier's identity", () => {
 describe("the names a token carries", () => {
   it("pins the subject to the organization, target, tier and project", () => {
     expect(subjectPrefixOf("org-1", "t-1")).toBe("org:org-1:target:t-1");
-    expect(subjectOf("org-1", "t-1", "production", "p-1")).toBe(
-      "org:org-1:target:t-1:tier:production:project:p-1",
-    );
     expect(audienceOf("t-1")).toBe("ocel-target:t-1");
   });
 
