@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
     "@console/db",
     "@console/git",
     "@console/infra",
+    "@console/targets",
   ],
 };
 
