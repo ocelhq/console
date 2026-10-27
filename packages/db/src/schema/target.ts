@@ -49,7 +49,6 @@ export const targetTier = pgTable(
     tier: tier("tier").notNull(),
     identityProvider: text("identity_provider").notNull(),
     principal: text("principal").notNull(),
-    grants: text("grants").array().notNull(),
     cliVersion: text("cli_version").notNull(),
     recordedAt: timestamp("recorded_at").defaultNow().notNull(),
     lastIssuedAt: timestamp("last_issued_at"),

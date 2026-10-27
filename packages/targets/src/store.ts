@@ -65,7 +65,6 @@ export interface RecordedTier {
   targetId: string;
   tier: Tier;
   identity: TierIdentity;
-  grants: string[];
   cliVersion: string;
 }
 
@@ -73,7 +72,6 @@ export async function recordTier(tx: Executor, recorded: RecordedTier): Promise<
   const values = {
     identityProvider: recorded.identity.identityProvider,
     principal: recorded.identity.principal,
-    grants: recorded.grants,
     cliVersion: recorded.cliVersion,
     recordedAt: sql`now()`,
   };
@@ -81,6 +79,12 @@ export async function recordTier(tx: Executor, recorded: RecordedTier): Promise<
     .insert(targetTier)
     .values({ targetId: recorded.targetId, tier: recorded.tier, ...values })
     .onConflictDoUpdate({ target: [targetTier.targetId, targetTier.tier], set: values });
+}
+
+export async function forgetTier(targetId: string, tier: Tier): Promise<void> {
+  await db
+    .delete(targetTier)
+    .where(and(eq(targetTier.targetId, targetId), eq(targetTier.tier, tier)));
 }
 
 export async function bindProject(

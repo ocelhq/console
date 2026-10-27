@@ -64,7 +64,6 @@ async function target(region: string) {
       identityProvider: "arn:aws:iam::123456789012:oidc-provider/console.example.com/oidc",
       principal: "arn:aws:iam::123456789012:role/ocel-deploy-production",
     },
-    grants: ["s3:putobject arn:aws:s3:::ocel-*"],
     cliVersion: "0.0.3",
   });
   return prepared;

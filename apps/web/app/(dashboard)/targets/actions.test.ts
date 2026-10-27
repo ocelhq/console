@@ -52,7 +52,6 @@ async function targetIn(organizationId: string) {
     targetId: target.id,
     tier: "production",
     identity,
-    grants: ["s3:putobject arn:aws:s3:::ocel-*"],
     cliVersion: "0.0.3",
   });
   return target.id;

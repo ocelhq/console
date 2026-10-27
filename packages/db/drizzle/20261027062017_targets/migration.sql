@@ -33,7 +33,6 @@ CREATE TABLE "target_tier" (
 	"tier" "tier",
 	"identity_provider" text NOT NULL,
 	"principal" text NOT NULL,
-	"grants" text[] NOT NULL,
 	"cli_version" text NOT NULL,
 	"recorded_at" timestamp DEFAULT now() NOT NULL,
 	"last_issued_at" timestamp,

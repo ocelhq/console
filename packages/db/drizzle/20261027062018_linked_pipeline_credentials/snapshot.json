@@ -1,10 +1,10 @@
 {
+  "id": "2cd47266-c353-4a5a-9465-d186061c3020",
+  "prevIds": [
+    "418b9462-629f-4f27-bb6e-e895f2a0ac9a"
+  ],
   "version": "8",
   "dialect": "postgres",
-  "id": "dae9771b-721d-4c4d-a59e-2541cdca9a30",
-  "prevIds": [
-    "a5fe09f5-9e16-4973-b31b-d4c7399ba4ee"
-  ],
   "ddl": [
     {
       "values": [
@@ -3223,19 +3223,6 @@
       "generated": null,
       "identity": null,
       "name": "principal",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "target_tier"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 1,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "grants",
       "entityType": "columns",
       "schema": "public",
       "table": "target_tier"

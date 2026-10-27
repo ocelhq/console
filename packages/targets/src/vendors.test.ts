@@ -5,8 +5,6 @@ import {
   audienceOf,
   identityProblem,
   isVendor,
-  missingGrants,
-  normalizedGrant,
   sessionNameOf,
   subjectPrefixOf,
   unsupportedVendor,
@@ -143,28 +141,5 @@ describe("the names a token carries", () => {
 
     expect(name).toBe("ocel-0f8fad5b-d9c");
     expect(name).toMatch(/^[\w+=,.@-]{2,64}$/);
-  });
-});
-
-describe("missingGrants", () => {
-  it("names what the request asks for beyond the recorded grants", () => {
-    expect(
-      missingGrants(
-        ["s3:putobject arn:aws:s3:::a/*", "lambda:invokefunction *"],
-        ["s3:putobject arn:aws:s3:::a/*"],
-      ),
-    ).toEqual(["lambda:invokefunction *"]);
-    expect(missingGrants(["roles/run.admin"], ["roles/run.admin", "roles/storage.admin"])).toEqual(
-      [],
-    );
-  });
-});
-
-describe("normalizedGrant", () => {
-  it("lower-cases an AWS action and leaves its resource and every GCP grant as they are", () => {
-    expect(normalizedGrant("aws", "S3:PutObject arn:aws:s3:::Bucket/*")).toBe(
-      "s3:putobject arn:aws:s3:::Bucket/*",
-    );
-    expect(normalizedGrant("gcp", "roles/run.Admin")).toBe("roles/run.Admin");
   });
 });

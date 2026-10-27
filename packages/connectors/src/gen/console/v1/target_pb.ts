@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file console/v1/target.proto.
  */
 export const file_console_v1_target: GenFile = /*@__PURE__*/
-  fileDesc("Chdjb25zb2xlL3YxL3RhcmdldC5wcm90bxIKY29uc29sZS52MSJiCgxUaWVySWRlbnRpdHkSLAoRaWRlbnRpdHlfcHJvdmlkZXIYASABKAlCEbpIDnIMEAEYgBAyBV5cUyskEiQKCXByaW5jaXBhbBgCIAEoCUIRukgOcgwQARiAEDIFXlxTKyQiugEKFFByZXBhcmVUYXJnZXRSZXF1ZXN0EioKBnZlbmRvchgBIAEoCUIaukgXchUQARhAMg9eW2EtejAtOS5fOi1dKyQSLAoHYWNjb3VudBgCIAEoCUIbukgYchYQARiAATIPXlthLXowLTkuXzotXSskEicKBnJlZ2lvbhgDIAEoCUIXukgUchIQARhAMgxeW2EtejAtOS1dKyQSHwoKcHJvamVjdF9pZBgEIAEoCUILukgI2AEBcgOwAQEifQoVUHJlcGFyZVRhcmdldFJlc3BvbnNlEhEKCXRhcmdldF9pZBgBIAEoCRIXCg9vcmdhbml6YXRpb25faWQYAiABKAkSDgoGaXNzdWVyGAMgASgJEhAKCGF1ZGllbmNlGAQgASgJEhYKDnN1YmplY3RfcHJlZml4GAUgASgJIpoCChdSZWNvcmRUYXJnZXRUaWVyUmVxdWVzdBIbCgl0YXJnZXRfaWQYASABKAlCCLpIBXIDsAEBEjUKBHRpZXIYAiABKA4yGy5jb21tb24uZW52aXJvbm1lbnQudjEuVGllckIKukgHggEEEAEgABIyCghpZGVudGl0eRgDIAEoCzIYLmNvbnNvbGUudjEuVGllcklkZW50aXR5Qga6SAPIAQESNgoGZ3JhbnRzGAQgAygJQia6SCOSASAIARDQDxgBIhdyFRABGIAEMg5eXFMrKD86IFxTKyk/JBIeCgtjbGlfdmVyc2lvbhgFIAEoCUIJukgGcgQQARhAEh8KCnByb2plY3RfaWQYBiABKAlCC7pICNgBAXIDsAEBIhoKGFJlY29yZFRhcmdldFRpZXJSZXNwb25zZSLxAQoWSXNzdWVDcmVkZW50aWFsUmVxdWVzdBIcCgpwcm9qZWN0X2lkGAEgASgJQgi6SAVyA7ABARI1CgR0aWVyGAIgASgOMhsuY29tbW9uLmVudmlyb25tZW50LnYxLlRpZXJCCrpIB4IBBBABIAASKgoGdmVuZG9yGAMgASgJQhq6SBdyFRABGEAyD15bYS16MC05Ll86LV0rJBI2CgZncmFudHMYBCADKAlCJrpII5IBIAgBENAPGAEiF3IVEAEYgAQyDl5cUysoPzogXFMrKT8kEh4KC2NsaV92ZXJzaW9uGAUgASgJQgm6SAZyBBABGEAi0wEKF0lzc3VlQ3JlZGVudGlhbFJlc3BvbnNlEhIKBXRva2VuGAEgASgJQgOAAQESLgoKZXhwaXJlc19hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJdGFyZ2V0X2lkGAMgASgJEg8KB2FjY291bnQYBCABKAkSDgoGcmVnaW9uGAUgASgJEhQKDHNlc3Npb25fbmFtZRgGIAEoCRIqCghpZGVudGl0eRgHIAEoCzIYLmNvbnNvbGUudjEuVGllcklkZW50aXR5MpQCCg1UYXJnZXRTZXJ2aWNlEk4KB1ByZXBhcmUSIC5jb25zb2xlLnYxLlByZXBhcmVUYXJnZXRSZXF1ZXN0GiEuY29uc29sZS52MS5QcmVwYXJlVGFyZ2V0UmVzcG9uc2USVwoKUmVjb3JkVGllchIjLmNvbnNvbGUudjEuUmVjb3JkVGFyZ2V0VGllclJlcXVlc3QaJC5jb25zb2xlLnYxLlJlY29yZFRhcmdldFRpZXJSZXNwb25zZRJaCg9Jc3N1ZUNyZWRlbnRpYWwSIi5jb25zb2xlLnYxLklzc3VlQ3JlZGVudGlhbFJlcXVlc3QaIy5jb25zb2xlLnYxLklzc3VlQ3JlZGVudGlhbFJlc3BvbnNlQjdaNWdpdGh1Yi5jb20vb2NlbGhxL29jZWwvcGtnL3Byb3RvL2NvbnNvbGUvdjE7Y29uc29sZXYxYgZwcm90bzM", [file_buf_validate_validate, file_common_environment_v1_environment, file_google_protobuf_timestamp]);
+  fileDesc("Chdjb25zb2xlL3YxL3RhcmdldC5wcm90bxIKY29uc29sZS52MSJiCgxUaWVySWRlbnRpdHkSLAoRaWRlbnRpdHlfcHJvdmlkZXIYASABKAlCEbpIDnIMEAEYgBAyBV5cUyskEiQKCXByaW5jaXBhbBgCIAEoCUIRukgOcgwQARiAEDIFXlxTKyQiugEKFFByZXBhcmVUYXJnZXRSZXF1ZXN0EioKBnZlbmRvchgBIAEoCUIaukgXchUQARhAMg9eW2EtejAtOS5fOi1dKyQSLAoHYWNjb3VudBgCIAEoCUIbukgYchYQARiAATIPXlthLXowLTkuXzotXSskEicKBnJlZ2lvbhgDIAEoCUIXukgUchIQARhAMgxeW2EtejAtOS1dKyQSHwoKcHJvamVjdF9pZBgEIAEoCUILukgI2AEBcgOwAQEiZQoVUHJlcGFyZVRhcmdldFJlc3BvbnNlEhEKCXRhcmdldF9pZBgBIAEoCRIXCg9vcmdhbml6YXRpb25faWQYAiABKAkSDgoGaXNzdWVyGAMgASgJEhAKCGF1ZGllbmNlGAQgASgJIuIBChdSZWNvcmRUYXJnZXRUaWVyUmVxdWVzdBIbCgl0YXJnZXRfaWQYASABKAlCCLpIBXIDsAEBEjUKBHRpZXIYAiABKA4yGy5jb21tb24uZW52aXJvbm1lbnQudjEuVGllckIKukgHggEEEAEgABIyCghpZGVudGl0eRgDIAEoCzIYLmNvbnNvbGUudjEuVGllcklkZW50aXR5Qga6SAPIAQESHgoLY2xpX3ZlcnNpb24YBSABKAlCCbpIBnIEEAEYQBIfCgpwcm9qZWN0X2lkGAYgASgJQgu6SAjYAQFyA7ABASIaChhSZWNvcmRUYXJnZXRUaWVyUmVzcG9uc2UibQoXRm9yZ2V0VGFyZ2V0VGllclJlcXVlc3QSGwoJdGFyZ2V0X2lkGAEgASgJQgi6SAVyA7ABARI1CgR0aWVyGAIgASgOMhsuY29tbW9uLmVudmlyb25tZW50LnYxLlRpZXJCCrpIB4IBBBABIAAiGgoYRm9yZ2V0VGFyZ2V0VGllclJlc3BvbnNlIrkBChZJc3N1ZUNyZWRlbnRpYWxSZXF1ZXN0EhwKCnByb2plY3RfaWQYASABKAlCCLpIBXIDsAEBEjUKBHRpZXIYAiABKA4yGy5jb21tb24uZW52aXJvbm1lbnQudjEuVGllckIKukgHggEEEAEgABIqCgZ2ZW5kb3IYAyABKAlCGrpIF3IVEAEYQDIPXlthLXowLTkuXzotXSskEh4KC2NsaV92ZXJzaW9uGAUgASgJQgm6SAZyBBABGEAi0wEKF0lzc3VlQ3JlZGVudGlhbFJlc3BvbnNlEhIKBXRva2VuGAEgASgJQgOAAQESLgoKZXhwaXJlc19hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJdGFyZ2V0X2lkGAMgASgJEg8KB2FjY291bnQYBCABKAkSDgoGcmVnaW9uGAUgASgJEhQKDHNlc3Npb25fbmFtZRgGIAEoCRIqCghpZGVudGl0eRgHIAEoCzIYLmNvbnNvbGUudjEuVGllcklkZW50aXR5Mu0CCg1UYXJnZXRTZXJ2aWNlEk4KB1ByZXBhcmUSIC5jb25zb2xlLnYxLlByZXBhcmVUYXJnZXRSZXF1ZXN0GiEuY29uc29sZS52MS5QcmVwYXJlVGFyZ2V0UmVzcG9uc2USVwoKUmVjb3JkVGllchIjLmNvbnNvbGUudjEuUmVjb3JkVGFyZ2V0VGllclJlcXVlc3QaJC5jb25zb2xlLnYxLlJlY29yZFRhcmdldFRpZXJSZXNwb25zZRJXCgpGb3JnZXRUaWVyEiMuY29uc29sZS52MS5Gb3JnZXRUYXJnZXRUaWVyUmVxdWVzdBokLmNvbnNvbGUudjEuRm9yZ2V0VGFyZ2V0VGllclJlc3BvbnNlEloKD0lzc3VlQ3JlZGVudGlhbBIiLmNvbnNvbGUudjEuSXNzdWVDcmVkZW50aWFsUmVxdWVzdBojLmNvbnNvbGUudjEuSXNzdWVDcmVkZW50aWFsUmVzcG9uc2VCN1o1Z2l0aHViLmNvbS9vY2VsaHEvb2NlbC9wa2cvcHJvdG8vY29uc29sZS92MTtjb25zb2xldjFiBnByb3RvMw", [file_buf_validate_validate, file_common_environment_v1_environment, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message console.v1.TierIdentity
@@ -94,11 +94,6 @@ export type PrepareTargetResponse = Message<"console.v1.PrepareTargetResponse"> 
    * @generated from field: string audience = 4;
    */
   audience: string;
-
-  /**
-   * @generated from field: string subject_prefix = 5;
-   */
-  subjectPrefix: string;
 };
 
 /**
@@ -126,11 +121,6 @@ export type RecordTargetTierRequest = Message<"console.v1.RecordTargetTierReques
    * @generated from field: console.v1.TierIdentity identity = 3;
    */
   identity?: TierIdentity | undefined;
-
-  /**
-   * @generated from field: repeated string grants = 4;
-   */
-  grants: string[];
 
   /**
    * @generated from field: string cli_version = 5;
@@ -164,6 +154,41 @@ export const RecordTargetTierResponseSchema: GenMessage<RecordTargetTierResponse
   messageDesc(file_console_v1_target, 4);
 
 /**
+ * @generated from message console.v1.ForgetTargetTierRequest
+ */
+export type ForgetTargetTierRequest = Message<"console.v1.ForgetTargetTierRequest"> & {
+  /**
+   * @generated from field: string target_id = 1;
+   */
+  targetId: string;
+
+  /**
+   * @generated from field: common.environment.v1.Tier tier = 2;
+   */
+  tier: Tier;
+};
+
+/**
+ * Describes the message console.v1.ForgetTargetTierRequest.
+ * Use `create(ForgetTargetTierRequestSchema)` to create a new message.
+ */
+export const ForgetTargetTierRequestSchema: GenMessage<ForgetTargetTierRequest> = /*@__PURE__*/
+  messageDesc(file_console_v1_target, 5);
+
+/**
+ * @generated from message console.v1.ForgetTargetTierResponse
+ */
+export type ForgetTargetTierResponse = Message<"console.v1.ForgetTargetTierResponse"> & {
+};
+
+/**
+ * Describes the message console.v1.ForgetTargetTierResponse.
+ * Use `create(ForgetTargetTierResponseSchema)` to create a new message.
+ */
+export const ForgetTargetTierResponseSchema: GenMessage<ForgetTargetTierResponse> = /*@__PURE__*/
+  messageDesc(file_console_v1_target, 6);
+
+/**
  * @generated from message console.v1.IssueCredentialRequest
  */
 export type IssueCredentialRequest = Message<"console.v1.IssueCredentialRequest"> & {
@@ -183,11 +208,6 @@ export type IssueCredentialRequest = Message<"console.v1.IssueCredentialRequest"
   vendor: string;
 
   /**
-   * @generated from field: repeated string grants = 4;
-   */
-  grants: string[];
-
-  /**
    * @generated from field: string cli_version = 5;
    */
   cliVersion: string;
@@ -198,7 +218,7 @@ export type IssueCredentialRequest = Message<"console.v1.IssueCredentialRequest"
  * Use `create(IssueCredentialRequestSchema)` to create a new message.
  */
 export const IssueCredentialRequestSchema: GenMessage<IssueCredentialRequest> = /*@__PURE__*/
-  messageDesc(file_console_v1_target, 5);
+  messageDesc(file_console_v1_target, 7);
 
 /**
  * @generated from message console.v1.IssueCredentialResponse
@@ -245,7 +265,7 @@ export type IssueCredentialResponse = Message<"console.v1.IssueCredentialRespons
  * Use `create(IssueCredentialResponseSchema)` to create a new message.
  */
 export const IssueCredentialResponseSchema: GenMessage<IssueCredentialResponse> = /*@__PURE__*/
-  messageDesc(file_console_v1_target, 6);
+  messageDesc(file_console_v1_target, 8);
 
 /**
  * @generated from service console.v1.TargetService
@@ -266,6 +286,14 @@ export const TargetService: GenService<{
     methodKind: "unary";
     input: typeof RecordTargetTierRequestSchema;
     output: typeof RecordTargetTierResponseSchema;
+  },
+  /**
+   * @generated from rpc console.v1.TargetService.ForgetTier
+   */
+  forgetTier: {
+    methodKind: "unary";
+    input: typeof ForgetTargetTierRequestSchema;
+    output: typeof ForgetTargetTierResponseSchema;
   },
   /**
    * @generated from rpc console.v1.TargetService.IssueCredential

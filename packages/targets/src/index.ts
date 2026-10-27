@@ -12,6 +12,7 @@ export {
   bindingsOf,
   bindProject,
   boundTarget,
+  forgetTier,
   type IssuanceRow,
   issuancesOf,
   prepareTarget,
@@ -28,8 +29,5 @@ export {
   audienceOf,
   identityProblem,
   isVendor,
-  missingGrants,
-  normalizedGrant,
-  subjectPrefixOf,
   unsupportedVendor,
 } from "./vendors";
