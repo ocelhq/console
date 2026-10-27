@@ -10,7 +10,12 @@ import {
 import type { CommitState, DeploymentState, GitRuntime } from "@console/git";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { markSynced } from "./queue";
-import { PREVIEW_MARKER, type PreviewRow, renderPreviewComment } from "./render";
+import {
+  PREVIEW_MARKER,
+  type PreviewDeployment,
+  type PreviewRow,
+  renderPreviewComment,
+} from "./render";
 
 export type SyncDeps = Pick<GitRuntime, "providerFor"> & {
   store: Pick<GitRuntime["store"], "loadApp">;
@@ -35,14 +40,29 @@ const DEPLOYMENT_STATES: Partial<Record<Job["status"], DeploymentState>> = {
 
 export const previewEnvironment = (pr: number, slug: string) => `preview/pr-${pr}/${slug}`;
 
-async function urlOf(projectId: string, deploymentId: string | null): Promise<string | undefined> {
+async function deploymentOf(
+  projectId: string,
+  deploymentId: string | null,
+): Promise<PreviewDeployment | undefined> {
   if (!deploymentId) return undefined;
   const [found] = await db
-    .select({ topology: deployment.topology })
+    .select({
+      provider: deployment.providerName,
+      finishedAt: deployment.deployedAt,
+      topology: deployment.topology,
+    })
     .from(deployment)
     .where(and(eq(deployment.projectId, projectId), eq(deployment.deploymentId, deploymentId)));
-  return found?.topology.apps.flatMap((app) => app.urls)[0];
+  if (!found) return undefined;
+  return {
+    provider: found.provider,
+    finishedAt: found.finishedAt,
+    apps: found.topology.apps.map((app) => ({ name: app.name, url: app.urls[0] })),
+  };
 }
+
+const urlOf = (deployed: PreviewDeployment | undefined) =>
+  deployed?.apps.find((app) => app.url)?.url;
 
 async function latestPreviews(
   installationId: string,
@@ -69,13 +89,13 @@ async function latestPreviews(
           ne(job.status, "canceled"),
         ),
       )
-      .orderBy(desc(job.createdAt))
+      .orderBy(desc(job.eventAt), desc(job.createdAt))
       .limit(1);
     if (!latest) continue;
     rows.push({
       project: linkedProject.name,
       job: latest,
-      url: await urlOf(linkedProject.id, latest.deploymentId),
+      deployment: await deploymentOf(linkedProject.id, latest.deploymentId),
     });
   }
   return rows;
@@ -104,33 +124,52 @@ async function report(synced: Job, deps: SyncDeps): Promise<void> {
   const repo = { id: found.repoId, fullName: found.fullName };
   const context = `ocel/${found.slug}/${synced.kind === "deploy" ? "deploy" : "preview"}`;
 
+  const runLog = (reported: Job) => (reported.runUrl ? { targetUrl: reported.runUrl } : {});
+
   if (synced.kind === "deploy") {
     if (synced.sha) {
       await provider.setStatus(installation, repo, {
         sha: synced.sha,
         state: COMMIT_STATES[synced.status],
         context,
+        ...runLog(synced),
       });
     }
     return;
   }
 
+  const inPullRequest = new Map<string, Promise<boolean>>();
+  const ofPullRequest = (sha: string) => {
+    let answer = inPullRequest.get(sha);
+    if (!answer) {
+      answer = provider.pullRequestHasCommit(installation, repo, synced.pr, sha);
+      inPullRequest.set(sha, answer);
+    }
+    return answer;
+  };
+
   const rows = await latestPreviews(found.installationId, found.repoId, synced.pr);
   const own = rows.find((row) => row.job.projectId === synced.projectId);
   const takenOver = synced.status === "canceled" && own?.job.sha === synced.sha;
-  if (synced.sha && synced.kind === "preview-up" && !takenOver) {
+  if (
+    synced.sha &&
+    synced.kind === "preview-up" &&
+    !takenOver &&
+    (await ofPullRequest(synced.sha))
+  ) {
     await provider.setStatus(installation, repo, {
       sha: synced.sha,
       state: COMMIT_STATES[synced.status],
       context,
       ...(synced.status === "canceled" ? { description: "Canceled" } : {}),
+      ...runLog(synced),
     });
   }
 
   await provider.upsertComment(installation, repo, {
     pr: synced.pr,
     marker: PREVIEW_MARKER,
-    body: renderPreviewComment(rows),
+    body: renderPreviewComment(found.fullName, rows),
   });
 
   if (!own) return;
@@ -141,12 +180,14 @@ async function report(synced: Job, deps: SyncDeps): Promise<void> {
     return;
   }
   const state = DEPLOYMENT_STATES[own.job.status];
-  if (!state || !own.job.sha) return;
+  if (!state || !own.job.sha || !(await ofPullRequest(own.job.sha))) return;
+  const environmentUrl = urlOf(own.deployment);
   await provider.upsertDeployment(installation, repo, {
     environment,
     state,
     sha: own.job.sha,
-    ...(own.url ? { environmentUrl: own.url } : {}),
+    ...(own.job.runUrl ? { logUrl: own.job.runUrl } : {}),
+    ...(environmentUrl ? { environmentUrl } : {}),
   });
 }
 

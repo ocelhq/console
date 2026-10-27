@@ -1,0 +1,130 @@
+import { randomBytes } from "node:crypto";
+import { db } from "@console/db";
+import { type Job, job, organization, project, trustedPipeline } from "@console/db/schema";
+import { setupTestDatabase } from "@console/db/testing";
+import { addPipeline, envKeyStore, gitStore, pipelinesOf } from "@console/git";
+import { pg } from "@console/infra";
+import { eq } from "drizzle-orm";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { deployIn } from "./deploys";
+
+const suffix = crypto.randomUUID();
+const orgId = `org-${suffix}`;
+const appRowId = `app-${suffix}`;
+const projectId = `p-${suffix}`;
+const store = gitStore(envKeyStore(randomBytes(32).toString("base64")));
+const repo = { repository: "acme/web", repositoryId: "1234", repositoryOwnerId: "42" };
+
+let notified: Job[] = [];
+const notify = async (changed: Job) => {
+  notified.push(changed);
+};
+
+async function queued(status: Job["status"]) {
+  await db.insert(job).values({
+    id: crypto.randomUUID(),
+    projectId,
+    kind: "preview-up",
+    status,
+    pr: status === "queued" ? 7 : 8,
+    dedupeKey: crypto.randomUUID(),
+    eventAt: new Date(),
+  });
+}
+
+beforeAll(async () => {
+  await setupTestDatabase();
+  await db
+    .insert(organization)
+    .values({ id: orgId, name: "A", slug: orgId, createdAt: new Date() });
+  await store.createOrganizationApp({
+    id: appRowId,
+    organizationId: orgId,
+    kind: "github",
+    appId: `gh-${suffix}`,
+    slug: "mine",
+    privateKey: "k",
+    webhookSecret: "w",
+    clientId: "c",
+    clientSecret: "cs",
+  });
+  const bound = await store.bindInstallation({
+    gitAppId: appRowId,
+    organizationId: orgId,
+    externalId: "556",
+    account: "acme",
+  });
+  if (bound === "claimed") throw new Error("claimed");
+  await db
+    .insert(project)
+    .values({ id: projectId, organizationId: orgId, name: "Web", slug: "web" });
+  await store.linkProjectRepo({
+    projectId,
+    organizationId: orgId,
+    installationId: bound.id,
+    repo: { id: "1234", fullName: "acme/web", defaultBranch: "main" },
+  });
+});
+
+beforeEach(async () => {
+  await db.delete(job).where(eq(job.projectId, projectId));
+  await db.delete(trustedPipeline).where(eq(trustedPipeline.projectId, projectId));
+  notified = [];
+});
+
+afterAll(async () => {
+  await db.delete(organization).where(eq(organization.id, orgId));
+  await pg.end();
+});
+
+describe("moving a project's deploys to its own CI", () => {
+  it("cancels what waits for a runner, trusts the linked repo's pipelines, and says so", async () => {
+    await queued("queued");
+    await queued("running");
+
+    await deployIn(projectId, { mode: "ci", pipeline: { ...repo, createdBy: null } }, notify);
+
+    expect(await store.linkedRepo(projectId)).toMatchObject({ deploys: "ci" });
+    const statuses = (await db.select().from(job).where(eq(job.projectId, projectId)))
+      .map((row) => row.status)
+      .sort();
+    expect(statuses).toEqual(["canceled", "running"]);
+    expect(notified.map((changed) => changed.status)).toEqual(["canceled"]);
+    expect(await pipelinesOf(projectId)).toMatchObject([
+      { origin: "linked", kind: "github-actions", ...repo, branches: ["*"] },
+    ]);
+  });
+
+  it("trusts one linked pipeline however often it is chosen", async () => {
+    await deployIn(projectId, { mode: "ci", pipeline: { ...repo, createdBy: null } }, notify);
+    await deployIn(projectId, { mode: "ci", pipeline: { ...repo, createdBy: null } }, notify);
+
+    expect(await pipelinesOf(projectId)).toHaveLength(1);
+  });
+});
+
+describe("moving a project's deploys back to the runners", () => {
+  it("forgets the linked pipeline and keeps the ones added by hand", async () => {
+    await deployIn(projectId, { mode: "ci", pipeline: { ...repo, createdBy: null } }, notify);
+    const manual = await addPipeline({
+      projectId,
+      ...repo,
+      workflow: null,
+      environment: null,
+      branches: ["main"],
+      origin: "manual",
+      createdBy: null,
+    });
+
+    await deployIn(projectId, { mode: "runners" }, notify);
+
+    expect(await store.linkedRepo(projectId)).toMatchObject({ deploys: "runners" });
+    expect((await pipelinesOf(projectId)).map((kept) => kept.id)).toEqual([manual.id]);
+  });
+});
+
+it("refuses a project linked to no repo", async () => {
+  await expect(deployIn(`missing-${suffix}`, { mode: "runners" }, notify)).rejects.toThrow(
+    /linked/,
+  );
+});
