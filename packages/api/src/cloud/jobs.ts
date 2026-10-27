@@ -161,7 +161,7 @@ export function cloudJobsFor(caller: CloudCaller): CloudJobs | null {
           return job;
         }
         if (answer.job && !answer.more) {
-          await recordJobReport(caller.organizationId, answer.job);
+          await recordJobReport(caller, answer.job);
         }
         return {
           ok: true,

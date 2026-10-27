@@ -4,7 +4,9 @@ import { auth } from "@console/auth/next";
 import { setupTestDatabase } from "@console/db/testing";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createTestSessionWithOrganization } from "../test/auth-harness";
-import { CONNECT_PREFIX, connect } from "./routes/connect/route";
+import { CONNECT_PREFIX, connectHandler } from "./routes/connect/route";
+
+const connect = connectHandler();
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 

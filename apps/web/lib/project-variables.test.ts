@@ -1,4 +1,4 @@
-import { connect } from "@console/api";
+import { connectHandler } from "@console/api";
 import { VariableClass } from "@console/connectors/gen/app/resources/v1/variables_pb";
 import { Lifecycle, Tier } from "@console/connectors/gen/common/environment/v1/environment_pb";
 import { ConnectorReach } from "@console/connectors/gen/console/v1/connector_pb";
@@ -16,6 +16,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { createTestSessionWithOrganization } from "@/test/auth-harness";
 import { connectorFor } from "./connectors";
 import { latestTopology } from "./project-variables";
+
+const connect = connectHandler();
 
 const TARGET = "aws/123456789012/us-east-1/main";
 
