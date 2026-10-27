@@ -1,5 +1,5 @@
 import type { CredentialGrant } from "@console/db/schema";
-import { parseBranches } from "@console/git";
+import { parsePatterns } from "@console/git";
 
 export interface GrantInput {
   production: { enabled: boolean; branches: string; environment: string };
@@ -8,26 +8,29 @@ export interface GrantInput {
 
 export type GrantAnswer = { ok: true; grant: CredentialGrant } | { ok: false; message: string };
 
-export function credentialGrantOf(input: GrantInput, productionBranch?: string): GrantAnswer {
+export function credentialGrantOf(input: GrantInput): GrantAnswer {
   const grant: CredentialGrant = {};
   if (input.production.enabled) {
-    if (productionBranch === undefined && input.production.branches.trim() === "") {
+    const branches = parsePatterns(input.production.branches);
+    if (branches.length === 0) {
       return {
         ok: false,
-        message: "Name the branches whose runs get production credentials, such as main.",
+        message:
+          "Name the branches whose runs get production credentials, such as main. * names every branch.",
       };
     }
     const environment = input.production.environment.trim();
-    grant.production = {
-      branches:
-        productionBranch === undefined
-          ? parseBranches(input.production.branches)
-          : [productionBranch],
-      ...(environment ? { environment } : {}),
-    };
+    grant.production = { branches, ...(environment ? { environment } : {}) };
   }
   if (input.preview.enabled) {
-    grant.preview = { branches: parseBranches(input.preview.branches) };
+    const branches = parsePatterns(input.preview.branches);
+    if (branches.length === 0) {
+      return {
+        ok: false,
+        message: "Name the branches whose runs get preview credentials. * names every branch.",
+      };
+    }
+    grant.preview = { branches };
   }
   return { ok: true, grant };
 }

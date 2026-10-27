@@ -2,15 +2,8 @@ import { consoleOrigin } from "@console/auth";
 import type { IssuancePrincipal } from "@console/db/schema";
 import { configuredIssuer, type IssuanceRow, issuerUrl } from "@console/targets";
 import { requireOrganization } from "./access";
+import { type Answer, failed } from "./answer";
 import { organizationOf } from "./organization";
-
-export type Answer<T = null> = { ok: true; result: T } | { ok: false; message: string };
-
-export const done = { ok: true, result: null } as const;
-
-export function failed(message: string): Answer<never> {
-  return { ok: false, message };
-}
 
 export function issuer() {
   return configuredIssuer(consoleOrigin());
@@ -32,14 +25,6 @@ export async function administering(): Promise<Answer<{ userId: string; organiza
   };
 }
 
-export async function attempt<T>(run: () => Promise<Answer<T>>): Promise<Answer<T>> {
-  try {
-    return await run();
-  } catch (thrown) {
-    return failed(thrown instanceof Error ? thrown.message : String(thrown));
-  }
-}
-
 export type IssuanceView = {
   id: string;
   project: string | null;
@@ -52,9 +37,12 @@ export type IssuanceView = {
 };
 
 function byWhom(principal: IssuancePrincipal): { by: string; runUrl: string | null } {
-  return principal.kind === "pipeline"
-    ? { by: "Trusted pipeline", runUrl: principal.runUrl }
-    : { by: "Connection test", runUrl: null };
+  switch (principal.kind) {
+    case "pipeline":
+      return { by: "Trusted pipeline", runUrl: principal.runUrl };
+    case "session":
+      return { by: "Connection test", runUrl: null };
+  }
 }
 
 export function issuanceView(row: IssuanceRow): IssuanceView {

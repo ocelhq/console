@@ -6,6 +6,10 @@ export function tierOf(value: string | null | undefined): Tier {
   return value === "preview" ? "preview" : "production";
 }
 
+export function parseTier(value: string): Tier | undefined {
+  return tiers.find((tier) => tier === value);
+}
+
 export function otherTier(tier: Tier): Tier {
   return tier === "production" ? "preview" : "production";
 }

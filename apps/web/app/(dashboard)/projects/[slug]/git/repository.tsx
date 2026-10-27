@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type { Answer } from "@/lib/answer";
 import { labelType } from "@/lib/type";
-import { type Answer, changeProductionBranch, linkRepo, reposOf, unlinkRepo } from "./actions";
+import { changeProductionBranch, linkRepo, reposOf, unlinkRepo } from "./actions";
 import { block, field, hint, readOnly } from "./shared";
 
 type Repo = { id: string; fullName: string; defaultBranch: string };

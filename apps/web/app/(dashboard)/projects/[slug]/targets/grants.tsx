@@ -44,7 +44,7 @@ function GrantForm({
   const [input, setInput] = useState<GrantInput>({
     production: {
       enabled: pipeline.production !== null,
-      branches: pipeline.production?.branches.join(", ") ?? "",
+      branches: pipeline.production?.branches.join(", ") ?? (follows ? productionBranch : ""),
       environment: pipeline.production?.environment ?? "",
     },
     preview: {
