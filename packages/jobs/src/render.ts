@@ -39,21 +39,52 @@ function formatTime(date: Date): string {
   return `${text} UTC`;
 }
 
-function commit(repo: string, job: Job): string {
-  if (!job.sha) return "a commit";
-  return `[\`${job.sha.slice(0, 7)}\`](https://github.com/${repo}/commit/${job.sha})`;
+const oneLine = (value: string) => value.replace(/\s+/g, " ").trim();
+
+export function markdownText(value: string): string {
+  return oneLine(value).replace(/[\\`*_[\]()#|<>~!&@]/g, "\\$&");
 }
 
-const onBranch = (job: Job) => (job.branch ? ` on \`${job.branch}\`` : "");
+const longestRun = (value: string, mark: string) =>
+  Math.max(0, ...(value.match(new RegExp(`${mark}+`, "g")) ?? []).map((run) => run.length));
+
+export function markdownCode(value: string): string {
+  const code = oneLine(value);
+  const fence = "`".repeat(longestRun(code, "`") + 1);
+  const pad = code.startsWith("`") || code.endsWith("`") ? " " : "";
+  return `${fence}${pad}${code}${pad}${fence}`;
+}
+
+export function markdownUrl(value: string): string | undefined {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return undefined;
+  return url.href.replace(
+    /[()[\]|<> "`]/g,
+    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0")}`,
+  );
+}
+
+function commit(repo: string, job: Job): string {
+  const href = job.sha && markdownUrl(`https://github.com/${repo}/commit/${job.sha}`);
+  if (!job.sha || !href) return "a commit";
+  return `[${markdownCode(job.sha.slice(0, 7))}](${href})`;
+}
+
+const onBranch = (job: Job) => (job.branch ? ` on ${markdownCode(job.branch)}` : "");
 
 function fenced(text: string): string[] {
-  const fence = text.includes("```") ? "~~~~" : "```";
+  const fence = "`".repeat(Math.max(3, longestRun(text, "`") + 1));
   return [fence, text, fence];
 }
 
 function deployed(repo: string, job: Job, deployment: PreviewDeployment): string[] {
   const look = PROVIDERS[deployment.provider];
-  const where = look?.home ?? deployment.provider;
+  const where = look?.home ?? markdownText(deployment.provider);
   const line = `Deployed ${commit(repo, job)} to ${where} · ${formatTime(deployment.finishedAt)}`;
   const headline = look
     ? `<img src="${LOGO_BASE}/${look.logo}.svg" alt="${look.name}" height="14"> ${line}`
@@ -63,11 +94,12 @@ function deployed(repo: string, job: Job, deployment: PreviewDeployment): string
     "",
     "| App | Preview | Status |",
     "| --- | --- | --- |",
-    ...deployment.apps.map(({ name, url }) =>
-      url
-        ? `| ${name} | [Visit preview ↗](${url}) | ✅ Ready |`
-        : `| ${name} | no url | ❌ No URL |`,
-    ),
+    ...deployment.apps.map(({ name, url }) => {
+      const href = url && markdownUrl(url);
+      return href
+        ? `| ${markdownText(name)} | [Visit preview ↗](${href}) | ✅ Ready |`
+        : `| ${markdownText(name)} | no url | ❌ No URL |`;
+    }),
   ];
 }
 
@@ -108,9 +140,10 @@ function removal(job: Job): string[] {
 export function renderPreviewComment(repo: string, rows: PreviewRow[]): string {
   const lines = [PREVIEW_MARKER, "", "### Ocel preview"];
   for (const row of rows) {
-    lines.push("", `#### ${row.project}`, "");
+    lines.push("", `#### ${markdownText(row.project)}`, "");
     lines.push(...(row.job.kind === "preview-rm" ? removal(row.job) : preview(repo, row)));
-    if (row.job.runUrl) lines.push("", `[Run log](${row.job.runUrl})`);
+    const runLog = row.job.runUrl && markdownUrl(row.job.runUrl);
+    if (runLog) lines.push("", `[Run log](${runLog})`);
   }
   return `${lines.join("\n")}\n`;
 }
