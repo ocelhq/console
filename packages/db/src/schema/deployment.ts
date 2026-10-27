@@ -48,6 +48,10 @@ export type DeploymentTrigger = {
   ci?: DeploymentCi;
 };
 
+export type Principal =
+  | { kind: "session"; userId: string }
+  | { kind: "pipeline"; pipelineId: string; jti: string };
+
 export type DeploymentGit = {
   sha?: string;
   branch?: string;
@@ -137,6 +141,7 @@ export const deployment = pgTable(
     outcome: deploymentOutcome("outcome").notNull(),
     error: text("error"),
     trigger: jsonb("trigger").$type<DeploymentTrigger>().notNull(),
+    principal: jsonb("principal").$type<Principal>(),
     git: jsonb("git").$type<DeploymentGit>(),
     cliVersion: text("cli_version"),
     startedAt: timestamp("started_at"),
@@ -171,6 +176,7 @@ export const environmentEvent = pgTable(
     occurredAt: timestamp("occurred_at").notNull(),
     git: jsonb("git").$type<DeploymentGit>(),
     ci: jsonb("ci").$type<DeploymentCi>(),
+    principal: jsonb("principal").$type<Principal>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
