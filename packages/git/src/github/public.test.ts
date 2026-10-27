@@ -33,4 +33,11 @@ describe("publicRepoIds", () => {
     expect(await publicRepoIds("acme/secret", { fetch: github.fetch })).toBeUndefined();
     expect(await publicRepoIds("acme/missing", { fetch: github.fetch })).toBeUndefined();
   });
+
+  it("throws rather than guess when GitHub answers anything but the repository or a 404", async () => {
+    const limited: typeof fetch = async () =>
+      new Response(JSON.stringify({ message: "rate limited" }), { status: 403 });
+
+    await expect(publicRepoIds("acme/web", { fetch: limited })).rejects.toThrow(/403/);
+  });
 });

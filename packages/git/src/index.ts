@@ -4,17 +4,20 @@ export { publicRepoIds, type RepoIds } from "./github/public";
 export { envKeyStore, type KeyStore, type WrappedKey } from "./keystore";
 export {
   addPipeline,
+  claimPipeline,
   forgetExpiredPipelineTokens,
   GITHUB_ACTIONS_ISSUER,
   type NewPipeline,
+  narrowPipeline,
+  type PipelineNarrowing,
   parseBranches,
   parseRepository,
   parseWorkflow,
-  pinPipeline,
   pipelinesOf,
-  pipelineUsed,
+  type Removal,
   removePipeline,
   spendPipelineToken,
+  syncLinkedPipeline,
 } from "./pipelines";
 export type * from "./provider";
 export { type GitRuntime, gitRuntime } from "./runtime";

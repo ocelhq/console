@@ -196,16 +196,18 @@ export function githubProvider(github: GithubApp, options: GithubOptions = {}): 
       }
     },
 
-    async pullRequestHasCommit(installation, repo, pr, sha) {
+    async pullRequest(installation, repo, pr) {
       const octokit = await installationClient(installation);
-      const commits = await everyPage(async (page) => {
-        const { data } = await octokit.request(
-          "GET /repos/{owner}/{repo}/pulls/{pull_number}/commits",
-          { ...ownerAndName(repo), pull_number: pr, per_page: PAGE, page },
-        );
-        return data;
-      });
-      return commits.some((commit) => commit.sha === sha);
+      try {
+        const { data } = await octokit.request("GET /repos/{owner}/{repo}/pulls/{pull_number}", {
+          ...ownerAndName(repo),
+          pull_number: pr,
+        });
+        return { headSha: data.head.sha, mergeCommitSha: data.merge_commit_sha ?? null };
+      } catch (error) {
+        if (error instanceof RequestError && error.status === 404) return undefined;
+        throw error;
+      }
     },
 
     async repoToken(installation, repo, access) {

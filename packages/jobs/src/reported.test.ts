@@ -2,11 +2,18 @@ import { randomBytes } from "node:crypto";
 import { db } from "@console/db";
 import { type Job, job, organization, project, projectRepo } from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
-import { envKeyStore, gitStore } from "@console/git";
+import { envKeyStore, type GitProvider, gitStore, type PullRequestHead } from "@console/git";
 import { pg } from "@console/infra";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { type ReportedDeployment, type ReportedEvent, reportedFromCi } from "./reported";
+import {
+  notifyReported,
+  planReportedJob,
+  type ReportedDeployment,
+  type ReportedEvent,
+  type ReportedFromCi,
+  recordReportedJob,
+} from "./reported";
 
 const suffix = crypto.randomUUID();
 const orgId = `org-${suffix}`;
@@ -17,6 +24,29 @@ const sha = "c".repeat(40);
 const RUN_URL = "https://github.com/acme/web/actions/runs/9/attempts/1";
 const startedAt = new Date("2026-10-27T10:00:00.000Z");
 const finishedAt = new Date("2026-10-27T10:03:00.000Z");
+
+const HEAD = "c".repeat(40);
+const MERGE = "m".repeat(40);
+let pulls = new Map<number, PullRequestHead>();
+const git = {
+  store,
+  providerFor: () =>
+    ({
+      async pullRequest(_installation: unknown, _repo: unknown, pr: number) {
+        return pulls.get(pr);
+      },
+    }) as unknown as GitProvider,
+};
+
+async function reportedFromCi(
+  reported: ReportedFromCi,
+  notifyChange: (changed: Job) => Promise<void>,
+) {
+  const planned = await planReportedJob(reported, git);
+  const made = await db.transaction((tx) => recordReportedJob(tx, planned));
+  await notifyReported(made, notifyChange);
+  return made;
+}
 
 let notified: Job[] = [];
 const notify = async (changed: Job) => {
@@ -84,7 +114,7 @@ beforeAll(async () => {
     projectId,
     organizationId: orgId,
     installationId: bound.id,
-    repo: { id: "1234", fullName: "acme/web", defaultBranch: "main" },
+    repo: { id: "1234", fullName: "acme/web", defaultBranch: "main", ownerId: "42" },
   });
 });
 
@@ -92,6 +122,7 @@ beforeEach(async () => {
   await db.delete(job).where(eq(job.projectId, projectId));
   await deploysIn("ci");
   notified = [];
+  pulls = new Map([[7, { headSha: HEAD, mergeCommitSha: MERGE }]]);
 });
 
 afterAll(async () => {
@@ -168,6 +199,28 @@ describe("a preview CI reports", () => {
         finishedAt,
       },
     ]);
+  });
+});
+
+describe("the commit of a preview CI reports", () => {
+  const built = async (commit: string) => {
+    await reportedFromCi(
+      { ...fromCi, deployment: preview({ git: { sha: commit, branch: "feat/x", dirty: false } }) },
+      notify,
+    );
+    return (await jobs())[0]?.sha;
+  };
+
+  it("is kept when it is the pull request's head", async () => {
+    expect(await built(HEAD)).toBe(HEAD);
+  });
+
+  it("is the pull request's head when the run built GitHub's test merge commit", async () => {
+    expect(await built(MERGE)).toBe(HEAD);
+  });
+
+  it("is none when the pull request does not have it, so only the comment shows the run", async () => {
+    expect(await built("e".repeat(40))).toBeNull();
   });
 });
 

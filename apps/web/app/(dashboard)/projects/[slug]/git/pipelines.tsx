@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { labelType } from "@/lib/type";
 import { Stamp } from "../../../stamp";
-import { distrustPipeline, trustPipeline } from "./actions";
+import { distrustPipeline, narrowTrustedPipeline, trustPipeline } from "./actions";
 import { block, hint, readOnly } from "./shared";
 
 export type PipelineRow = {
@@ -30,20 +30,33 @@ export type PipelineRow = {
 
 const any = <span className="text-muted-foreground">any</span>;
 
-function AddPipeline({ projectId, onDone }: { projectId: string; onDone: () => void }) {
+type Narrowing = { workflow: string; environment: string; branches: string };
+
+function PipelineForm({
+  projectId,
+  editing,
+  onDone,
+}: {
+  projectId: string;
+  editing?: PipelineRow;
+  onDone: () => void;
+}) {
   const router = useRouter();
   const [repository, setRepository] = useState("");
-  const [workflow, setWorkflow] = useState("");
-  const [environment, setEnvironment] = useState("");
-  const [branches, setBranches] = useState("*");
+  const [workflow, setWorkflow] = useState(editing?.workflow ?? "");
+  const [environment, setEnvironment] = useState(editing?.environment ?? "");
+  const [branches, setBranches] = useState(editing?.branches.join(", ") ?? "*");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function add(event: FormEvent<HTMLFormElement>) {
+  async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
     setError(null);
-    const answer = await trustPipeline(projectId, { repository, workflow, environment, branches });
+    const narrowing: Narrowing = { workflow, environment, branches };
+    const answer = editing
+      ? await narrowTrustedPipeline(projectId, editing.id, narrowing)
+      : await trustPipeline(projectId, { repository, ...narrowing });
     setPending(false);
     if (!answer.ok) {
       setError(answer.message);
@@ -55,25 +68,31 @@ function AddPipeline({ projectId, onDone }: { projectId: string; onDone: () => v
 
   return (
     <form
-      onSubmit={add}
+      onSubmit={save}
       className="flex max-w-md flex-col gap-4 border-t border-border pt-4"
       noValidate
     >
-      <label className="flex flex-col gap-2">
-        <span className="text-sm font-medium">Repository</span>
-        <Input
-          value={repository}
-          onChange={(event) => setRepository(event.target.value)}
-          placeholder="owner/name"
-          spellCheck={false}
-          autoComplete="off"
-          disabled={pending}
-        />
-        <span className={hint}>
-          The console reads a public repository’s ids now. A private one is pinned to the ids of the
-          first token that names it, and holds to them from then on.
-        </span>
-      </label>
+      {editing ? (
+        <p className="text-sm">
+          Narrowing <span className="font-mono text-xs">{editing.repository}</span>
+        </p>
+      ) : (
+        <label className="flex flex-col gap-2">
+          <span className="text-sm font-medium">Repository</span>
+          <Input
+            value={repository}
+            onChange={(event) => setRepository(event.target.value)}
+            placeholder="owner/name"
+            spellCheck={false}
+            autoComplete="off"
+            disabled={pending}
+          />
+          <span className={hint}>
+            The console reads a public repository’s ids now. A private one is pinned to the ids of
+            the first token that names it, and holds to them from then on.
+          </span>
+        </label>
+      )}
       <label className="flex flex-col gap-2">
         <span className="text-sm font-medium">Workflow (optional)</span>
         <Input
@@ -120,7 +139,7 @@ function AddPipeline({ projectId, onDone }: { projectId: string; onDone: () => v
       </label>
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending}>
-          {pending ? "Adding…" : "Add pipeline"}
+          {pending ? "Saving…" : editing ? "Save pipeline" : "Add pipeline"}
         </Button>
         <Button type="button" variant="ghost" disabled={pending} onClick={onDone}>
           Cancel
@@ -138,16 +157,18 @@ function AddPipeline({ projectId, onDone }: { projectId: string; onDone: () => v
 export function Pipelines({
   projectId,
   administers,
+  deploysFromCi,
   pipelines,
   now,
 }: {
   projectId: string;
   administers: boolean;
+  deploysFromCi: boolean;
   pipelines: PipelineRow[];
   now: string;
 }) {
   const router = useRouter();
-  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState<"add" | PipelineRow | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -205,15 +226,28 @@ export function Pipelines({
                 </TableCell>
                 {administers && (
                   <TableCell className="text-right">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="destructive"
-                      disabled={removing !== null}
-                      onClick={() => remove(pipeline.id)}
-                    >
-                      {removing === pipeline.id ? "Removing…" : "Remove"}
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={removing !== null}
+                        onClick={() => setForm(pipeline)}
+                      >
+                        Edit
+                      </Button>
+                      {!(pipeline.origin === "linked" && deploysFromCi) && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          disabled={removing !== null}
+                          onClick={() => remove(pipeline.id)}
+                        >
+                          {removing === pipeline.id ? "Removing…" : "Remove"}
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 )}
               </TableRow>
@@ -227,11 +261,16 @@ export function Pipelines({
         </p>
       )}
       {administers ? (
-        adding ? (
-          <AddPipeline projectId={projectId} onDone={() => setAdding(false)} />
+        form ? (
+          <PipelineForm
+            key={form === "add" ? "add" : form.id}
+            projectId={projectId}
+            editing={form === "add" ? undefined : form}
+            onDone={() => setForm(null)}
+          />
         ) : (
           <div>
-            <Button type="button" variant="outline" onClick={() => setAdding(true)}>
+            <Button type="button" variant="outline" onClick={() => setForm("add")}>
               Add pipeline
             </Button>
           </div>

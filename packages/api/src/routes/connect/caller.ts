@@ -13,18 +13,10 @@ import {
 } from "@console/auth";
 import { GITHUB_ACTIONS_ISSUER } from "@console/git";
 import { decodeJwt } from "jose";
-import {
-  type AdmittedPipeline,
-  admitPipeline,
-  type PipelineKeys,
-  type ReportTier,
-} from "../../pipelines/admit";
 
 export type Caller =
   | { kind: "session"; session: ActiveOrganizationSession }
-  | ({ kind: "pipeline" } & AdmittedPipeline);
-
-export type PipelineReport = (message: unknown) => { projectId: string; tier: ReportTier };
+  | { kind: "pipeline-token"; token: string };
 
 const callerKey = createContextKey<Caller | null>(null);
 
@@ -57,27 +49,19 @@ async function sessionCaller(header: Headers): Promise<Caller> {
 
 export function callerInterceptor(options: {
   open: readonly DescMethod[];
-  pipelines: ReadonlyMap<DescMethod, PipelineReport>;
-  pipelineKeys: () => PipelineKeys;
+  pipelines: readonly DescMethod[];
 }): Interceptor {
   const unauthenticated = new Set(options.open);
+  const pipelines = new Set(options.pipelines);
   return (next) => async (request) => {
     if (unauthenticated.has(request.method)) {
       return next(request);
     }
-    const reportOf = options.pipelines.get(request.method);
     const bearer = bearerOf(request.header);
-    let caller: Caller;
-    if (reportOf && !request.stream && bearer && fromGithubActions(bearer)) {
-      const admitted = await admitPipeline(
-        bearer,
-        reportOf(request.message),
-        options.pipelineKeys(),
-      );
-      caller = { kind: "pipeline", ...admitted };
-    } else {
-      caller = await sessionCaller(request.header);
-    }
+    const caller: Caller =
+      pipelines.has(request.method) && bearer && fromGithubActions(bearer)
+        ? { kind: "pipeline-token", token: bearer }
+        : await sessionCaller(request.header);
     request.contextValues.set(callerKey, caller);
     return next(request);
   };

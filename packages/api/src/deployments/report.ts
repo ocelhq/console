@@ -1,10 +1,8 @@
 import { isDeepStrictEqual } from "node:util";
-import type { Deployment } from "@console/connectors/gen/console/v1/deployment_pb";
-import { db } from "@console/db";
-import { deployment, type Principal, project } from "@console/db/schema";
+import { db, type Executor } from "@console/db";
+import { deployment, environmentEvent, type Principal, project } from "@console/db/schema";
 import { and, eq } from "drizzle-orm";
-import { uuidv7 } from "uuidv7";
-import { deploymentValues } from "./record";
+import type { deploymentValues, environmentEventValues } from "./record";
 
 export type Recording = "recorded" | "repeated" | "differs" | "gone";
 
@@ -46,42 +44,71 @@ export async function projectInOrganization(
   return found?.id ?? null;
 }
 
-export async function organizationOfProject(projectId: string): Promise<string | null> {
-  const [found] = await db
-    .select({ organizationId: project.organizationId })
-    .from(project)
-    .where(eq(project.id, projectId));
-  return found?.organizationId ?? null;
-}
-
 export type DeploymentValues = ReturnType<typeof deploymentValues> & { principal: Principal };
 
+export type EnvironmentEventValues = ReturnType<typeof environmentEventValues> & {
+  principal: Principal;
+};
+
 export async function recordDeployment(
-  organizationId: string,
-  projectId: string,
-  reported: Deployment,
-  principal: Principal,
-): Promise<{ values: DeploymentValues; recording: Recording } | null> {
-  const stored = and(eq(deployment.projectId, projectId), eq(deployment.deploymentId, reported.id));
-  const [found] = await db
+  tx: Executor,
+  values: DeploymentValues,
+  organizationId?: string,
+): Promise<Recording | null> {
+  const stored = and(
+    eq(deployment.projectId, values.projectId),
+    eq(deployment.deploymentId, values.deploymentId),
+  );
+  const [found] = await tx
     .select({ first: deployment })
     .from(project)
     .leftJoin(deployment, stored)
-    .where(and(eq(project.organizationId, organizationId), eq(project.id, projectId)));
+    .where(
+      and(
+        eq(project.id, values.projectId),
+        organizationId === undefined ? undefined : eq(project.organizationId, organizationId),
+      ),
+    );
   if (!found) {
     return null;
   }
-  const values = { ...deploymentValues(projectId, uuidv7(), reported), principal };
-  const recording = found.first
-    ? compared(found.first, values)
-    : await recordOnce(
-        values,
-        (row) =>
-          db.insert(deployment).values(row).onConflictDoNothing().returning({ id: deployment.id }),
-        async () => {
-          const [row] = await db.select().from(deployment).where(stored);
-          return row;
-        },
-      );
-  return { values, recording };
+  if (found.first) {
+    return compared(found.first, values);
+  }
+  return recordOnce(
+    values,
+    (row) =>
+      tx.insert(deployment).values(row).onConflictDoNothing().returning({ id: deployment.id }),
+    async () => {
+      const [row] = await tx.select().from(deployment).where(stored);
+      return row;
+    },
+  );
+}
+
+export async function recordEnvironmentEvent(
+  tx: Executor,
+  values: EnvironmentEventValues,
+): Promise<Recording> {
+  return recordOnce(
+    values,
+    (row) =>
+      tx
+        .insert(environmentEvent)
+        .values(row)
+        .onConflictDoNothing()
+        .returning({ id: environmentEvent.id }),
+    async () => {
+      const [row] = await tx
+        .select()
+        .from(environmentEvent)
+        .where(
+          and(
+            eq(environmentEvent.projectId, values.projectId),
+            eq(environmentEvent.deploymentId, values.deploymentId),
+          ),
+        );
+      return row;
+    },
+  );
 }

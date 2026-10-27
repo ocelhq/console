@@ -52,6 +52,11 @@ export type GitEvent =
     }
   | { type: "uninstalled"; installation: string };
 
+export interface PullRequestHead {
+  headSha: string;
+  mergeCommitSha: string | null;
+}
+
 export type CommitState = "pending" | "success" | "failure" | "error";
 
 export type DeploymentState = "queued" | "in_progress" | "success" | "failure";
@@ -77,12 +82,11 @@ export interface GitProvider {
   }): Promise<UserInstallation[]>;
   listRepos(installation: InstallationRef): Promise<Repo[]>;
   findRepo(installation: InstallationRef, id: string): Promise<Repo | undefined>;
-  pullRequestHasCommit(
+  pullRequest(
     installation: InstallationRef,
     repo: RepoRef,
     pr: number,
-    sha: string,
-  ): Promise<boolean>;
+  ): Promise<PullRequestHead | undefined>;
   repoToken(installation: InstallationRef, repo: RepoRef, access: "read"): Promise<RepoToken>;
   setStatus(
     installation: InstallationRef,

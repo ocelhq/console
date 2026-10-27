@@ -14,7 +14,7 @@ const appRowId = `app-${suffix}`;
 const web = `web-${suffix}`;
 const api = `api-${suffix}`;
 const store = gitStore(envKeyStore(randomBytes(32).toString("base64")));
-const repo = { id: "1234", fullName: "acme/web", defaultBranch: "main" };
+const repo = { id: "1234", fullName: "acme/web", defaultBranch: "main", ownerId: "42" };
 const repoRef = { id: "1234", fullName: "acme/web" };
 const installation = { externalId: "556" };
 const sha = (c: string) => c.repeat(40);
@@ -35,11 +35,8 @@ const provider = {
   async removeEnvironment(...args: unknown[]) {
     calls.push(["removeEnvironment", ...args]);
   },
-  async pullRequestHasCommit(_installation: unknown, _repo: unknown, _pr: number, commit: string) {
-    return !outside.has(commit);
-  },
 } as unknown as GitProvider;
-let outside = new Set<string>();
+
 const deps = { store, providerFor: () => provider };
 
 let serial = 0;
@@ -114,7 +111,6 @@ beforeEach(async () => {
   await db.delete(job).where(inArray(job.projectId, [web, api]));
   await db.delete(deployment).where(inArray(deployment.projectId, [web, api]));
   calls = [];
-  outside = new Set();
 });
 
 afterAll(async () => {
@@ -329,14 +325,13 @@ describe("a preview CI reported", () => {
     expect(calls[2]?.[3]).toMatchObject({ state: "failure", logUrl: RUN_URL });
   });
 
-  it("only updates the comment when it built a commit that is not the pull request's", async () => {
-    outside.add(sha("e"));
-    const row = await queued({ projectId: web, status: "done", sha: sha("e"), runUrl: RUN_URL });
+  it("only updates the comment when it names no commit of the pull request", async () => {
+    const row = await queued({ projectId: web, status: "done", sha: null, runUrl: RUN_URL });
 
     await syncJob(row.id, deps);
 
     expect(calls.map((call) => call[0])).toEqual(["upsertComment"]);
-    expect(arg<{ body: string }>(calls[0]).body).toContain(sha("e").slice(0, 7));
+    expect(arg<{ body: string }>(calls[0]).body).toContain(`[Run log](${RUN_URL})`);
   });
 
   it("is shown at the latest run to start, not the latest report to arrive", async () => {

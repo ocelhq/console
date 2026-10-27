@@ -1,31 +1,36 @@
 import { Code, ConnectError } from "@connectrpc/connect";
+import type { Executor } from "@console/db";
 import type { TrustedPipeline } from "@console/db/schema";
 import {
+  claimPipeline,
   GITHUB_ACTIONS_ISSUER,
-  pinPipeline,
   pipelinesOf,
-  pipelineUsed,
   spendPipelineToken,
 } from "@console/git";
 import { createRemoteJWKSet, type JWTVerifyGetKey, jwtVerify } from "jose";
+import { z } from "zod";
 
 export type ReportTier = "preview" | "production";
 
-export interface GithubActionsClaims {
-  jti: string;
-  exp: number;
-  repository: string;
-  repository_id: string;
-  repository_owner_id: string;
-  job_workflow_ref: string;
-  event_name: string;
-  ref: string;
-  head_ref?: string;
-  environment?: string;
-  actor: string;
-  run_id: string;
-  run_attempt: string;
-}
+const claim = z.string().min(1);
+
+const githubActionsClaims = z.object({
+  jti: claim,
+  exp: z.number(),
+  repository: claim,
+  repository_id: claim,
+  repository_owner_id: claim,
+  job_workflow_ref: claim,
+  event_name: claim,
+  ref: claim,
+  head_ref: z.string().optional(),
+  environment: z.string().optional(),
+  actor: claim,
+  run_id: claim,
+  run_attempt: claim,
+});
+
+export type GithubActionsClaims = z.infer<typeof githubActionsClaims>;
 
 export interface AdmittedPipeline {
   pipeline: TrustedPipeline;
@@ -37,19 +42,6 @@ export interface PipelineKeys {
   keys: JWTVerifyGetKey;
   audience: string;
 }
-
-const REQUIRED = [
-  "jti",
-  "repository",
-  "repository_id",
-  "repository_owner_id",
-  "job_workflow_ref",
-  "event_name",
-  "ref",
-  "actor",
-  "run_id",
-  "run_attempt",
-] as const;
 
 const PULL_REQUEST_EVENTS = new Set(["pull_request", "pull_request_target"]);
 
@@ -69,7 +61,7 @@ function denied(why: string): ConnectError {
 }
 
 async function verified(token: string, deps: PipelineKeys): Promise<GithubActionsClaims> {
-  let payload: Record<string, unknown>;
+  let payload: unknown;
   try {
     ({ payload } = await jwtVerify(token, deps.keys, {
       issuer: GITHUB_ACTIONS_ISSUER,
@@ -80,11 +72,12 @@ async function verified(token: string, deps: PipelineKeys): Promise<GithubAction
   } catch (error) {
     throw unauthenticated(error instanceof Error ? error.message : String(error));
   }
-  const missing = REQUIRED.find(
-    (claim) => typeof payload[claim] !== "string" || payload[claim] === "",
-  );
-  if (missing) throw unauthenticated(`it has no ${missing} claim`);
-  return payload as unknown as GithubActionsClaims;
+  const parsed = githubActionsClaims.safeParse(payload);
+  if (!parsed.success) {
+    const [issue] = parsed.error.issues;
+    throw unauthenticated(`its ${issue?.path.join(".") ?? "claims"} claim is ${issue?.message}`);
+  }
+  return parsed.data;
 }
 
 interface Run {
@@ -159,12 +152,13 @@ function judge(pipeline: TrustedPipeline, claims: GithubActionsClaims, run: Run)
       `environment ${claims.environment || "(none)"} is not the pipeline's: ${pipeline.environment}`,
     );
   }
-  if (run.branch === undefined) {
+  const { branch } = run;
+  if (branch === undefined) {
     return fail(`ref ${claims.ref} of a ${claims.event_name} run names no branch`);
   }
-  if (!pipeline.branches.some((pattern) => branchMatches(pattern, run.branch as string))) {
+  if (!pipeline.branches.some((pattern) => branchMatches(pattern, branch))) {
     return fail(
-      `branch ${run.branch} matches none of the pipeline's branches: ${pipeline.branches.join(", ")}`,
+      `branch ${branch} matches none of the pipeline's branches: ${pipeline.branches.join(", ")}`,
     );
   }
   return { ok: true };
@@ -187,26 +181,24 @@ export async function admitPipeline(
 ): Promise<AdmittedPipeline> {
   const claims = await verified(token, deps);
   const run = runOf(claims);
-  let pipeline = chosen(await pipelinesOf(request.projectId), claims, run);
+  const pipeline = chosen(await pipelinesOf(request.projectId), claims, run);
   if (run.pullRequest && request.tier === "production") {
     throw denied(`a ${claims.event_name} run may report only a preview`);
   }
-  if (!(await spendPipelineToken(GITHUB_ACTIONS_ISSUER, claims.jti, new Date(claims.exp * 1000)))) {
+  return { pipeline, claims, ...(run.pr === undefined ? {} : { pr: run.pr }) };
+}
+
+export async function claimAdmission(tx: Executor, admitted: AdmittedPipeline): Promise<void> {
+  const { claims, pipeline } = admitted;
+  const expiresAt = new Date(claims.exp * 1000);
+  if (!(await spendPipelineToken(tx, GITHUB_ACTIONS_ISSUER, claims.jti, expiresAt))) {
     throw unauthenticated(`token ${claims.jti} was already used`);
   }
-  if (pipeline.repositoryId === null) {
-    const ids = {
-      repositoryId: claims.repository_id,
-      repositoryOwnerId: claims.repository_owner_id,
-    };
-    const pinned =
-      (await pinPipeline(pipeline.id, ids)) ??
-      (await pipelinesOf(request.projectId)).find((stored) => stored.id === pipeline.id);
-    if (!pinned) throw denied(`pipeline ${pipeline.id} was removed`);
-    const verdict = judge(pinned, claims, run);
-    if (!verdict.ok) throw denied(verdict.why);
-    pipeline = pinned;
+  const claimed = await claimPipeline(tx, pipeline.id, {
+    repositoryId: claims.repository_id,
+    repositoryOwnerId: claims.repository_owner_id,
+  });
+  if (!claimed) {
+    throw denied(`pipeline ${pipeline.id} is gone or was pinned to another repository`);
   }
-  await pipelineUsed(pipeline.id);
-  return { pipeline, claims, ...(run.pr === undefined ? {} : { pr: run.pr }) };
 }

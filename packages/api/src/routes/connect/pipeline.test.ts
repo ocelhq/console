@@ -11,12 +11,13 @@ import {
 } from "@console/connectors/gen/console/v1/deployment_pb";
 import { ProjectService } from "@console/connectors/gen/console/v1/project_pb";
 import { db } from "@console/db";
-import { deployment, environmentEvent, type Job, job, projectRepo } from "@console/db/schema";
+import { deployment, environmentEvent, type Job, job } from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
-import { addPipeline, envKeyStore, gitStore } from "@console/git";
+import { envKeyStore, type GitProvider, type GitRuntime, gitStore } from "@console/git";
+import { deployIn } from "@console/jobs";
 import { eq } from "drizzle-orm";
 import { createLocalJWKSet } from "jose";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestSessionWithOrganization } from "../../../test/auth-harness";
 import {
   deploymentRecord,
@@ -26,8 +27,31 @@ import {
 } from "../../../test/connect-harness";
 import { AUDIENCE, githubActions } from "../../pipelines/testing";
 
+const jobInsert = vi.hoisted(() => ({ fails: false }));
+
+vi.mock("@console/jobs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@console/jobs")>();
+  return {
+    ...actual,
+    recordReportedJob: (...args: Parameters<typeof actual.recordReportedJob>) => {
+      if (jobInsert.fails) throw new Error("the job was not stored");
+      return actual.recordReportedJob(...args);
+    },
+  };
+});
+
+const HEAD = "c".repeat(40);
 const RUN_URL = "https://github.com/acme/web/actions/runs/9001/attempts/2";
 const store = gitStore(envKeyStore(randomBytes(32).toString("base64")));
+const git = {
+  store,
+  providerFor: () =>
+    ({
+      async pullRequest() {
+        return { headSha: HEAD, mergeCommitSha: "d".repeat(40) };
+      },
+    }) as unknown as GitProvider,
+} as unknown as GitRuntime;
 
 let session: Awaited<ReturnType<typeof createTestSessionWithOrganization>>;
 let gha: Awaited<ReturnType<typeof githubActions>>;
@@ -41,6 +65,7 @@ function client(token: string) {
       notified.push(changed);
     },
     pipelineKeys: { keys: createLocalJWKSet(gha.keys), audience: AUDIENCE },
+    git: () => git,
   });
 }
 
@@ -50,7 +75,7 @@ const preview = (id = TRACE_ID) =>
     kind: DeploymentKind.PREVIEW_UP,
     environment: { tier: Tier.PREVIEW, lifecycle: Lifecycle.EPHEMERAL, identity: "pr-7" },
     promotion: { id: "prm-7", seq: 1n },
-    source: { commit: "c".repeat(40), branch: "feat/x" },
+    source: { commit: "d".repeat(40), branch: "feat/x" },
     trigger: { kind: 1, actor: "someone-else" },
     ci: { name: "spoofed", repo: "evil/repo", runUrl: "https://evil.example" },
   });
@@ -109,21 +134,11 @@ beforeEach(async () => {
     projectId,
     organizationId: session.organization.id,
     installationId,
-    repo: { id: "1234", fullName: "acme/web", defaultBranch: "main" },
+    repo: { id: "1234", fullName: "acme/web", defaultBranch: "main", ownerId: "42" },
   });
-  await db.update(projectRepo).set({ deploys: "ci" }).where(eq(projectRepo.projectId, projectId));
-  await addPipeline({
-    projectId,
-    repository: "acme/web",
-    repositoryId: "1234",
-    repositoryOwnerId: "42",
-    workflow: null,
-    environment: null,
-    branches: ["*"],
-    origin: "linked",
-    createdBy: null,
-  });
+  await deployIn(projectId, { mode: "ci", by: null }, async () => {});
   notified = [];
+  jobInsert.fails = false;
 });
 
 afterAll(async () => {
@@ -148,7 +163,14 @@ describe("a deployment a trusted pipeline reports", () => {
 
     const made = await jobs();
     expect(made).toMatchObject([
-      { kind: "preview-up", status: "done", pr: 7, deploymentId: TRACE_ID, runUrl: RUN_URL },
+      {
+        kind: "preview-up",
+        status: "done",
+        pr: 7,
+        sha: HEAD,
+        deploymentId: TRACE_ID,
+        runUrl: RUN_URL,
+      },
     ]);
     expect(notified.map((changed) => changed.id)).toEqual(made.map((row) => row.id));
   });
@@ -160,6 +182,32 @@ describe("a deployment a trusted pipeline reports", () => {
     expect(
       await db.select().from(deployment).where(eq(deployment.projectId, projectId)),
     ).toHaveLength(1);
+    expect(await jobs()).toHaveLength(1);
+  });
+
+  it("leaves its token unspent when protovalidate refuses the request", async () => {
+    const token = await gha.sign();
+
+    const error = await refusal(
+      client(token).report({ projectId, deployment: preview("not-a-trace-id") }),
+    );
+
+    expect(error.code).toBe(Code.InvalidArgument);
+    await client(token).report({ projectId, deployment: preview() });
+    expect(await jobs()).toHaveLength(1);
+  });
+
+  it("is not recorded, and leaves its token unspent, when its job is not stored", async () => {
+    const token = await gha.sign();
+    jobInsert.fails = true;
+
+    await refusal(client(token).report({ projectId, deployment: preview() }));
+
+    expect(await db.select().from(deployment).where(eq(deployment.projectId, projectId))).toEqual(
+      [],
+    );
+    jobInsert.fails = false;
+    await client(token).report({ projectId, deployment: preview() });
     expect(await jobs()).toHaveLength(1);
   });
 

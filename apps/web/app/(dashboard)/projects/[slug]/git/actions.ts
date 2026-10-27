@@ -5,6 +5,7 @@ import { project } from "@console/db/schema";
 import {
   addPipeline,
   type GitRuntime,
+  narrowPipeline,
   parseBranches,
   parseRepository,
   parseWorkflow,
@@ -141,33 +142,22 @@ export async function deployFrom(projectId: string, mode: "runners" | "ci"): Pro
   return attempt(async () => {
     const reached = await administered(projectId);
     if (!reached.ok) return reached;
-    const { runtime, userId } = reached.result;
-    const linked = await runtime.store.linkedRepo(reached.result.projectId);
-    if (!linked) return failed("Link a repository first.");
-    if (mode === "runners") {
-      await deployIn(reached.result.projectId, { mode }, jobChanged);
-      return done;
-    }
-    const provider = await providerFor(runtime, linked.gitAppId);
-    if (!provider) return failed("The GitHub App behind the linked repository is gone.");
-    const repo = await provider.findRepo({ externalId: linked.externalId }, linked.repoId);
-    if (!repo) return failed(`The installation no longer reaches ${linked.fullName}.`);
-    await deployIn(
-      reached.result.projectId,
-      {
-        mode,
-        pipeline: {
-          repository: repo.fullName,
-          repositoryId: repo.id,
-          repositoryOwnerId: repo.ownerId,
-          createdBy: userId,
-        },
-      },
-      jobChanged,
-    );
+    await deployIn(reached.result.projectId, { mode, by: reached.result.userId }, jobChanged);
     return done;
   });
 }
+
+function narrowing(input: { workflow: string; environment: string; branches: string }) {
+  const workflow = parseWorkflow(input.workflow);
+  if (workflow === undefined) return undefined;
+  return {
+    workflow,
+    environment: input.environment.trim() || null,
+    branches: parseBranches(input.branches),
+  };
+}
+
+const WORKFLOW_PATH = "Name the workflow by its path, like .github/workflows/deploy.yml.";
 
 export async function trustPipeline(
   projectId: string,
@@ -178,19 +168,15 @@ export async function trustPipeline(
     if (!reached.ok) return reached;
     const repository = parseRepository(input.repository);
     if (!repository) return failed("Name the repository as owner/name.");
-    const workflow = parseWorkflow(input.workflow);
-    if (workflow === undefined) {
-      return failed("Name the workflow by its path, like .github/workflows/deploy.yml.");
-    }
-    const ids = await publicRepoIds(repository).catch(() => undefined);
+    const narrowed = narrowing(input);
+    if (!narrowed) return failed(WORKFLOW_PATH);
+    const ids = await publicRepoIds(repository);
     await addPipeline({
       projectId: reached.result.projectId,
       repository,
       repositoryId: ids?.repositoryId ?? null,
       repositoryOwnerId: ids?.repositoryOwnerId ?? null,
-      workflow,
-      environment: input.environment.trim() || null,
-      branches: parseBranches(input.branches),
+      ...narrowed,
       origin: "manual",
       createdBy: reached.result.userId,
     });
@@ -202,8 +188,31 @@ export async function distrustPipeline(projectId: string, pipelineId: string): P
   return attempt(async () => {
     const reached = await administered(projectId);
     if (!reached.ok) return reached;
-    if (!(await removePipeline(reached.result.projectId, pipelineId))) {
-      return failed("That pipeline is already gone.");
+    switch (await removePipeline(reached.result.projectId, pipelineId)) {
+      case "missing":
+        return failed("That pipeline is already gone.");
+      case "linked":
+        return failed(
+          "The linked repository’s pipeline stays while deploys run in your CI. Narrow it instead, or switch back to the console runners.",
+        );
+      case "removed":
+        return done;
+    }
+  });
+}
+
+export async function narrowTrustedPipeline(
+  projectId: string,
+  pipelineId: string,
+  input: { workflow: string; environment: string; branches: string },
+): Promise<Answer> {
+  return attempt(async () => {
+    const reached = await administered(projectId);
+    if (!reached.ok) return reached;
+    const narrowed = narrowing(input);
+    if (!narrowed) return failed(WORKFLOW_PATH);
+    if (!(await narrowPipeline(reached.result.projectId, pipelineId, narrowed))) {
+      return failed("That pipeline is gone.");
     }
     return done;
   });

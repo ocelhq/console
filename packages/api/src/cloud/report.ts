@@ -1,5 +1,8 @@
 import { type Job, JobState } from "@console/connectors/gen/cloud/v1/job_pb";
 import { DeploymentSchema } from "@console/connectors/gen/console/v1/deployment_pb";
+import { db } from "@console/db";
+import { uuidv7 } from "uuidv7";
+import { deploymentValues } from "../deployments/record";
 import { recordDeployment } from "../deployments/report";
 import { validator } from "../validator";
 import type { CloudCaller } from "./caller";
@@ -23,11 +26,15 @@ export async function recordJobReport(
       });
       return;
     }
-    const recorded = await recordDeployment(caller.organizationId, job.projectId, report, {
-      kind: "session",
-      userId: caller.userId,
-    });
-    if (recorded?.recording === "differs") {
+    const recording = await recordDeployment(
+      db,
+      {
+        ...deploymentValues(job.projectId, uuidv7(), report),
+        principal: { kind: "session", userId: caller.userId },
+      },
+      caller.organizationId,
+    );
+    if (recording === "differs") {
       console.error("cloud: a finished job reports a deployment already recorded differently", {
         jobId: job.id,
         deploymentId: report.id,

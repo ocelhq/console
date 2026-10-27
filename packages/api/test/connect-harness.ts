@@ -20,9 +20,9 @@ export const TRACE_ID = "0af7651916cd43dd8448eb211c80319c";
 export function serviceClient<S extends DescService>(
   service: S,
   bearer: string | null,
-  deps: ConnectDeps = {},
+  deps: Partial<ConnectDeps> = {},
 ) {
-  const connect = connectHandler(deps);
+  const connect = connectHandler({ notify: async () => {}, git: () => undefined, ...deps });
   const interceptors: Interceptor[] = bearer
     ? [
         (next) => (req) => {

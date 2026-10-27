@@ -138,25 +138,10 @@ async function report(synced: Job, deps: SyncDeps): Promise<void> {
     return;
   }
 
-  const inPullRequest = new Map<string, Promise<boolean>>();
-  const ofPullRequest = (sha: string) => {
-    let answer = inPullRequest.get(sha);
-    if (!answer) {
-      answer = provider.pullRequestHasCommit(installation, repo, synced.pr, sha);
-      inPullRequest.set(sha, answer);
-    }
-    return answer;
-  };
-
   const rows = await latestPreviews(found.installationId, found.repoId, synced.pr);
   const own = rows.find((row) => row.job.projectId === synced.projectId);
   const takenOver = synced.status === "canceled" && own?.job.sha === synced.sha;
-  if (
-    synced.sha &&
-    synced.kind === "preview-up" &&
-    !takenOver &&
-    (await ofPullRequest(synced.sha))
-  ) {
+  if (synced.sha && synced.kind === "preview-up" && !takenOver) {
     await provider.setStatus(installation, repo, {
       sha: synced.sha,
       state: COMMIT_STATES[synced.status],
@@ -180,7 +165,7 @@ async function report(synced: Job, deps: SyncDeps): Promise<void> {
     return;
   }
   const state = DEPLOYMENT_STATES[own.job.status];
-  if (!state || !own.job.sha || !(await ofPullRequest(own.job.sha))) return;
+  if (!state || !own.job.sha) return;
   const environmentUrl = urlOf(own.deployment);
   await provider.upsertDeployment(installation, repo, {
     environment,
