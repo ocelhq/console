@@ -1,5 +1,6 @@
-import { index, pgEnum, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import { index, jsonb, pgEnum, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
 import { user } from "./auth-schema";
+import type { Tier } from "./deployment";
 import { project } from "./project";
 
 export const PIPELINE_KINDS = ["github-actions"] as const;
@@ -9,6 +10,8 @@ export const pipelineKind = pgEnum("pipeline_kind", PIPELINE_KINDS);
 export const PIPELINE_ORIGINS = ["linked", "manual"] as const;
 export type PipelineOrigin = (typeof PIPELINE_ORIGINS)[number];
 export const pipelineOrigin = pgEnum("pipeline_origin", PIPELINE_ORIGINS);
+
+export type CredentialGrant = Partial<Record<Tier, { branches: string[]; environment?: string }>>;
 
 export const trustedPipeline = pgTable(
   "trusted_pipeline",
@@ -24,6 +27,7 @@ export const trustedPipeline = pgTable(
     workflow: text("workflow"),
     environment: text("environment"),
     branches: text("branches").array().notNull().default(["*"]),
+    credentials: jsonb("credentials").$type<CredentialGrant>().notNull().default({}),
     origin: pipelineOrigin("origin").notNull(),
     createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at").defaultNow().notNull(),

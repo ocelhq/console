@@ -5,3 +5,4 @@ export * from "./git";
 export * from "./job";
 export * from "./pipeline";
 export * from "./project";
+export * from "./target";
