@@ -79,6 +79,52 @@ describe("migrateDatabase", () => {
     }
   });
 
+  it("grants the linked pipelines that predate credential grants what a new linked pipeline gets", async () => {
+    const before = `${database}_grants`;
+    await admin.query(`CREATE DATABASE "${before}"`);
+    const old = new Pool({ connectionString: new URL(`/${before}`, url).toString() });
+    try {
+      const earlier = migrations.slice(
+        0,
+        migrations.findIndex((migration) =>
+          migration.name.endsWith("_linked_pipeline_credentials"),
+        ),
+      );
+      await migrate(earlier, drizzle({ client: old }), "__drizzle_migrations");
+      await old.query(
+        `insert into "organization" (id, name, slug, created_at) values ('org', 'Org', 'org', now());
+         insert into "project" (id, organization_id, name, slug) values ('p', 'org', 'Shop', 'shop');
+         insert into "git_app" (id, organization_id, kind, app_id, slug, private_key_enc,
+           webhook_secret_enc, client_id, client_secret_enc)
+           values ('a', 'org', 'github', '1', 'app', 'k', 'w', 'c', 's');
+         insert into "git_installation" (id, git_app_id, organization_id, external_id, account)
+           values ('i', 'a', 'org', '9', 'acme');
+         insert into "project_repo" (project_id, installation_id, repo_id, repo_owner_id,
+           full_name, production_branch, deploys)
+           values ('p', 'i', '77', '42', 'acme/shop', 'trunk', 'ci');
+         insert into "trusted_pipeline" (id, project_id, kind, repository, origin)
+           values ('linked', 'p', 'github-actions', 'acme/shop', 'linked'),
+                  ('manual', 'p', 'github-actions', 'acme/shop', 'manual');`,
+      );
+
+      await migrateDatabase(old);
+
+      const granted = await old.query<{ id: string; credentials: unknown }>(
+        `select id, credentials from "trusted_pipeline" order by id`,
+      );
+      expect(granted.rows).toEqual([
+        {
+          id: "linked",
+          credentials: { production: { branches: ["trunk"] }, preview: { branches: ["*"] } },
+        },
+        { id: "manual", credentials: {} },
+      ]);
+    } finally {
+      await old.end();
+      await admin.query(`DROP DATABASE "${before}"`);
+    }
+  });
+
   it('lets `bun run db:migrate` migrate the database postgres("main") binds, as lifecycle.preBuild does', async () => {
     const target = `${database}_prebuild`;
     await admin.query(`CREATE DATABASE "${target}"`);
