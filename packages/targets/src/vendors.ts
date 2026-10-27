@@ -1,7 +1,4 @@
-import type { Tier } from "@console/db/schema";
-
-export const VENDORS = ["aws", "gcp"] as const;
-export type Vendor = (typeof VENDORS)[number];
+import { VENDORS, type Vendor } from "@console/db/schema";
 
 export interface TierIdentity {
   identityProvider: string;
@@ -15,17 +12,19 @@ export function isVendor(vendor: string): vendor is Vendor {
 const AWS_ACCOUNT = /^\d{12}$/;
 const GCP_PROJECT = /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/;
 
-export function accountProblem(vendor: string, account: string): string | undefined {
-  if (!isVendor(vendor)) {
-    return `the console issues credentials for aws or gcp, not ${vendor}`;
+export function unsupportedVendor(vendor: string): string {
+  return `the console issues credentials for ${VENDORS.join(" or ")}, not ${vendor}`;
+}
+
+export function accountProblem(vendor: Vendor, account: string): string | undefined {
+  switch (vendor) {
+    case "aws":
+      return AWS_ACCOUNT.test(account) ? undefined : `an AWS account is 12 digits, not ${account}`;
+    case "gcp":
+      return GCP_PROJECT.test(account)
+        ? undefined
+        : `a GCP account is a project id, such as shop-prod-4821, not ${account}`;
   }
-  if (vendor === "aws" && !AWS_ACCOUNT.test(account)) {
-    return `an AWS account is 12 digits, not ${account}`;
-  }
-  if (vendor === "gcp" && !GCP_PROJECT.test(account)) {
-    return `a GCP account is a project id, such as shop-prod-4821, not ${account}`;
-  }
-  return undefined;
 }
 
 const AWS_PARTITION = /^arn:(aws-[a-z-]+):/;
@@ -84,7 +83,7 @@ function gcpProblem(
 }
 
 export function identityProblem(
-  target: { vendor: string; account: string },
+  target: { vendor: Vendor; account: string },
   identity: TierIdentity,
   issuer: string,
 ): string | undefined {
@@ -93,8 +92,6 @@ export function identityProblem(
       return awsProblem(target.account, identity, issuer);
     case "gcp":
       return gcpProblem(target.account, identity);
-    default:
-      return `the console issues credentials for aws or gcp, not ${target.vendor}`;
   }
 }
 
@@ -115,15 +112,6 @@ export function audienceOf(targetId: string): string {
 
 export function subjectPrefixOf(organizationId: string, targetId: string): string {
   return `org:${organizationId}:target:${targetId}`;
-}
-
-export function subjectOf(
-  organizationId: string,
-  targetId: string,
-  tier: Tier,
-  projectId: string,
-): string {
-  return `${subjectPrefixOf(organizationId, targetId)}:tier:${tier}:project:${projectId}`;
 }
 
 export function sessionNameOf(jti: string): string {

@@ -1,7 +1,8 @@
+import type { Vendor } from "@console/db/schema";
 import type { TierIdentity } from "./vendors";
 
 export interface Exchange {
-  vendor: string;
+  vendor: Vendor;
   identity: TierIdentity;
   token: string;
   sessionName: string;
@@ -107,8 +108,6 @@ export async function exchangeToken(
         return await aws(exchange, fetch);
       case "gcp":
         return await gcp(exchange, fetch);
-      default:
-        return { ok: false, error: `The console cannot test a ${exchange.vendor} target` };
     }
   } catch (thrown) {
     return {

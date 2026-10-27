@@ -12,15 +12,16 @@ import {
   ISSUER_UNCONFIGURED,
   type Issuer,
   identityProblem,
-  mintTierToken,
+  issue,
+  isVendor,
   missingGrants,
   normalizedGrant,
   prepareTarget,
   projectInOrganization,
-  recordIssuance,
   recordTier,
   subjectPrefixOf,
   targetOf,
+  unsupportedVendor,
 } from "@console/targets";
 import { tierNamed } from "../../deployments/record";
 import {
@@ -30,6 +31,7 @@ import {
   runUrlOf,
 } from "../../pipelines/admit";
 import { callerOf } from "./caller";
+import { required } from "./required";
 
 export interface TargetServiceDeps {
   issuer: () => Promise<Issuer> | undefined;
@@ -81,12 +83,16 @@ export function targetService(deps: TargetServiceDeps): ServiceImpl<typeof Targe
     async prepare(request, context) {
       const session = await administered(context);
       const { url } = await issuer();
-      const problem = accountProblem(request.vendor, request.account);
+      const { vendor } = request;
+      if (!isVendor(vendor)) {
+        throw new ConnectError(unsupportedVendor(vendor), Code.InvalidArgument);
+      }
+      const problem = accountProblem(vendor, request.account);
       if (problem) throw new ConnectError(problem, Code.InvalidArgument);
       const organizationId = session.activeOrganizationId;
       await ownedProject(organizationId, request.projectId);
       const target = await prepareTarget(organizationId, {
-        vendor: request.vendor,
+        vendor,
         account: request.account,
         region: request.region,
       });
@@ -110,10 +116,8 @@ export function targetService(deps: TargetServiceDeps): ServiceImpl<typeof Targe
           Code.NotFound,
         );
       }
-      const identity = {
-        identityProvider: request.identity?.identityProvider ?? "",
-        principal: request.identity?.principal ?? "",
-      };
+      const { identityProvider, principal } = required(request.identity, "identity");
+      const identity = { identityProvider, principal };
       const problem = identityProblem(target, identity, url);
       if (problem) throw new ConnectError(problem, Code.InvalidArgument);
       await ownedProject(organizationId, request.projectId);
@@ -180,29 +184,20 @@ export function targetService(deps: TargetServiceDeps): ServiceImpl<typeof Targe
         );
       }
 
-      const minted = await mintTierToken(minter, {
-        organizationId: target.organizationId,
-        targetId: target.id,
-        tier,
-        projectId: request.projectId,
-        lifetimeSeconds: CREDENTIAL_LIFETIME_SECONDS,
-      });
-      await db.transaction(async (tx) => {
+      const minted = await db.transaction(async (tx) => {
         await claimAdmission(tx, admitted);
-        await recordIssuance(tx, {
-          organizationId: target.organizationId,
-          projectId: request.projectId,
-          targetId: target.id,
+        return issue(tx, minter, {
+          target,
           tier,
+          lifetimeSeconds: CREDENTIAL_LIFETIME_SECONDS,
+          purpose: "deploy",
+          projectId: request.projectId,
           principal: {
             kind: "pipeline",
             pipelineId: admitted.pipeline.id,
             jti: admitted.claims.jti,
             runUrl: runUrlOf(admitted.claims),
           },
-          tokenJti: minted.jti,
-          issuedAt: minted.issuedAt,
-          expiresAt: minted.expiresAt,
         });
       });
       return {

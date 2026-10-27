@@ -120,8 +120,9 @@ branch; a pipeline an admin adds starts with no grant. Grants are edited on a pr
 which also binds each tier to one of the organization's targets.
 
 The organization's Targets page lists its targets and tiers, the issuer URL and the recent
-issuances. **Test connection** mints a one-minute token for a tier (project `test`, which the trust
-bootstrap writes allows), exchanges it at AWS STS (`AssumeRoleWithWebIdentity`) or Google STS and
+issuances. **Test connection** mints a one-minute token for a tier, for the reserved project
+`connection-test` (the trust bootstrap writes admits `…:project:*`) with a `purpose: test` claim,
+logs it as a test without touching the tier's last issue, and exchanges it at AWS STS (`AssumeRoleWithWebIdentity`) or Google STS and
 `generateAccessToken`, reports the outcome and discards the credentials. **Remove target** forgets
 its tiers and bindings, so the console stops minting for it; the account trusts the issuer until
 `ocel bootstrap --remove` runs there.

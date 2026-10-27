@@ -140,6 +140,13 @@ describe("preparing a target", () => {
     expect(error.code).toBe(Code.NotFound);
   });
 
+  it("is refused for a vendor the console issues no credentials for", async () => {
+    const error = await refusal(client(owner.token).prepare({ ...place, vendor: "azure" }));
+
+    expect(error.code).toBe(Code.InvalidArgument);
+    expect(error.rawMessage).toContain("aws or gcp, not azure");
+  });
+
   it("is refused for an account the vendor has no such form of", async () => {
     const error = await refusal(client(owner.token).prepare({ ...place, account: "acme" }));
 
@@ -241,6 +248,7 @@ describe("issuing a credential", () => {
       target: prepared.targetId,
       tier: "production",
       project: projectId,
+      purpose: "deploy",
     });
     expect((payload.exp ?? 0) - (payload.iat ?? 0)).toBe(600);
     expect(payload.nbf).toBe(payload.iat);
@@ -264,6 +272,7 @@ describe("issuing a credential", () => {
       projectId,
       targetId: prepared.targetId,
       tier: "production",
+      purpose: "deploy",
       principal: {
         kind: "pipeline",
         pipelineId: pipeline.id,

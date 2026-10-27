@@ -1,14 +1,23 @@
+import { generateKeyPairSync } from "node:crypto";
 import { db } from "@console/db";
-import { credentialIssuance, organization, project, targetBinding } from "@console/db/schema";
+import {
+  credentialIssuance,
+  organization,
+  project,
+  targetBinding,
+  targetTier,
+} from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { issue } from "./issue";
+import { createIssuer } from "./issuer";
+import { keySigner } from "./key";
 import {
   bindProject,
   boundTarget,
   issuancesOf,
   prepareTarget,
-  recordIssuance,
   recordTier,
   removeTarget,
   targetOf,
@@ -24,8 +33,18 @@ const identity = {
   principal: "arn:aws:iam::123456789012:role/ocel-deploy-production",
 };
 
+const GRANTS = ["s3:putobject arn:aws:s3:::ocel-*", "lambda:updatefunctioncode *"];
+const issuer = createIssuer("https://console.example.com", {
+  signer: keySigner(
+    generateKeyPairSync("ec", { namedCurve: "P-256" })
+      .privateKey.export({ format: "pem", type: "pkcs8" })
+      .toString(),
+  ),
+  previous: [],
+});
+
 function place(region = "eu-west-1") {
-  return { vendor: "aws", account: "123456789012", region };
+  return { vendor: "aws" as const, account: "123456789012", region };
 }
 
 beforeAll(async () => {
@@ -56,16 +75,15 @@ describe("a target", () => {
     const prepared = await prepareTarget(orgId, place("eu-central-1"));
     const recorded = { targetId: prepared.id, tier: "production" as const, identity };
     await recordTier(db, { ...recorded, grants: ["s3:putobject *"], cliVersion: "0.0.3" });
-    await recordIssuance(db, {
-      organizationId: orgId,
-      projectId,
-      targetId: prepared.id,
+    await issue(db, issuer, {
+      target: prepared,
       tier: "production",
-      principal: { kind: "session", userId: "u" },
-      tokenJti: crypto.randomUUID(),
-      issuedAt: new Date("2026-10-01T00:00:00Z"),
-      expiresAt: new Date("2026-10-01T00:10:00Z"),
+      lifetimeSeconds: 600,
+      purpose: "deploy",
+      projectId,
+      principal: { kind: "pipeline", pipelineId: "p", jti: "gha", runUrl: "https://run" },
     });
+    const [issued] = await db.select().from(targetTier).where(eq(targetTier.targetId, prepared.id));
 
     await recordTier(db, { ...recorded, grants: ["s3:getobject *"], cliVersion: "0.0.4" });
 
@@ -76,7 +94,7 @@ describe("a target", () => {
         principal: identity.principal,
         grants: ["s3:getobject *"],
         cliVersion: "0.0.4",
-        lastIssuedAt: new Date("2026-10-01T00:00:00Z"),
+        lastIssuedAt: issued?.lastIssuedAt,
       },
     ]);
   });
@@ -90,7 +108,7 @@ describe("a project tier's binding", () => {
       targetId: second.id,
       tier: "preview",
       identity,
-      grants: ["*"],
+      grants: GRANTS,
       cliVersion: "0.0.3",
     });
 
@@ -117,20 +135,17 @@ describe("removing a target", () => {
       targetId: removed.id,
       tier: "production",
       identity,
-      grants: ["*"],
+      grants: GRANTS,
       cliVersion: "0.0.3",
     });
     await bindProject(db, { projectId, tier: "production", targetId: removed.id });
-    const jti = crypto.randomUUID();
-    await recordIssuance(db, {
-      organizationId: orgId,
-      projectId,
-      targetId: removed.id,
+    const { jti } = await issue(db, issuer, {
+      target: removed,
       tier: "production",
+      lifetimeSeconds: 600,
+      purpose: "deploy",
+      projectId,
       principal: { kind: "pipeline", pipelineId: "p", jti: "gha", runUrl: "https://run" },
-      tokenJti: jti,
-      issuedAt: new Date(),
-      expiresAt: new Date(Date.now() + 600_000),
     });
 
     expect(await removeTarget(otherOrg, removed.id)).toBe(false);

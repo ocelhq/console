@@ -13,6 +13,9 @@ import { organization } from "./auth-schema";
 import { tier } from "./deployment";
 import { project } from "./project";
 
+export const VENDORS = ["aws", "gcp"] as const;
+export type Vendor = (typeof VENDORS)[number];
+
 export const target = pgTable(
   "target",
   {
@@ -20,7 +23,7 @@ export const target = pgTable(
     organizationId: text("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
-    vendor: text("vendor").notNull(),
+    vendor: text("vendor").$type<Vendor>().notNull(),
     account: text("account").notNull(),
     region: text("region").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),

@@ -37,6 +37,7 @@ import {
   runUrlOf,
 } from "../../pipelines/admit";
 import { callerOf } from "./caller";
+import { required } from "./required";
 
 export interface DeploymentServiceDeps {
   notify: (changed: Job) => Promise<void>;
@@ -46,13 +47,6 @@ export interface DeploymentServiceDeps {
 
 function notOwned(projectId: string): ConnectError {
   return new ConnectError(`No project ${projectId} in the session's organization`, Code.NotFound);
-}
-
-function required<T>(record: T | undefined, what: string): T {
-  if (!record) {
-    throw new ConnectError(`protovalidate let through a request with no ${what}`, Code.Internal);
-  }
-  return record;
 }
 
 function accepted(what: string, recording: Recording): void {
