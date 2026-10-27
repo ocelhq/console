@@ -18,6 +18,7 @@ and using it is optional.
 | `packages/git`        | The git provider port, its GitHub adapter, the sealed storage of apps, and the CI pipelines projects trust |
 | `packages/jobs`       | The job queue runners claim from, and the Ocel tasks that fill and report on it |
 | `packages/infra`      | The Ocel resources the console declares (`postgres("main")`)               |
+| `packages/targets`    | The console's OIDC issuer, and the targets that trust it                   |
 | `packages/theme`      | The design tokens shared with the other Ocel surfaces                      |
 | `packages/variables`  | The variables table, rendered here and by the CLI's env UI                 |
 
@@ -81,6 +82,61 @@ requested with the console's origin as the audience, for example `https://consol
 A `pull_request` run may report only a preview, matched by its head branch; production needs a
 push or another run outside a pull request. A `pull_request_target` run is held to previews too,
 but its token names no pull request, so what it reports is recorded and nothing is posted.
+
+## Targets and credentials
+
+The console is an OIDC issuer, at `{origin}/oidc`, so a cloud account (a **target**) can trust an
+organization of the console instead of trusting GitHub directly, and a trusted pipeline deploys
+with short-lived credentials instead of stored keys. The issuer publishes
+`{origin}/oidc/.well-known/openid-configuration` and its keys at `{origin}/oidc/jwks`; both are
+404s until an issuer key is set (see Self-host).
+
+1. From a checkout linked to this console, an owner or admin runs `ocel bootstrap production`
+   (or `preview`). Bootstrap calls `console.v1.TargetService.Prepare`, which finds or creates the
+   organization's target for the vendor, account and region and answers the issuer, the target's
+   audience (`ocel-target:{target id}`) and its subject prefix
+   (`org:{organization id}:target:{target id}`). Bootstrap makes the account trust the issuer for
+   that audience and subjects under the prefix, creates the tier's deploy role (AWS) or service
+   account (GCP), then calls `RecordTier`. The console checks the identity lives in the target's
+   account (an IAM OIDC provider for this issuer and a role, or a workload identity provider and a
+   service account of the project), stores it with the grants bootstrap gave it, and binds the
+   linked project's tier to the target.
+2. A CI run calls `IssueCredential` with its GitHub Actions token. The console admits the token as
+   it admits a report, then gates it by the pipeline's **credential grant**, not the branches it
+   reports from. The project tier must be bound to a target of the vendor the run deploys to, and
+   every grant the run asks for must be one the tier was recorded with; otherwise the refusal names
+   what is missing and says an admin runs `ocel bootstrap <tier>` again.
+3. The console mints a ten-minute ES256 token: `aud` the target's audience, `sub`
+   `org:{org}:target:{target}:tier:{tier}:project:{project}`, and `org`, `target`, `tier` and
+   `project` claims for GCP's attribute mapping. The run exchanges it at the cloud's STS for the
+   tier's deploy identity.
+
+A trusted pipeline's credential grant names, per tier, the branches whose runs get credentials:
+production from a push or another run outside a pull request, optionally only in one GitHub
+environment, so its protection rules gate them; previews from a run's branch, the head branch of a
+pull request. A `pull_request_target` run gets no credentials. The linked repository's pipeline
+starts granted production from the production branch, which it follows, and previews from every
+branch; a pipeline an admin adds starts with no grant. Grants are edited on a project's Targets page,
+which also binds each tier to one of the organization's targets.
+
+The organization's Targets page lists its targets and tiers, the issuer URL and the recent
+issuances. **Test connection** mints a one-minute token for a tier (project `test`, which the trust
+bootstrap writes allows), exchanges it at AWS STS (`AssumeRoleWithWebIdentity`) or Google STS and
+`generateAccessToken`, reports the outcome and discards the credentials. **Remove target** forgets
+its tiers and bindings, so the console stops minting for it; the account trusts the issuer until
+`ocel bootstrap --remove` runs there.
+
+Security model:
+
+- The issuer signs with a key of its own, never better-auth's session key, so neither key forges
+  the other's tokens.
+- Tokens live ten minutes (one for a connection test), and each is good for one target: its
+  audience is that target's.
+- Subjects are pinned to the organization, target, tier and project, so a cloud trust written for
+  one organization's target admits no other's.
+- A run's GitHub token is spent once, in the transaction that logs what was minted for it: every
+  issuance is recorded with the pipeline, the run and the token's id, and the log outlives a removed
+  project or target.
 
 ## Self-host
 
@@ -179,6 +235,33 @@ shape, signed for that organization (the viewer's active one when the link names
 its events through `/api/cloud/jobs/{id}/events`. The console stores none of it but the
 deployment a finished job reports. Without an offer, for an organization the viewer doesn't
 belong to, or for a job Ocel Cloud doesn't show that organization, the page is a 404.
+
+Targets need an issuer key, separate from `BETTER_AUTH_SECRET`. With neither set, the console
+issues no credentials and its `/oidc` routes are 404s:
+
+| Variable                             | Effect                                                                 |
+| ------------------------------------ | ---------------------------------------------------------------------- |
+| `CONSOLE_ISSUER_KMS_KEY_ID`          | An AWS KMS `ECC_NIST_P256` `SIGN_VERIFY` key the issuer signs with; wins over `CONSOLE_ISSUER_KEY` |
+| `CONSOLE_ISSUER_KEY`                 | A P-256 private key, PEM or JWK, for consoles without KMS               |
+| `CONSOLE_ISSUER_PREVIOUS_KMS_KEY_ID` | A retired KMS key whose public half stays published                    |
+| `CONSOLE_ISSUER_PREVIOUS_KEY`        | A retired P-256 key (private or public), whose public half stays published |
+
+With KMS the private key never leaves AWS. Create the key and let the console's runtime role use it:
+
+```sh
+aws kms create-key --key-spec ECC_NIST_P256 --key-usage SIGN_VERIFY --description "console issuer"
+# then allow kms:Sign and kms:GetPublicKey on its ARN to the role the console runs as, and set
+# CONSOLE_ISSUER_KMS_KEY_ID to the ARN (the console reads the key's region from it)
+```
+
+A console ocel deploys to AWS cannot use it yet: every app role sits under the tier's permissions
+boundary, which allows no `kms:Sign` or `kms:GetPublicKey`. Use `CONSOLE_ISSUER_KEY` there, set
+with `ocel env set CONSOLE_ISSUER_KEY="$(openssl ecparam -name prime256v1 -genkey | openssl pkcs8 -topk8 -nocrypt)"`.
+
+The key id (`kid`) is the key's JWK thumbprint. To rotate, move the current key to the `PREVIOUS`
+variable and set a new current one: the console signs only with the current key and publishes
+both, so tokens already minted keep verifying. Drop the previous key once the JWKS cache (five
+minutes) and the longest token (ten minutes) have passed.
 
 Then point the CLI at your console:
 `OCEL_CONSOLE_URL=https://console.example.com ocel login`,
