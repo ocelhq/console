@@ -56,6 +56,32 @@ After changing the schema in `packages/db/src/schema`, run `bun run db:generate`
 `bun run db:migrate` to apply it. A database made by the old `db:push` has no migration record:
 recreate it (`docker compose down -v`).
 
+## Git integration
+
+The **Git Integration** page at `/git` holds the organization's GitHub Apps and installations
+(`CONSOLE_ENCRYPTION_KEY` must be set). A project's own Git Integration page links it to a
+repository of an installation, names its production branch, and chooses where its deploys run:
+
+- **Console runners**: a push to the production branch queues a deploy, and a pull request
+  queues a preview, for a runner to claim.
+- **Your CI**: git events queue nothing. The project's GitHub Actions workflows deploy and report
+  to the console, which posts each report on the pull request as a comment, a commit status and a
+  GitHub deployment. Choosing it cancels deploys still waiting for a runner.
+
+A project accepts reports from CI only from its **trusted pipelines**. Choosing Your CI trusts the
+linked repository's pipeline, which can be narrowed but not removed while deploys run in CI; an
+admin can add others by hand. A pipeline names a repository (pinned by id; a private one is pinned
+by the first token that names it), optionally a workflow file and a GitHub environment, and the
+branches it may deploy from as comma-separated patterns: `*` matches any run of characters,
+slashes included, and everything else matches itself (`*`, `release/*`, `main`). A tag names no
+branch and is refused.
+
+The workflow authenticates with its GitHub Actions OIDC token (`permissions: id-token: write`),
+requested with the console's origin as the audience, for example `https://console.example.com`.
+A `pull_request` run may report only a preview, matched by its head branch; production needs a
+push or another run outside a pull request. A `pull_request_target` run is held to previews too,
+but its token names no pull request, so what it reports is recorded and nothing is posted.
+
 ## Self-host
 
 The console deploys with `ocel` like any other app. Each target has a config at the root, and
