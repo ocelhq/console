@@ -28,8 +28,9 @@ export function accountProblem(vendor: string, account: string): string | undefi
   return undefined;
 }
 
-const AWS_OIDC_PROVIDER = /^arn:aws(?:-cn|-us-gov)?:iam::(\d{12}):oidc-provider\/(\S+)$/;
-const AWS_ROLE = /^arn:aws(?:-cn|-us-gov)?:iam::(\d{12}):role\/(?:[\w+=,.@-]+\/)*[\w+=,.@-]{1,64}$/;
+const AWS_PARTITION = /^arn:(aws-[a-z-]+):/;
+const AWS_OIDC_PROVIDER = /^arn:aws:iam::(\d{12}):oidc-provider\/(\S+)$/;
+const AWS_ROLE = /^arn:aws:iam::(\d{12}):role\/(?:[\w+=,.@-]+\/)*[\w+=,.@-]{1,64}$/;
 const GCP_PROVIDER =
   /^\/\/iam\.googleapis\.com\/projects\/\d+\/locations\/global\/workloadIdentityPools\/[a-z0-9-]{4,32}\/providers\/[a-z0-9-]{4,32}$/;
 
@@ -42,6 +43,12 @@ function awsProblem(
   { identityProvider, principal }: TierIdentity,
   issuer: string,
 ): string | undefined {
+  for (const arn of [identityProvider, principal]) {
+    const partition = AWS_PARTITION.exec(arn)?.[1];
+    if (partition) {
+      return `${arn} is in the ${partition} partition: the console issues credentials only in the aws partition`;
+    }
+  }
   const provider = AWS_OIDC_PROVIDER.exec(identityProvider);
   if (!provider) {
     return `identity_provider ${identityProvider} is no IAM OIDC provider ARN (arn:aws:iam::<account>:oidc-provider/<host>/<path>)`;

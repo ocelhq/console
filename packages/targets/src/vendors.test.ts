@@ -64,6 +64,18 @@ describe("an AWS tier's identity", () => {
       /role of account 123456789012/,
     ],
     ["a user, not a role", provider, "arn:aws:iam::123456789012:user/deploy", /role/],
+    [
+      "a provider in the China partition",
+      "arn:aws-cn:iam::123456789012:oidc-provider/console.example.com/oidc",
+      "arn:aws:iam::123456789012:role/deploy",
+      /aws-cn partition: the console issues credentials only in the aws partition/,
+    ],
+    [
+      "a role in GovCloud",
+      provider,
+      "arn:aws-us-gov:iam::123456789012:role/deploy",
+      /aws-us-gov partition/,
+    ],
     ["no ARN", "console.example.com/oidc", "deploy", /OIDC provider ARN/],
   ])("is refused for %s", (_, identityProvider, principal, problem) => {
     expect(identityProblem(aws, { identityProvider, principal }, ISSUER)).toMatch(problem);
