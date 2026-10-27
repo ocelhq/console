@@ -10,14 +10,14 @@ export interface IssuerSettings {
 export const ISSUER_UNCONFIGURED =
   "This console issues no cloud credentials: set CONSOLE_ISSUER_KMS_KEY_ID (an AWS KMS ECC_NIST_P256 signing key) or CONSOLE_ISSUER_KEY (a P-256 private key, PEM or JWK) and restart it";
 
-function source(kmsKeyId: string | undefined, key: string | undefined): IssuerKeySource[] {
-  if (kmsKeyId) return [{ kind: "kms", keyId: kmsKeyId }];
-  if (key) return [{ kind: "key", key }];
-  return [];
-}
-
 export function readIssuerSettings(): IssuerSettings | undefined {
-  const [current] = source(env.CONSOLE_ISSUER_KMS_KEY_ID, env.issuerKey?.CONSOLE_ISSUER_KEY);
+  const kmsKeyId = env.CONSOLE_ISSUER_KMS_KEY_ID;
+  const key = env.issuerKey?.CONSOLE_ISSUER_KEY;
+  const current: IssuerKeySource | undefined = kmsKeyId
+    ? { kind: "kms", keyId: kmsKeyId }
+    : key
+      ? { kind: "key", key }
+      : undefined;
   if (!current) return undefined;
   const previous: IssuerKeySource[] = [];
   if (env.CONSOLE_ISSUER_PREVIOUS_KMS_KEY_ID) {

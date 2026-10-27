@@ -91,8 +91,9 @@ describe("an issuer signing with a P-256 key from the env", () => {
     expect(() => keySigner(material)).toThrow(/P-256/);
   });
 
-  it("refuses something that is no key", () => {
-    expect(() => keySigner("not a key")).toThrow(/CONSOLE_ISSUER_KEY/);
+  it("refuses something that is no key, naming the variable it came from", () => {
+    expect(() => keySigner("not a key")).toThrow(/^CONSOLE_ISSUER_KEY is not a key/);
+    expect(() => publicKeyOf("not a key")).toThrow(/^CONSOLE_ISSUER_PREVIOUS_KEY is not a key/);
   });
 });
 
@@ -114,6 +115,12 @@ describe("an issuer rotating its key", () => {
     );
     expect(decodeProtectedHeader(token).kid).toBe(keys[0]?.kid);
     expect(keys[1]?.kid).not.toBe(keys[0]?.kid);
+  });
+
+  it("publishes a previous key given as a private JWK, keeping its private part back", () => {
+    const jwk = p256().privateKey.export({ format: "jwk" });
+
+    expect(publicKeyOf(JSON.stringify(jwk))).not.toHaveProperty("d");
   });
 
   it("publishes a previous key given only as its public half", async () => {
