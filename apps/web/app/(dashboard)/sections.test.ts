@@ -14,3 +14,13 @@ describe("the Git Integration section", () => {
     expect(projectPage("domains")?.empty).toBeTruthy();
   });
 });
+
+describe("the Targets section", () => {
+  it("is the organization's targets at /targets and a project's bindings at /projects/<slug>/targets", () => {
+    expect(sectionOf("/targets")).toBe("targets");
+    expect(sectionOf("/projects/web/targets")).toBe("targets");
+    expect(scopeHref("targets")).toBe("/targets");
+    expect(projectHref("web", "targets", "preview")).toBe("/projects/web/targets?env=preview");
+    expect(projectPage("targets")).toBeUndefined();
+  });
+});

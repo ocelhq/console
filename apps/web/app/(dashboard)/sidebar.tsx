@@ -25,6 +25,7 @@ import {
   SignOutIcon,
   SquaresFourIcon,
   SunIcon,
+  TargetIcon,
   UsersIcon,
 } from "@phosphor-icons/react";
 import Link from "next/link";
@@ -77,6 +78,7 @@ const sectionIcons: Record<string, typeof SquaresFourIcon> = {
   resources: CubeIcon,
   domains: GlobeIcon,
   git: GitBranchIcon,
+  targets: TargetIcon,
   monitoring: PulseIcon,
   spend: ReceiptIcon,
 };
