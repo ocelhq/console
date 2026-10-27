@@ -11,7 +11,8 @@ export function oidcRoutes(issuer: () => Promise<Issuer> | undefined) {
     }
     try {
       return Response.json(await body(await configured), { headers: CACHED });
-    } catch {
+    } catch (error) {
+      console.error("oidc: the issuer's key is unavailable", error);
       return Response.json(
         { error: "The issuer's key is unavailable" },
         { status: 503, headers: { "cache-control": "no-store" } },

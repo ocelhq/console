@@ -1,6 +1,6 @@
 import { generateKeyPairSync } from "node:crypto";
 import { createIssuer, keySigner } from "@console/targets";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { oidcRoutes } from "./route";
 
 const issuer = createIssuer("https://console.example.com", {
@@ -47,12 +47,18 @@ describe("the issuer's discovery routes", () => {
     expect((await unset.jwks()).status).toBe(404);
   });
 
-  it("answer unavailable, uncached, when the key cannot be reached", async () => {
+  it("answer unavailable, uncached, and log why, when the key cannot be reached", async () => {
     const failing = oidcRoutes(() => Promise.reject(new Error("KMS is down")));
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const response = await failing.jwks();
 
     expect(response.status).toBe(503);
+    expect(logged).toHaveBeenCalledWith(
+      "oidc: the issuer's key is unavailable",
+      expect.objectContaining({ message: "KMS is down" }),
+    );
+    logged.mockRestore();
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 });
