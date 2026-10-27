@@ -91,6 +91,12 @@ export function identityProblem(
   }
 }
 
+export function normalizedGrant(vendor: string, grant: string): string {
+  if (vendor !== "aws") return grant;
+  const [action = "", ...resource] = grant.split(" ");
+  return [action.toLowerCase(), ...resource].join(" ");
+}
+
 export function missingGrants(requested: readonly string[], recorded: readonly string[]): string[] {
   const held = new Set(recorded);
   return requested.filter((grant) => !held.has(grant));

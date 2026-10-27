@@ -84,6 +84,10 @@ function named<K extends number, V>(names: Partial<Record<K, V>>, key: K, what: 
   return found;
 }
 
+export function tierNamed(tier: WireTier): Tier {
+  return named(tiers, tier, "tier");
+}
+
 function oneOf<V extends string>(values: readonly V[], value: string, what: string): V {
   const found = values.find((known) => known === value);
   if (found === undefined) {

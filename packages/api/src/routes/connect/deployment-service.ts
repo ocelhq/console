@@ -34,6 +34,7 @@ import {
   admitPipeline,
   claimAdmission,
   type PipelineKeys,
+  runUrlOf,
 } from "../../pipelines/admit";
 import { callerOf } from "./caller";
 
@@ -75,15 +76,11 @@ const previewDeployment = (deployment: Deployment) =>
 const previewRemoval = (event: EnvironmentEvent) =>
   event.kind === EnvironmentEventKind.PREVIEW_REMOVED && event.environment?.tier === Tier.PREVIEW;
 
-function runUrlOf({ claims }: AdmittedPipeline): string {
-  return `https://github.com/${claims.repository}/actions/runs/${claims.run_id}/attempts/${claims.run_attempt}`;
-}
-
 function ciOf(admitted: AdmittedPipeline) {
   return create(CISchema, {
     name: "github-actions",
     repo: admitted.claims.repository,
-    runUrl: runUrlOf(admitted),
+    runUrl: runUrlOf(admitted.claims),
     pr: admitted.pr ?? 0,
   });
 }
@@ -100,7 +97,7 @@ function reportedBy(admitted: AdmittedPipeline): Omit<ReportedFromCi, "deploymen
   return {
     projectId: admitted.pipeline.projectId,
     repositoryId: admitted.claims.repository_id,
-    runUrl: runUrlOf(admitted),
+    runUrl: runUrlOf(admitted.claims),
     ...(admitted.pr === undefined ? {} : { pr: admitted.pr }),
   };
 }
