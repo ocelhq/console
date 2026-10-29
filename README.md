@@ -17,6 +17,7 @@ and using it is optional.
 | `packages/connectors` | The connector client; `src/gen` is generated from ocel's `proto/`          |
 | `packages/git`        | The git provider port, its GitHub adapter, the sealed storage of apps, and the CI pipelines projects trust |
 | `packages/jobs`       | The job queue runners claim from, and the Ocel tasks that fill and report on it |
+| `packages/pricing`    | The price catalog: ingest from AWS, GCP and static catalogs, and the lookup that answers price queries |
 | `packages/infra`      | The Ocel resources the console declares (`postgres("main")`)               |
 | `packages/targets`    | The console's OIDC issuer, and the targets that trust it                   |
 | `packages/theme`      | The design tokens shared with the other Ocel surfaces                      |
@@ -269,6 +270,110 @@ variable and set a new current one: the console signs only with the current key 
 both, so tokens already minted keep verifying. Drop the previous key once the JWKS cache (five
 minutes) and the longest token (ten minutes) have passed.
 
+`ocel cost scan`, and each deploy's estimate, price their resources with
+`console.v1.PricingService.Lookup`, which answers from the console's price catalog. Anyone may call
+it: an anonymous caller is limited per address (an IPv6 /64 counts as one), and all anonymous
+callers together to 20,000 calls an hour, while a caller with a session is limited per
+organization. Past a limit it answers `resource_exhausted` with `Retry-After`.
+
+| Variable                        | Default | Effect                                                         |
+| ------------------------------- | ------- | -------------------------------------------------------------- |
+| `CONSOLE_TRUSTED_PROXY_HOPS`    | `1`     | Proxies that append to or overwrite `X-Forwarded-For`; the client address is that many entries from the right, or the left-most entry when there are fewer |
+| `CONSOLE_PRICING_ANON_BURST`    | `30`    | Lookups an address may make at once                            |
+| `CONSOLE_PRICING_ANON_PER_HOUR` | `60`    | Lookups an address regains each hour                           |
+| `CONSOLE_PRICING_ORG_BURST`     | `300`   | Lookups an organization may make at once                       |
+| `CONSOLE_PRICING_ORG_PER_HOUR`  | `1200`  | Lookups an organization regains each hour                      |
+
+A console must sit behind a proxy that appends the client's address to `X-Forwarded-For` or
+overwrites the header with it, and set `CONSOLE_TRUSTED_PROXY_HOPS` to the number of such proxies.
+Next's server writes the socket address into `X-Forwarded-For` only when a request carries none,
+and a route handler cannot read the socket itself. A console served directly therefore keys an
+anonymous caller by whatever that caller puts in the header, so each caller can pick a fresh
+address, and with it a fresh limit, on every call. Only the limit on all anonymous callers
+together still holds.
+
+The catalog is ingested by the `pricing-ingest` task, daily at 04:17 UTC, one run per service the
+ingest manifest names: AWS from the Price List Query API or its public price list files, GCP from
+the Cloud Billing Catalog API, and Cloudflare from the static catalog ocel curates. A service's new catalog replaces the old
+one in a single transaction, so a failed ingest leaves the old one serving, and an ingest that finds
+the same service already loading leaves it to that one. A GCP SKU whose tiered price resets other
+than monthly is skipped. A query whose service has no catalog misses with `CATALOG_NOT_SEEDED`.
+AWS needs no credentials: an offer whose version is already loaded is skipped, and a changed one
+is read from its public region files. A console that may call the Price List Query API
+(`pricing:GetProducts` in `us-east-1`) reads a changed offer from it instead, which reads EC2's NAT
+Gateway prices in seconds where the region files take over 20 minutes. Each run asks the API once
+first; if it refuses (no credentials, access denied), the run reads the region files and logs why.
+AWSDataTransfer, AWSLambda, AmazonECS, AmazonElastiCache and AmazonRDS keep more products than the
+API serves quickly, so they stay on the region files unless `CONSOLE_PRICING_AWS_SOURCE` is `api`.
+On a host that limits how long a task runs (AWS Lambda, Cloud Run), an EC2 ingest that would have
+to read the region files is skipped with that reason, and EC2 keeps its last catalog.
+
+| Variable                                  | Default             | Effect                                                     |
+| ----------------------------------------- | ------------------- | ---------------------------------------------------------- |
+| `CONSOLE_PRICING_AWS_SOURCE`              | `auto`              | `api` reads every AWS service from the API and fails when it refuses; `bulk` reads the region files only |
+| `CONSOLE_PRICING_AWS_ROLE_ARN`            | unset               | A pricing-only IAM role, in any AWS account, the console assumes to call the API |
+| `CONSOLE_PRICING_AWS_IDENTITY`            | `auto`              | Who assumes that role: `google` (the host's service account), `aws` (its AWS credentials); `auto` is `google` on Cloud Run |
+| `CONSOLE_PRICING_AWS_AUDIENCE`            | `sts.amazonaws.com` | The audience of the Google ID token traded for the role     |
+| `CONSOLE_PRICING_AWS_ACCESS_KEY_ID`, `CONSOLE_PRICING_AWS_SECRET_ACCESS_KEY` | unset | An IAM user's key the console calls the API, or assumes the role, with |
+| `GCP_BILLING_API_KEY`                     | unset               | An API key for the Cloud Billing API; wins over ADC          |
+| `CONSOLE_PRICING_GCP_PROJECT`             | the credentials' project | The project ADC calls bill their quota to; it must have the Cloud Billing API enabled |
+
+Without a role or a key, the console calls the API as the default AWS credential chain resolves
+it. List prices are public, so the role may live in any AWS account. Its permission policy is:
+
+```json
+{ "Version": "2012-10-17", "Statement": [{ "Effect": "Allow", "Action": "pricing:GetProducts", "Resource": "*" }] }
+```
+
+- **AWS.** The app's own role calls the API; assuming a role from an AWS-hosted console is not
+  supported, since the app boundary allows no `sts:AssumeRole`. Create the policy once, in the
+  account the console deploys to:
+
+  ```sh
+  aws iam create-policy --policy-name console-pricing-read --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"pricing:GetProducts","Resource":"*"}]}'
+  ```
+
+  Set `CONSOLE_PRICING_AWS_POLICY_ARN` to its ARN in the shell or `.env` you deploy
+  `ocel.aws.config.ts` from; `transforms/pricing.transform.ts` attaches it to the app's role, and
+  attaches nothing while it is unset. Re-run `ocel bootstrap` on each tier the console deploys to:
+  until then the tier's app boundary predates `pricing:GetProducts`, the API refuses the console,
+  and AWS prices come from the region files.
+- **GCP.** The console trades a Google ID token for the role, with no key stored anywhere. Find
+  the unique id of the service account the console's Cloud Run service runs as
+  (`gcloud iam service-accounts describe <email> --format='value(uniqueId)'`), give the role this
+  trust policy, and `ocel env set CONSOLE_PRICING_AWS_ROLE_ARN=<role arn>`:
+
+  ```json
+  { "Version": "2012-10-17", "Statement": [{ "Effect": "Allow",
+    "Principal": { "Federated": "accounts.google.com" },
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": { "StringEquals": {
+      "accounts.google.com:aud": "<unique id>",
+      "accounts.google.com:oaud": "sts.amazonaws.com",
+      "accounts.google.com:sub": "<unique id>" } } }] }
+  ```
+
+  `accounts.google.com:aud` is the token's `azp`, the service account itself; `oaud` is the
+  audience the console asks for, `CONSOLE_PRICING_AWS_AUDIENCE`.
+- **VPS.** Create an IAM user with an access key and `ocel env set` it as
+  `CONSOLE_PRICING_AWS_ACCESS_KEY_ID` and `CONSOLE_PRICING_AWS_SECRET_ACCESS_KEY`. Either give the
+  user the permission policy itself, or give it `sts:AssumeRole` on the role, give the role this
+  trust policy, and set `CONSOLE_PRICING_AWS_ROLE_ARN`:
+
+  ```json
+  { "Version": "2012-10-17", "Statement": [{ "Effect": "Allow",
+    "Principal": { "AWS": "arn:aws:iam::<account>:user/<user>" },
+    "Action": "sts:AssumeRole" }] }
+  ```
+
+The console never logs a credential or a token. GCP needs either an API key or Application Default
+Credentials; without either, GCP catalogs are skipped and GCP queries miss. To fill a local
+console's catalog by hand, run `bun run pricing:ingest aws/AWSLambda gcp/152E-C115-5142` (or `all`) from
+`packages/pricing`; like `db:migrate`, it reads the database and the variables above from
+`apps/web/.env.local`. The manifest and the static catalogs come from ocel: `bun run gen` copies
+them, with the contract fixtures in `packages/api/test/contract`, from the ocel commit
+`buf.gen.yaml` pins into `packages/pricing/catalog`.
+
 Then point the CLI at your console:
 `OCEL_CONSOLE_URL=https://console.example.com ocel login`,
 `ocel link`, `ocel connector add`.
@@ -285,7 +390,7 @@ bun run typecheck   # tsc in every workspace
 bun run test        # vitest in every workspace; needs the Postgres above
 bun run lint        # biome
 bun run format      # biome, writing fixes
-bun run gen         # regenerate packages/connectors/src/gen
+bun run gen         # regenerate packages/connectors/src/gen and sync what ocel's pin ships
 ```
 
 Tests read `TEST_DATABASE_URL`, which defaults to

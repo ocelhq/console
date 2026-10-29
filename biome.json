@@ -11,6 +11,8 @@
       "!**/packages/connectors/src/gen",
       "!**/packages/api/test/contract",
       "!**/drizzle",
+      "!**/packages/pricing/catalog",
+      "!**/packages/pricing/src/testdata/parity",
       "!**/.next",
       "!**/dist",
       "!**/storybook-static"

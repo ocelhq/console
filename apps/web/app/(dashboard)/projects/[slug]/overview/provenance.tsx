@@ -6,7 +6,9 @@ import {
   MagnifyingGlassPlusIcon,
 } from "@phosphor-icons/react";
 import { useReactFlow } from "@xyflow/react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import type { Cost } from "@/lib/estimate";
 import { targetOf } from "@/lib/providers";
 import { labelType } from "@/lib/type";
 import { EnvironmentSwitcher } from "../../../environment-switcher";
@@ -19,6 +21,7 @@ export type Provenance = {
   tag: string | null;
   providerName: string;
   providerRegion: string | null;
+  cost: { estimate: Cost; href: string } | null;
 };
 
 export type Failure = { deployedAt: string; error: string | null };
@@ -101,6 +104,19 @@ export function ProvenanceStrip({
           {parts.map((part) => (
             <span key={part}> · {part}</span>
           ))}
+        </p>
+      )}
+      {provenance?.cost && (
+        <p className="pointer-events-auto bg-background text-xs text-muted-foreground">
+          {provenance.cost.estimate.line}
+          {provenance.cost.estimate.unpriced && <span> · {provenance.cost.estimate.unpriced}</span>}
+          {" · "}
+          <Link
+            href={provenance.cost.href}
+            className="text-foreground underline-offset-4 outline-none hover:underline focus-visible:underline"
+          >
+            Breakdown
+          </Link>
         </p>
       )}
     </div>

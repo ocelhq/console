@@ -121,6 +121,34 @@ export type DeploymentTopology = {
   variableGroups?: DeploymentVariableGroup[];
 };
 
+export type EstimateProfile = "light" | "moderate" | "heavy";
+
+export type ResourceEstimateStatus = "priced" | "free" | "unsupported" | "no-price";
+
+export type DeploymentEstimateResource = {
+  resource: string;
+  status: ResourceEstimateStatus;
+  monthlyFixed: string;
+  monthlyUsage: string;
+};
+
+export type DeploymentEstimateCoverage = {
+  supported: number;
+  free: number;
+  unsupported: number;
+  noPrice: number;
+};
+
+export type DeploymentEstimate = {
+  currency: string;
+  profile: EstimateProfile;
+  monthlyFixed: string;
+  monthlyUsage: string;
+  resources: DeploymentEstimateResource[];
+  coverage: DeploymentEstimateCoverage;
+  notes: string[];
+};
+
 export const deployment = pgTable(
   "deployment",
   {
@@ -148,6 +176,7 @@ export const deployment = pgTable(
     deployedAt: timestamp("deployed_at").notNull(),
     trace: jsonb("trace").$type<DeploymentStage[]>().notNull(),
     topology: jsonb("topology").$type<DeploymentTopology>().notNull(),
+    estimate: jsonb("estimate").$type<DeploymentEstimate>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [

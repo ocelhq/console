@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError } from "@connectrpc/connect";
+import { Profile } from "@console/connectors/gen/common/cost/v1/cost_pb";
 import { Lifecycle, Tier } from "@console/connectors/gen/common/environment/v1/environment_pb";
 import {
   AppOutcome,
@@ -92,6 +93,55 @@ describe("DeploymentService over Connect", () => {
         expect(row?.topology.usages).toEqual([
           { app: "web", resource: "main", files: ["app/page.tsx"] },
         ]);
+      } finally {
+        await session.cleanup();
+      }
+    });
+
+    it("stores the estimate a deployment reports, and a repeat of it once", async () => {
+      const session = await createTestSessionWithOrganization();
+      try {
+        const projectId = await projectIn(session.organization.id, "report-estimate");
+        const client = serviceClient(DeploymentService, session.token);
+        const estimated = deploymentRecord({
+          estimate: {
+            currency: "USD",
+            profile: Profile.MODERATE,
+            coverage: { supported: 1, noPrice: 2 },
+            monthlyFixed: "12.40",
+            monthlyUsage: "3.10",
+          },
+        });
+
+        await client.report({ projectId, deployment: estimated });
+        await client.report({ projectId, deployment: estimated });
+
+        const rows = await db.select().from(deployment).where(eq(deployment.projectId, projectId));
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({
+          estimate: {
+            profile: "moderate",
+            coverage: { supported: 1, noPrice: 2 },
+            monthlyFixed: "12.40",
+            monthlyUsage: "3.10",
+          },
+        });
+      } finally {
+        await session.cleanup();
+      }
+    });
+
+    it("stores no estimate for a deployment that reports none", async () => {
+      const session = await createTestSessionWithOrganization();
+      try {
+        const projectId = await projectIn(session.organization.id, "report-no-estimate");
+        await serviceClient(DeploymentService, session.token).report({
+          projectId,
+          deployment: deploymentRecord(),
+        });
+
+        const [row] = await db.select().from(deployment).where(eq(deployment.projectId, projectId));
+        expect(row?.estimate).toBeNull();
       } finally {
         await session.cleanup();
       }

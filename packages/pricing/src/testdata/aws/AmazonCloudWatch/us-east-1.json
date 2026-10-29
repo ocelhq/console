@@ -1,0 +1,91 @@
+{
+  "formatVersion": "v1.0",
+  "offerCode": "AmazonCloudWatch",
+  "version": "20261007115540",
+  "publicationDate": "2026-10-07T11:55:40Z",
+  "products": {
+    "S8QGXX5R2BKKMDSJ": {
+      "sku": "S8QGXX5R2BKKMDSJ",
+      "productFamily": "Data Payload",
+      "attributes": {
+        "servicecode": "AmazonCloudWatch",
+        "location": "US East (N. Virginia)",
+        "locationType": "AWS Region",
+        "group": "Ingested Logs",
+        "groupDescription": "Existing system, application, and custom log files",
+        "usagetype": "USE1-DataProcessing-Bytes",
+        "operation": "PutLogEvents",
+        "logsDestination": "Amazon CloudWatch Logs",
+        "regionCode": "us-east-1",
+        "servicename": "AmazonCloudWatch",
+        "version": "Current"
+      }
+    },
+    "96K55R2PV3ZZZ3AM": {
+      "sku": "96K55R2PV3ZZZ3AM",
+      "productFamily": "Data Payload",
+      "attributes": {
+        "servicecode": "AmazonCloudWatch",
+        "location": "US East (N. Virginia)",
+        "locationType": "AWS Region",
+        "group": "Ingested Logs",
+        "groupDescription": "Existing system, application, and custom log files",
+        "usagetype": "DataProcessing-Bytes",
+        "operation": "PutLogEvents",
+        "logsDestination": "Amazon CloudWatch Logs",
+        "regionCode": "us-east-1",
+        "servicename": "AmazonCloudWatch",
+        "version": "Legacy"
+      }
+    }
+  },
+  "terms": {
+    "OnDemand": {
+      "96K55R2PV3ZZZ3AM": {
+        "96K55R2PV3ZZZ3AM.JRTCKXETXF": {
+          "offerTermCode": "JRTCKXETXF",
+          "sku": "96K55R2PV3ZZZ3AM",
+          "effectiveDate": "2026-10-01T00:00:00Z",
+          "priceDimensions": {
+            "96K55R2PV3ZZZ3AM.JRTCKXETXF.6YS6EN2CT7": {
+              "rateCode": "96K55R2PV3ZZZ3AM.JRTCKXETXF.6YS6EN2CT7",
+              "description": "$0.50 per GB custom log data ingested in Standard log class - US East (Northern Virginia)",
+              "beginRange": "0",
+              "endRange": "Inf",
+              "unit": "GB",
+              "pricePerUnit": {
+                "USD": "0.5000000000"
+              },
+              "appliesTo": []
+            }
+          },
+          "termAttributes": {}
+        }
+      },
+      "S8QGXX5R2BKKMDSJ": {
+        "S8QGXX5R2BKKMDSJ.JRTCKXETXF": {
+          "offerTermCode": "JRTCKXETXF",
+          "sku": "S8QGXX5R2BKKMDSJ",
+          "effectiveDate": "2026-10-01T00:00:00Z",
+          "priceDimensions": {
+            "S8QGXX5R2BKKMDSJ.JRTCKXETXF.6YS6EN2CT7": {
+              "rateCode": "S8QGXX5R2BKKMDSJ.JRTCKXETXF.6YS6EN2CT7",
+              "description": "$0.50 per GB custom log data ingested in Standard log class - US East (Northern Virginia)",
+              "beginRange": "0",
+              "endRange": "Inf",
+              "unit": "GB",
+              "pricePerUnit": {
+                "USD": "0.5000000000"
+              },
+              "appliesTo": []
+            }
+          },
+          "termAttributes": {}
+        }
+      }
+    }
+  },
+  "attributesList": {
+    "usagetype": ["ignored"]
+  }
+}

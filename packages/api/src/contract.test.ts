@@ -1,7 +1,9 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { auth } from "@console/auth/next";
+import { db } from "@console/db";
 import { setupTestDatabase } from "@console/db/testing";
+import { seedCatalog } from "@console/pricing/testing";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createTestSessionWithOrganization } from "../test/auth-harness";
 import { CONNECT_PREFIX, connectHandler } from "./routes/connect/route";
@@ -144,6 +146,52 @@ const cloud = {
   "cloud.audience": "ocel-cloud",
 };
 
+async function seedPriceCatalogs(): Promise<Binding> {
+  await seedCatalog(db, {
+    vendor: "aws",
+    service: "AWSLambda",
+    version: "20261022183959",
+    products: [
+      {
+        sku: "NDYBVXT3KB548Z2A",
+        region: "eu-west-2",
+        productFamily: "Serverless",
+        unit: "Request",
+        attributes: { group: "AWS-Lambda-Requests", usagetype: "Request" },
+        tiers: [{ start: "0", price: "0.0000002" }],
+        sourceUrl:
+          "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSLambda/20261022183959/eu-west-2/index.json",
+      },
+    ],
+  });
+  const cloudWatch = {
+    region: "us-east-1",
+    productFamily: "Data Payload",
+    unit: "GB",
+    tiers: [{ start: "0", price: "0.5" }],
+    sourceUrl:
+      "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonCloudWatch/20261020170512/us-east-1/index.json",
+  };
+  await seedCatalog(db, {
+    vendor: "aws",
+    service: "AmazonCloudWatch",
+    version: "20261020170512",
+    products: [
+      {
+        ...cloudWatch,
+        sku: "S8QGXX5R2BKKMDSJ",
+        attributes: { usagetype: "DataProcessing-Bytes", version: "Current" },
+      },
+      {
+        ...cloudWatch,
+        sku: "96K55R2PV3ZZZ3AM",
+        attributes: { usagetype: "DataProcessing-Bytes", version: "Legacy" },
+      },
+    ],
+  });
+  return {};
+}
+
 const setups: Record<string, (session: Session) => Promise<Binding>> = {
   "device-code": async () => ({}),
   "device-token-pending": async () => ({ "device.code": (await requestDeviceCode()).device_code }),
@@ -160,6 +208,7 @@ const setups: Record<string, (session: Session) => Promise<Binding>> = {
   "console-describe": async () => cloud,
   "cloud-token": async () => ({}),
   "cloud-token-without-session": async () => ({}),
+  "price-lookup": seedPriceCatalogs,
 };
 
 describe("the requests the ocel CLI sends", () => {

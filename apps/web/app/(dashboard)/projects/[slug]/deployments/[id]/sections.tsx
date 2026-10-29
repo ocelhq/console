@@ -1,6 +1,7 @@
 import type {
   Deployment,
   DeploymentApp,
+  DeploymentEstimate,
   DeploymentResource,
   DeploymentStage,
 } from "@console/db/schema";
@@ -14,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { spanOf } from "@/lib/deployment-view";
+import { resourceCosts } from "@/lib/estimate";
 import { labelType } from "@/lib/type";
 import { CommandPane } from "../../../../command-pane";
 import { AppMark, ProviderMark, ResourceMark } from "../../../../marks";
@@ -234,6 +236,38 @@ export function Checks({ apps }: { apps: DeploymentApp[] }) {
         ))}
       </TableBody>
     </Table>
+  );
+}
+
+export function CostBreakdown({ estimate }: { estimate: DeploymentEstimate }) {
+  const rows = resourceCosts(estimate);
+  return (
+    <>
+      {rows.length === 0 ? (
+        <p className="p-4 text-sm text-muted-foreground">The estimate priced no resources.</p>
+      ) : (
+        <Table className="min-w-[32rem]">
+          <Head labels={["Resource", "Status", "Fixed / mo", "Usage / mo"]} />
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow key={row.resource} className="hover:bg-transparent">
+                <TableCell className={`${cell} font-mono text-xs`}>{row.resource}</TableCell>
+                <TableCell className={cell}>{row.status}</TableCell>
+                <TableCell className={`${cell} tabular-nums`}>{row.fixed}</TableCell>
+                <TableCell className={`${cell} tabular-nums`}>{row.usage}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+      {estimate.notes.length > 0 && (
+        <ul className="flex list-disc flex-col gap-1 border-t border-border py-3 pr-4 pl-8 text-xs text-muted-foreground">
+          {estimate.notes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
 

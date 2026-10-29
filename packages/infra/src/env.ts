@@ -78,6 +78,32 @@ export const env = defineEnv({
       description: "A retired P-256 key, PEM or JWK, whose public half the issuer still publishes.",
     },
   ),
+  CONSOLE_TRUSTED_PROXY_HOPS: {
+    class: "plain",
+    schema: z.coerce.number().int().min(1).default(1),
+    description:
+      "Proxies in front of the console that append to X-Forwarded-For; the client is that many entries from the right.",
+  },
+  CONSOLE_PRICING_ANON_BURST: {
+    class: "plain",
+    schema: z.coerce.number().int().min(1).default(30),
+    description: "Price lookups an anonymous address may make at once.",
+  },
+  CONSOLE_PRICING_ANON_PER_HOUR: {
+    class: "plain",
+    schema: z.coerce.number().positive().default(60),
+    description: "Price lookups an anonymous address regains each hour.",
+  },
+  CONSOLE_PRICING_ORG_BURST: {
+    class: "plain",
+    schema: z.coerce.number().int().min(1).default(300),
+    description: "Price lookups a signed-in organization may make at once.",
+  },
+  CONSOLE_PRICING_ORG_PER_HOUR: {
+    class: "plain",
+    schema: z.coerce.number().positive().default(1200),
+    description: "Price lookups a signed-in organization regains each hour.",
+  },
   ocelCloud: group(
     {
       CONSOLE_CLOUD_URL: {
@@ -100,6 +126,54 @@ export const env = defineEnv({
     {
       optional: true,
       description: "Offers Ocel Cloud as the target of a project that names no provider.",
+    },
+  ),
+  gcpBilling: group(
+    { GCP_BILLING_API_KEY: { class: "secret" } },
+    {
+      optional: true,
+      description:
+        "A Cloud Billing API key GCP prices are ingested with; without it, Application Default Credentials.",
+    },
+  ),
+  CONSOLE_PRICING_GCP_PROJECT: {
+    class: "plain",
+    schema: z.string().min(1).optional(),
+    description:
+      "The project GCP price ingest bills its API quota to; the credentials' default project when unset.",
+  },
+  CONSOLE_PRICING_AWS_SOURCE: {
+    class: "plain",
+    schema: z.enum(["auto", "api", "bulk"]).default("auto"),
+    description:
+      "auto reads AWS prices from the Price List API when it lets the console in, else the public files; api or bulk picks one.",
+  },
+  CONSOLE_PRICING_AWS_ROLE_ARN: {
+    class: "plain",
+    schema: z.string().startsWith("arn:").optional(),
+    description:
+      "A pricing-only IAM role, in any AWS account, the console assumes to call the Price List API.",
+  },
+  CONSOLE_PRICING_AWS_IDENTITY: {
+    class: "plain",
+    schema: z.enum(["auto", "google", "aws"]).default("auto"),
+    description:
+      "Who assumes the pricing role: google, the host's service account; aws, its AWS credentials; auto, google on Cloud Run.",
+  },
+  CONSOLE_PRICING_AWS_AUDIENCE: {
+    class: "plain",
+    schema: z.string().min(1).default("sts.amazonaws.com"),
+    description: "The audience of the Google ID token the console trades for the pricing role.",
+  },
+  pricingAwsKey: group(
+    {
+      CONSOLE_PRICING_AWS_ACCESS_KEY_ID: { class: "plain" },
+      CONSOLE_PRICING_AWS_SECRET_ACCESS_KEY: { class: "secret" },
+    },
+    {
+      optional: true,
+      description:
+        "An IAM user's access key the console calls the Price List API, or assumes the pricing role, with.",
     },
   ),
 });

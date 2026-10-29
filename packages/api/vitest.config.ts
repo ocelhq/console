@@ -31,7 +31,13 @@ export default defineConfig({
     },
     server: {
       deps: {
-        inline: ["@console/auth", "@console/db", "@console/git", "@console/targets"],
+        inline: [
+          "@console/auth",
+          "@console/db",
+          "@console/git",
+          "@console/pricing",
+          "@console/targets",
+        ],
       },
     },
   },

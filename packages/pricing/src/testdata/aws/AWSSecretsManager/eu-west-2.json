@@ -1,0 +1,50 @@
+{
+  "formatVersion": "v1.0",
+  "offerCode": "AWSSecretsManager",
+  "version": "20260911124610",
+  "publicationDate": "2026-09-11T12:46:10Z",
+  "products": {
+    "PJHVPQZRWG9TYHS5": {
+      "sku": "PJHVPQZRWG9TYHS5",
+      "productFamily": "Secret",
+      "attributes": {
+        "servicecode": "AWSSecretsManager",
+        "location": "EU (London)",
+        "locationType": "AWS Region",
+        "group": "AWSSecretsManager-Secret",
+        "usagetype": "EUW2-AWSSecretsManager-Secrets",
+        "operation": "",
+        "regionCode": "eu-west-2",
+        "servicename": "AWS Secrets Manager"
+      }
+    }
+  },
+  "terms": {
+    "OnDemand": {
+      "PJHVPQZRWG9TYHS5": {
+        "PJHVPQZRWG9TYHS5.JRTCKXETXF": {
+          "offerTermCode": "JRTCKXETXF",
+          "sku": "PJHVPQZRWG9TYHS5",
+          "effectiveDate": "2025-07-01T00:00:00Z",
+          "priceDimensions": {
+            "PJHVPQZRWG9TYHS5.JRTCKXETXF.6YS6EN2CT7": {
+              "rateCode": "PJHVPQZRWG9TYHS5.JRTCKXETXF.6YS6EN2CT7",
+              "description": "$0.40 per Secret",
+              "beginRange": "0",
+              "endRange": "Inf",
+              "unit": "Secrets",
+              "pricePerUnit": {
+                "USD": "0.4000000000"
+              },
+              "appliesTo": []
+            }
+          },
+          "termAttributes": {}
+        }
+      }
+    }
+  },
+  "attributesList": {
+    "usagetype": ["ignored"]
+  }
+}
