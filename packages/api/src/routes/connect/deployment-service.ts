@@ -36,7 +36,7 @@ import {
   type PipelineKeys,
   runUrlOf,
 } from "../../pipelines/admit";
-import { callerOf } from "./caller";
+import { authenticatedCallerOf } from "./caller";
 import { required } from "./required";
 
 export interface DeploymentServiceDeps {
@@ -114,7 +114,7 @@ export function deploymentService(
 
   return {
     async report(request, context) {
-      const caller = callerOf(context);
+      const caller = authenticatedCallerOf(context);
       const reported = required(request.deployment, "deployment");
       if (caller.kind === "session") {
         const values = {
@@ -161,7 +161,7 @@ export function deploymentService(
     },
 
     async recordEnvironmentEvent(request, context) {
-      const caller = callerOf(context);
+      const caller = authenticatedCallerOf(context);
       const event = required(request.event, "event");
       if (caller.kind === "session") {
         const projectId = await projectInOrganization(

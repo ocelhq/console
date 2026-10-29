@@ -5,17 +5,20 @@ import { consoleOrigin } from "@console/auth";
 import { ConnectorService } from "@console/connectors/gen/console/v1/connector_pb";
 import { ConsoleService } from "@console/connectors/gen/console/v1/console_pb";
 import { DeploymentService } from "@console/connectors/gen/console/v1/deployment_pb";
+import { PricingService } from "@console/connectors/gen/console/v1/pricing_pb";
 import { ProjectService } from "@console/connectors/gen/console/v1/project_pb";
 import { TargetService } from "@console/connectors/gen/console/v1/target_pb";
 import type { Job } from "@console/db/schema";
 import type { GitRuntime } from "@console/git";
 import { configuredIssuer, type Issuer } from "@console/targets";
 import { githubActionsKeys, type PipelineKeys } from "../../pipelines/admit";
+import { configuredPricingLimits, type PricingLimits } from "../../ratelimit/pricing";
 import { validator } from "../../validator";
 import { callerInterceptor } from "./caller";
 import { connectorService } from "./connector-service";
 import { consoleService } from "./console-service";
 import { deploymentService } from "./deployment-service";
+import { pricingService } from "./pricing-service";
 import { projectService } from "./project-service";
 import { targetService } from "./target-service";
 
@@ -26,6 +29,7 @@ export interface ConnectDeps {
   git: () => GitRuntime | undefined;
   pipelineKeys?: PipelineKeys;
   issuer?: () => Promise<Issuer> | undefined;
+  pricingLimits?: PricingLimits;
 }
 
 export function connectHandler(deps: ConnectDeps): (request: Request) => Promise<Response> {
@@ -39,6 +43,7 @@ export function connectHandler(deps: ConnectDeps): (request: Request) => Promise
           ConsoleService.method.issueCloudToken,
           ConnectorService.method.heartbeat,
         ],
+        optionalSession: [PricingService.method.lookup],
         pipelines: [
           DeploymentService.method.report,
           DeploymentService.method.recordEnvironmentEvent,
@@ -66,6 +71,10 @@ export function connectHandler(deps: ConnectDeps): (request: Request) => Promise
     .service(ProjectService, projectService)
     .service(ConnectorService, connectorService)
     .service(ConsoleService, consoleService)
+    .service(
+      PricingService,
+      pricingService(() => deps.pricingLimits ?? configuredPricingLimits()),
+    )
     .handlers.map((handler) => ({
       path: handler.requestPath,
       handle: createFetchHandler(handler),

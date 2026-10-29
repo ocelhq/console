@@ -16,7 +16,8 @@ import { decodeJwt } from "jose";
 
 export type Caller =
   | { kind: "session"; session: ActiveOrganizationSession }
-  | { kind: "pipeline-token"; token: string };
+  | { kind: "pipeline-token"; token: string }
+  | { kind: "anonymous" };
 
 const callerKey = createContextKey<Caller | null>(null);
 
@@ -49,12 +50,22 @@ async function sessionCaller(header: Headers): Promise<Caller> {
 
 export function callerInterceptor(options: {
   open: readonly DescMethod[];
+  optionalSession: readonly DescMethod[];
   pipelines: readonly DescMethod[];
 }): Interceptor {
   const unauthenticated = new Set(options.open);
+  const optionalSession = new Set(options.optionalSession);
   const pipelines = new Set(options.pipelines);
   return (next) => async (request) => {
     if (unauthenticated.has(request.method)) {
+      return next(request);
+    }
+    if (optionalSession.has(request.method)) {
+      const session = await getActiveOrganizationSession(request.header);
+      request.contextValues.set(
+        callerKey,
+        session ? { kind: "session", session } : { kind: "anonymous" },
+      );
       return next(request);
     }
     const bearer = bearerOf(request.header);
@@ -75,10 +86,32 @@ export function callerOf(context: HandlerContext): Caller {
   return caller;
 }
 
+export function authenticatedCallerOf(
+  context: HandlerContext,
+): Exclude<Caller, { kind: "anonymous" }> {
+  const caller = callerOf(context);
+  if (caller.kind === "anonymous") {
+    throw new Error("a handler that serves only authenticated callers ran for an anonymous one");
+  }
+  return caller;
+}
+
+export function optionalSessionCallerOf(
+  context: HandlerContext,
+): Exclude<Caller, { kind: "pipeline-token" }> {
+  const caller = callerOf(context);
+  if (caller.kind === "pipeline-token") {
+    throw new Error(
+      "a handler that serves sessions and anonymous callers ran for a pipeline token",
+    );
+  }
+  return caller;
+}
+
 export function sessionOf(context: HandlerContext): ActiveOrganizationSession {
   const caller = callerOf(context);
   if (caller.kind !== "session") {
-    throw new Error("a handler that serves only sessions ran for a pipeline");
+    throw new Error(`a handler that serves only sessions ran for a ${caller.kind} caller`);
   }
   return caller.session;
 }
