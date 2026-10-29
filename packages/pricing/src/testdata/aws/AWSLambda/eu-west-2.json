@@ -1,0 +1,164 @@
+{
+  "formatVersion": "v1.0",
+  "offerCode": "AWSLambda",
+  "version": "20261022183959",
+  "publicationDate": "2026-10-22T18:39:59Z",
+  "products": {
+    "ZQVCC2M69R4S79XS": {
+      "sku": "ZQVCC2M69R4S79XS",
+      "productFamily": "Serverless",
+      "attributes": {
+        "servicecode": "AWSLambda",
+        "location": "Any",
+        "locationType": "AWS Region",
+        "group": "AWS-Lambda-Requests",
+        "groupDescription": "Invocation call for a Lambda function",
+        "usagetype": "Global-Request",
+        "operation": "",
+        "regionCode": "",
+        "servicename": "AWS Lambda"
+      }
+    },
+    "NDYBVXT3KB548Z2A": {
+      "sku": "NDYBVXT3KB548Z2A",
+      "productFamily": "Serverless",
+      "attributes": {
+        "servicecode": "AWSLambda",
+        "location": "EU (London)",
+        "locationType": "AWS Region",
+        "group": "AWS-Lambda-Requests",
+        "groupDescription": "Invocation call for a Lambda function",
+        "usagetype": "EUW2-Request",
+        "operation": "",
+        "regionCode": "eu-west-2",
+        "servicename": "AWS Lambda"
+      }
+    }
+  },
+  "terms": {
+    "OnDemand": {
+      "ZQVCC2M69R4S79XS": {
+        "ZQVCC2M69R4S79XS.A429C66SYZ": {
+          "offerTermCode": "A429C66SYZ",
+          "sku": "ZQVCC2M69R4S79XS",
+          "effectiveDate": "2026-10-01T00:00:00Z",
+          "priceDimensions": {
+            "ZQVCC2M69R4S79XS.A429C66SYZ.SB2VSFF4TP": {
+              "rateCode": "ZQVCC2M69R4S79XS.A429C66SYZ.SB2VSFF4TP",
+              "description": "AWS Lambda - Requests Free Tier - 1,000,000 Requests",
+              "beginRange": "0",
+              "endRange": "1000000",
+              "unit": "Request",
+              "pricePerUnit": {
+                "USD": "0.0000000000"
+              },
+              "appliesTo": [
+                "8FY96CH95ZA8NU5C",
+                "VXJTSR9CJSBFXG5K",
+                "KY96C7U4EB95UXGK",
+                "F9T53VWVKRT6G32X",
+                "EXZWANHF3J8G524N",
+                "B22EKFMS5UB7E4DB",
+                "XM5KDGVKY9KYJWCG",
+                "VPGUBFQ4KNZKMKGJ",
+                "89U8ZQR2ZV45HXWY",
+                "4JWH9XJEQW57HPK7",
+                "D9Z54P78JUX2Y552",
+                "DMJPKNDPVRPMG2E7",
+                "476SBHCHQKEMB5CF",
+                "EMZ8YZDPGWMDYZNK",
+                "75D867BXR9WJ9F77",
+                "E7YK4NJVGVSYK2HH",
+                "XPFR3MTP3RW5GRTN",
+                "YV5CBXWN5ARWJ7V9",
+                "R3N9VPKCMSVAJDEH",
+                "NCR6U4F9R96E94YR",
+                "PV7EVKE5W5DV9HR7",
+                "2PJ77N2RZDFUWCYT",
+                "ZWHFK83WS2P4WZR6",
+                "BVPQ9WHBE3SM65K7",
+                "FPS5FM45229RTFBT",
+                "B5V2RNHAWGVJBZD3",
+                "5JXCX35TH2MPMFMW",
+                "G87G4VHC8MFGZYZU",
+                "ED4MANDMTGZ4Z9QF",
+                "RN53C25R9GDX9T49",
+                "68H82NC62DFBNEVM",
+                "XJDGEW4KCCD2P5TG",
+                "92KS5FMQEEJ39ACN",
+                "GU2ZS9HVP6QTQ7KE",
+                "NFXH9EUGP7BUPE4A",
+                "FMKMXUNY35KEUAM3",
+                "CKZQ3D25MV9ET243",
+                "YY4C5XTAZNQPB6J6",
+                "K4KA7GJPQTT3ZJ5A",
+                "V5T5H5YEU5SUN3C2",
+                "4KD96CKPZF9FJUJ9",
+                "VUQUVJRYRZKGXHKX",
+                "EQE7YY7WBWZFB46G",
+                "7TZ969MZND3Z6HD7",
+                "BBNA8X4S2N3SMD7K",
+                "6GFK8TZW8U8G9MUB",
+                "UVYYDZQ83GKQ2K6C",
+                "W5998MSDP4P5N43C",
+                "K9DMCWXXQT7TQSWX",
+                "AA4Q79463N2JQHZA",
+                "KERWZD8CJ22SEZWT",
+                "ZW6UHD4Q6EPUCZWU",
+                "NDYBVXT3KB548Z2A",
+                "RYFSQRRXQ4R9CK7A",
+                "UH8TQNRPPRZ9TJ4V",
+                "RKMA4PX3K8H4VAP4",
+                "DV2YFXRNHNJFTDP3",
+                "3T9634R2MFT46X4K",
+                "EE6A5VEB3PCF9VKU",
+                "HPTUCREBP3C88BAZ",
+                "GVB4MJBFXA3BX4M6",
+                "36D3E7396ZKUSWWW",
+                "D4TPQYY66DKTZWX9",
+                "R2QWMZCXCNAMHHT9",
+                "BNQXHCKJQCQXPHE8",
+                "MN74ND7YYK8MBEC6",
+                "K7BX6567RJ67A2KE",
+                "6SKZPR8753NAAQ4W",
+                "T34KQWJP89CNB5GZ",
+                "3BE8DYKG4FYSZGDW",
+                "DJNVRSYVP8QY93QP",
+                "GRP2QG4WUGQFGJ6T",
+                "574VQJ288VE2ZGMU",
+                "ZEA64MMVK5QRB5TC"
+              ]
+            }
+          },
+          "termAttributes": {
+            "Restriction": "Limited SKU Usage"
+          }
+        }
+      },
+      "NDYBVXT3KB548Z2A": {
+        "NDYBVXT3KB548Z2A.JRTCKXETXF": {
+          "offerTermCode": "JRTCKXETXF",
+          "sku": "NDYBVXT3KB548Z2A",
+          "effectiveDate": "2026-10-01T00:00:00Z",
+          "priceDimensions": {
+            "NDYBVXT3KB548Z2A.JRTCKXETXF.6YS6EN2CT7": {
+              "rateCode": "NDYBVXT3KB548Z2A.JRTCKXETXF.6YS6EN2CT7",
+              "description": "AWS Lambda - Total Requests - EU (London)",
+              "beginRange": "0",
+              "endRange": "Inf",
+              "unit": "Request",
+              "pricePerUnit": {
+                "USD": "0.0000002000"
+              },
+              "appliesTo": []
+            }
+          },
+          "termAttributes": {}
+        }
+      }
+    }
+  },
+  "attributesList": {
+    "usagetype": ["ignored"]
+  }
+}

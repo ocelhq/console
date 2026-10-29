@@ -8,5 +8,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["ocel.*.config.ts"]
+  "include": ["ocel.*.config.ts", "transforms"]
 }

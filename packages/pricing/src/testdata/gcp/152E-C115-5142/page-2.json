@@ -1,0 +1,154 @@
+{
+  "skus": [
+    {
+      "name": "services/152E-C115-5142/skus/011E-3072-CBDB",
+      "skuId": "011E-3072-CBDB",
+      "description": "Services CPU (Instance-based billing) in us-central1",
+      "category": {
+        "serviceDisplayName": "Cloud Run",
+        "resourceFamily": "ApplicationServices",
+        "resourceGroup": "Compute",
+        "usageType": "OnDemand"
+      },
+      "serviceRegions": ["us-central1"],
+      "pricingInfo": [
+        {
+          "summary": "",
+          "pricingExpression": {
+            "usageUnit": "s",
+            "displayQuantity": 1,
+            "tieredRates": [
+              {
+                "startUsageAmount": 0,
+                "unitPrice": {
+                  "currencyCode": "USD",
+                  "units": "0",
+                  "nanos": 18000
+                }
+              }
+            ],
+            "usageUnitDescription": "second",
+            "baseUnit": "s",
+            "baseUnitDescription": "second",
+            "baseUnitConversionFactor": 1
+          },
+          "currencyConversionRate": 1,
+          "effectiveTime": "2026-10-28T07:00:00Z"
+        }
+      ],
+      "serviceProviderName": "Google",
+      "geoTaxonomy": {
+        "type": "REGIONAL",
+        "regions": ["us-central1"]
+      }
+    },
+    {
+      "name": "services/152E-C115-5142/skus/4C19-DF1E-81AB",
+      "skuId": "4C19-DF1E-81AB",
+      "description": "Services CPU (Instance-based billing) in europe-west1",
+      "category": {
+        "serviceDisplayName": "Cloud Run",
+        "resourceFamily": "ApplicationServices",
+        "resourceGroup": "Compute",
+        "usageType": "OnDemand"
+      },
+      "serviceRegions": ["europe-west1"],
+      "pricingInfo": [
+        {
+          "summary": "",
+          "pricingExpression": {
+            "usageUnit": "s",
+            "displayQuantity": 1,
+            "tieredRates": [
+              {
+                "startUsageAmount": 0,
+                "unitPrice": {
+                  "currencyCode": "USD",
+                  "units": "0",
+                  "nanos": 18000
+                }
+              }
+            ],
+            "usageUnitDescription": "second",
+            "baseUnit": "s",
+            "baseUnitDescription": "second",
+            "baseUnitConversionFactor": 1
+          },
+          "currencyConversionRate": 1,
+          "effectiveTime": "2026-10-28T07:00:00Z"
+        }
+      ],
+      "serviceProviderName": "Google",
+      "geoTaxonomy": {
+        "type": "REGIONAL",
+        "regions": ["europe-west1"]
+      }
+    },
+    {
+      "name": "services/152E-C115-5142/skus/SYNT-REPR-0002",
+      "skuId": "SYNT-REPR-0002",
+      "description": "Synthetic repriced in us-central1",
+      "category": {
+        "serviceDisplayName": "Cloud Run",
+        "resourceFamily": "ApplicationServices",
+        "resourceGroup": "Compute",
+        "usageType": "OnDemand"
+      },
+      "serviceRegions": ["us-central1"],
+      "pricingInfo": [
+        {
+          "summary": "",
+          "pricingExpression": {
+            "usageUnit": "s",
+            "displayQuantity": 1,
+            "tieredRates": [
+              {
+                "startUsageAmount": 0,
+                "unitPrice": {
+                  "currencyCode": "USD",
+                  "units": "0",
+                  "nanos": 18000
+                }
+              }
+            ],
+            "usageUnitDescription": "second",
+            "baseUnit": "s",
+            "baseUnitDescription": "second",
+            "baseUnitConversionFactor": 1
+          },
+          "currencyConversionRate": 1,
+          "effectiveTime": "2026-10-28T07:00:00Z"
+        },
+        {
+          "summary": "",
+          "pricingExpression": {
+            "usageUnit": "s",
+            "displayQuantity": 1,
+            "tieredRates": [
+              {
+                "startUsageAmount": 0,
+                "unitPrice": {
+                  "currencyCode": "USD",
+                  "units": "9",
+                  "nanos": 0
+                }
+              }
+            ],
+            "usageUnitDescription": "second",
+            "baseUnit": "s",
+            "baseUnitDescription": "second",
+            "baseUnitConversionFactor": 1
+          },
+          "currencyConversionRate": 1,
+          "effectiveTime": "2020-01-01T00:00:00Z"
+        }
+      ],
+      "serviceProviderName": "Google",
+      "geoTaxonomy": {
+        "type": "REGIONAL",
+        "regions": ["us-central1"]
+      }
+    }
+  ],
+  "nextPageToken": ""
+}

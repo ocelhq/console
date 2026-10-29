@@ -12,6 +12,7 @@ const target = buildEnv({
 
 export default defineConfig({
   slug: "console",
+  transforms: ["./transforms/pricing.transform.ts"],
   provider: awsProvider({
     region: target.AWS_REGION,
     edge: cloudflare(),

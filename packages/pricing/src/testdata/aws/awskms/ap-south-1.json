@@ -1,0 +1,49 @@
+{
+  "formatVersion": "v1.0",
+  "offerCode": "awskms",
+  "version": "20261026201814",
+  "publicationDate": "2026-10-26T20:18:14Z",
+  "products": {
+    "C7JZRTSGCPF9VEGG": {
+      "sku": "C7JZRTSGCPF9VEGG",
+      "productFamily": "Encryption Key",
+      "attributes": {
+        "servicecode": "awskms",
+        "location": "Asia Pacific (Mumbai)",
+        "locationType": "AWS Region",
+        "usagetype": "ap-south-1-KMS-Keys",
+        "operation": "",
+        "regionCode": "ap-south-1",
+        "servicename": "AWS Key Management Service"
+      }
+    }
+  },
+  "terms": {
+    "OnDemand": {
+      "C7JZRTSGCPF9VEGG": {
+        "C7JZRTSGCPF9VEGG.JRTCKXETXF": {
+          "offerTermCode": "JRTCKXETXF",
+          "sku": "C7JZRTSGCPF9VEGG",
+          "effectiveDate": "2026-10-01T00:00:00Z",
+          "priceDimensions": {
+            "C7JZRTSGCPF9VEGG.JRTCKXETXF.6YS6EN2CT7": {
+              "rateCode": "C7JZRTSGCPF9VEGG.JRTCKXETXF.6YS6EN2CT7",
+              "description": "$1 per customer managed KMS key version in Asia Pacific (Mumbai)",
+              "beginRange": "0",
+              "endRange": "Inf",
+              "unit": "Keys",
+              "pricePerUnit": {
+                "USD": "1.0000000000"
+              },
+              "appliesTo": []
+            }
+          },
+          "termAttributes": {}
+        }
+      }
+    }
+  },
+  "attributesList": {
+    "usagetype": ["ignored"]
+  }
+}

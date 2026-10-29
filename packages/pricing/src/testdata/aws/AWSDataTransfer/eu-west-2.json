@@ -1,0 +1,426 @@
+{
+  "formatVersion": "v1.0",
+  "offerCode": "AWSDataTransfer",
+  "version": "20260916132208",
+  "publicationDate": "2026-09-16T13:22:08Z",
+  "products": {
+    "XK9YQHQTK5J8DPMS": {
+      "sku": "XK9YQHQTK5J8DPMS",
+      "productFamily": "Data Transfer",
+      "attributes": {
+        "servicecode": "AWSDataTransfer",
+        "transferType": "InterRegion Outbound",
+        "fromLocation": "Asia Pacific (Mumbai)",
+        "fromLocationType": "AWS Region",
+        "toLocation": "EU (London)",
+        "toLocationType": "AWS Region",
+        "usagetype": "APS3-EUW2-AWS-Out-Bytes",
+        "operation": "",
+        "fromRegionCode": "ap-south-1",
+        "servicename": "AWS Data Transfer",
+        "toRegionCode": "eu-west-2"
+      }
+    },
+    "PB257JUQ8U6E6UPM": {
+      "sku": "PB257JUQ8U6E6UPM",
+      "productFamily": "Data Transfer",
+      "attributes": {
+        "servicecode": "AWSDataTransfer",
+        "transferType": "AWS Outbound",
+        "fromLocation": "Global",
+        "fromLocationType": "AWS Region",
+        "toLocation": "External",
+        "toLocationType": "Other",
+        "usagetype": "Global-DataTransfer-Out-Bytes",
+        "operation": "",
+        "fromRegionCode": "",
+        "servicename": "AWS Data Transfer",
+        "toRegionCode": ""
+      }
+    },
+    "UKYWN2DWBSJ9G2MJ": {
+      "sku": "UKYWN2DWBSJ9G2MJ",
+      "productFamily": "Data Transfer",
+      "attributes": {
+        "servicecode": "AWSDataTransfer",
+        "transferType": "InterRegion Outbound",
+        "fromLocation": "EU (Ireland)",
+        "fromLocationType": "AWS Region",
+        "toLocation": "EU (London)",
+        "toLocationType": "AWS Region",
+        "usagetype": "EU-EUW2-AWS-Out-Bytes",
+        "operation": "",
+        "fromRegionCode": "eu-west-1",
+        "servicename": "AWS Data Transfer",
+        "toRegionCode": "eu-west-2"
+      }
+    },
+    "KVBSZ6N2FVSGZ5JP": {
+      "sku": "KVBSZ6N2FVSGZ5JP",
+      "productFamily": "Data Transfer",
+      "attributes": {
+        "servicecode": "AWSDataTransfer",
+        "transferType": "InterRegion Outbound",
+        "fromLocation": "EU (London)",
+        "fromLocationType": "AWS Region",
+        "toLocation": "Asia Pacific (Mumbai)",
+        "toLocationType": "AWS Region",
+        "usagetype": "EUW2-APS3-AWS-Out-Bytes",
+        "operation": "",
+        "fromRegionCode": "eu-west-2",
+        "servicename": "AWS Data Transfer",
+        "toRegionCode": "ap-south-1"
+      }
+    },
+    "TZSWRRM2EWTHHHRZ": {
+      "sku": "TZSWRRM2EWTHHHRZ",
+      "productFamily": "Data Transfer",
+      "attributes": {
+        "servicecode": "AWSDataTransfer",
+        "transferType": "InterRegion Outbound",
+        "fromLocation": "EU (London)",
+        "fromLocationType": "AWS Region",
+        "toLocation": "EU (Ireland)",
+        "toLocationType": "AWS Region",
+        "usagetype": "EUW2-EU-AWS-Out-Bytes",
+        "operation": "",
+        "fromRegionCode": "eu-west-2",
+        "servicename": "AWS Data Transfer",
+        "toRegionCode": "eu-west-1"
+      }
+    },
+    "J5F97VTUKDBTW8X5": {
+      "sku": "J5F97VTUKDBTW8X5",
+      "productFamily": "Data Transfer",
+      "attributes": {
+        "servicecode": "AWSDataTransfer",
+        "transferType": "InterRegion Outbound",
+        "fromLocation": "EU (London)",
+        "fromLocationType": "AWS Region",
+        "toLocation": "US East (N. Virginia)",
+        "toLocationType": "AWS Region",
+        "usagetype": "EUW2-USE1-AWS-Out-Bytes",
+        "operation": "",
+        "fromRegionCode": "eu-west-2",
+        "servicename": "AWS Data Transfer",
+        "toRegionCode": "us-east-1"
+      }
+    },
+    "JNYSB2CFFU532DFN": {
+      "sku": "JNYSB2CFFU532DFN",
+      "productFamily": "Data Transfer",
+      "attributes": {
+        "servicecode": "AWSDataTransfer",
+        "transferType": "InterRegion Outbound",
+        "fromLocation": "US East (N. Virginia)",
+        "fromLocationType": "AWS Region",
+        "toLocation": "EU (London)",
+        "toLocationType": "AWS Region",
+        "usagetype": "USE1-EUW2-AWS-Out-Bytes",
+        "operation": "",
+        "fromRegionCode": "us-east-1",
+        "servicename": "AWS Data Transfer",
+        "toRegionCode": "eu-west-2"
+      }
+    }
+  },
+  "terms": {
+    "OnDemand": {
+      "XK9YQHQTK5J8DPMS": {
+        "XK9YQHQTK5J8DPMS.JRTCKXETXF": {
+          "offerTermCode": "JRTCKXETXF",
+          "sku": "XK9YQHQTK5J8DPMS",
+          "effectiveDate": "2026-06-01T00:00:00Z",
+          "priceDimensions": {
+            "XK9YQHQTK5J8DPMS.JRTCKXETXF.6YS6EN2CT7": {
+              "rateCode": "XK9YQHQTK5J8DPMS.JRTCKXETXF.6YS6EN2CT7",
+              "description": "$0.086 per GB - Asia Pacific (Mumbai) data transfer to EU (London)",
+              "beginRange": "0",
+              "endRange": "Inf",
+              "unit": "GB",
+              "pricePerUnit": {
+                "USD": "0.0860000000"
+              },
+              "appliesTo": []
+            }
+          },
+          "termAttributes": {}
+        }
+      },
+      "UKYWN2DWBSJ9G2MJ": {
+        "UKYWN2DWBSJ9G2MJ.JRTCKXETXF": {
+          "offerTermCode": "JRTCKXETXF",
+          "sku": "UKYWN2DWBSJ9G2MJ",
+          "effectiveDate": "2026-06-01T00:00:00Z",
+          "priceDimensions": {
+            "UKYWN2DWBSJ9G2MJ.JRTCKXETXF.6YS6EN2CT7": {
+              "rateCode": "UKYWN2DWBSJ9G2MJ.JRTCKXETXF.6YS6EN2CT7",
+              "description": "$0.02 per GB - EU (Ireland) data transfer to EU (London)",
+              "beginRange": "0",
+              "endRange": "Inf",
+              "unit": "GB",
+              "pricePerUnit": {
+                "USD": "0.0200000000"
+              },
+              "appliesTo": []
+            }
+          },
+          "termAttributes": {}
+        }
+      },
+      "KVBSZ6N2FVSGZ5JP": {
+        "KVBSZ6N2FVSGZ5JP.JRTCKXETXF": {
+          "offerTermCode": "JRTCKXETXF",
+          "sku": "KVBSZ6N2FVSGZ5JP",
+          "effectiveDate": "2026-06-01T00:00:00Z",
+          "priceDimensions": {
+            "KVBSZ6N2FVSGZ5JP.JRTCKXETXF.6YS6EN2CT7": {
+              "rateCode": "KVBSZ6N2FVSGZ5JP.JRTCKXETXF.6YS6EN2CT7",
+              "description": "$0.02 per GB - EU (London) data transfer to Asia Pacific (Mumbai)",
+              "beginRange": "0",
+              "endRange": "Inf",
+              "unit": "GB",
+              "pricePerUnit": {
+                "USD": "0.0200000000"
+              },
+              "appliesTo": []
+            }
+          },
+          "termAttributes": {}
+        }
+      },
+      "PB257JUQ8U6E6UPM": {
+        "PB257JUQ8U6E6UPM.A429C66SYZ": {
+          "offerTermCode": "A429C66SYZ",
+          "sku": "PB257JUQ8U6E6UPM",
+          "effectiveDate": "2026-06-01T00:00:00Z",
+          "priceDimensions": {
+            "PB257JUQ8U6E6UPM.A429C66SYZ.ETY2894C67": {
+              "rateCode": "PB257JUQ8U6E6UPM.A429C66SYZ.ETY2894C67",
+              "description": "$0 for 100GB of data transfer out to the internet, aggregated globally, each month",
+              "beginRange": "0",
+              "endRange": "100",
+              "unit": "GB",
+              "pricePerUnit": {
+                "USD": "0.0000000000"
+              },
+              "appliesTo": [
+                "CRVNRMRA5H83V2WD",
+                "RABTJMKDJXCS3HGB",
+                "9AS8NERTGECRPGT7",
+                "G76TPCZ2YZDWHBS7",
+                "NRU3SDS8TSYM8YTF",
+                "FS8D4ZBTZC7SUQMG",
+                "X683FV9MX2WKH26R",
+                "HQEH3ZWJVT46JHRG",
+                "FSEU4E6BRE95JTX8",
+                "AB77HZFG3K75SMFC",
+                "HDAWR6N3TC9JG9B3",
+                "P8W29YK9AEVGT94F",
+                "42TWUMZ5BH3CJKRX",
+                "MNNUSPE9NHX4S3B8",
+                "HK88XZFB6UCBP764",
+                "2PCT4VCE7VU9ZA9A",
+                "299H935TQMDXYR6E",
+                "B4FDZPU7PUPW9KQN",
+                "XNRN4JUWNHCPRU5R",
+                "SDHP4R7WGBVJPQPY",
+                "36H7S3NU9B7S3UT5",
+                "98NENJDZV28SBXQ6",
+                "PMP8X4WW4QWE4MGM",
+                "D6KTGXDAJPW2JW7H",
+                "PXMGUQBUMZ57SWYS",
+                "63T8CCVERN79A9UF",
+                "ZUYBXJB9EDMGX4WE",
+                "RWNAG8EPMAPN6VGR",
+                "2FMZC5939UNK386P",
+                "ECTP3BJUBCHZH4H7",
+                "UC6KZM2N8C4EDSJ2",
+                "PKX2UMMN9JAK89YN",
+                "C9NU58VKT7GQUFST",
+                "HDJ56KY2V23XMT23",
+                "7W6FHP6D7SEAH4EE",
+                "XYEEZU9NCKCCQ5EY",
+                "AMWSPQUAP2ZAGZ4T",
+                "54UAZFW2RBKVZV3G",
+                "6UMEZT4ZXXYHPU5Z",
+                "UT2RMGBHHJPCHBHS",
+                "RFEMJE2PCZY94RM4",
+                "QZ73H5RGR5JYYB4D",
+                "VQMS46CX5NK8XV3M",
+                "NQT5EFPTVXZE5ZHD",
+                "X5BFEX42WPEB89TC",
+                "993ZEFNY27ZBY7TZ",
+                "T3ZB7Z9V83R7WSH5",
+                "ZQXZURWQEX3KAWYA",
+                "JQPUS395EKGJAF2K",
+                "4HCFHP6H6VZVQ74A",
+                "BXKEYE7ADT7EBZTW",
+                "VUM2J8K8UJEJW4B8",
+                "XGDSGND6MUTT3U74",
+                "RHTV8JPY64EV6GXS",
+                "N4GVKX3X58UM44HX",
+                "6KD65M6RHV7V5Q2E",
+                "DSDMYDNJ7MQXEU2V",
+                "BCP69A6RVUZ9PMM8",
+                "T8U8Q97DEK8DGHGG",
+                "GEPD6SRNJK9DQTE8",
+                "FAB99YP5WBFQW3XX",
+                "5JMQ42BDCQF6C5XP",
+                "NRC2X84NC7NGPKFS",
+                "83AXNP3KVHM7SGFU",
+                "FWPF54UVUR4G8P3A",
+                "3XF9TZNT6VRZFE5U",
+                "UJYCP67PNUR5V2VZ",
+                "HJ4VVW3YMNA9Q26W",
+                "SJS9GM3PBTUXSYNY",
+                "SYDVGMW59NNGKNXA",
+                "27T5YSJBHB3SGRQC",
+                "R5JG2AF383HK4W9U",
+                "CXWFSAS9ETSMBH2Y",
+                "CMEYEEYC485JXPYQ",
+                "72ZH453U7RKZCGDN",
+                "YXY6GTQNQVZSBWUJ",
+                "N44J3VJ5RHPRTG8D",
+                "GZ7W292S58B6PZPH",
+                "564JE6C26YQCZYX4",
+                "M542U2SUZMNSA4AX",
+                "KPEKDXDDQGKW7S6T",
+                "F62Y6TKR8NC6Q2ZB",
+                "48NJHP4M27UNGWY4",
+                "TCQ8QCXJC69VEBRZ",
+                "AHRNA43Y8M88C9BD",
+                "WSS4ANBAWGXGXC34",
+                "Z9CN5NK3WCBZ5KEP",
+                "QKTPK3975YUWDU3Q",
+                "G62VFTQ3CT4GZV9W",
+                "DDAWHKW59YPAQTQN",
+                "RXZRF5DV47TYQ2KB",
+                "SBC36TANNE54BYU7",
+                "6J7ZFAB6VQ5YYYQT",
+                "EZ7K9ETAHN6BAKV8",
+                "CEZ38U7Z5A3RB5US",
+                "TYMC6C8YMFPJS2V8",
+                "ZGDW3UE4SED9HUPP",
+                "R887Y68H9V7ZQRQD",
+                "5M4327XEUKBBTWAT",
+                "DJGAW6CFP8PPSX6T",
+                "4RDQASPKA563JSVH",
+                "8M89HETR2MTWZ9SP",
+                "MB9TZFPYFKH4SH6P",
+                "UYN6VMC5ANUD4H6S",
+                "5UF8HU3K3KB7SKF4",
+                "7SD6RBHJZGEXD3Q6",
+                "T44C9WQVFH9SJFEQ",
+                "P6NMSM6BC3R6A5U9",
+                "9ESU2G5WSY6FMZR3",
+                "SHM374E6Z6QUJCK6",
+                "MSZAHJKXS5P6AQS5",
+                "529SK7Q2XMH8G9FP",
+                "YF6GFTB9WP95A9XC",
+                "ZMC8J4VZQ9XHJHU2",
+                "A6YRDEXMRVAYW6TV",
+                "QEYS8NHYJ5TRWRWZ",
+                "DGR6MKFHTAYJ3QHP",
+                "T5N4YHB64DQFUPDP",
+                "6XEKAD627QFRWFAN",
+                "NYJP6UWWB8B2SK29",
+                "2V5MC7KNFF848QAH",
+                "U5BGAY9MY9MU9UPN",
+                "WF498XDS2SG5BUUC",
+                "VMAJ645H6RR4RKP7",
+                "UKQ34C8EAAJUUK8Q",
+                "DRTM7T5YA7E492Z3",
+                "EKHFDA69JK4PQAEQ",
+                "ZUA6XEPU6ERRATJ6",
+                "KRXM4TG87VW2NPHA",
+                "UQV95YZYZFMZS7AN",
+                "HJBGTC76QP7XKJ7V",
+                "UDF3MCPTCEY4BX4Q",
+                "8A562F3DJ7RB3YG4",
+                "HVHAF7W356YRMBKT",
+                "JMEVEQVMZEKRTJYK",
+                "4GUWTT4HTDRUU6H5",
+                "D74ZYPB8YW7KFWZX",
+                "M338S9DAQY5JUT7X",
+                "ZBCV9QFN6J64C7SR",
+                "JMVAJYUBDVF3WGR9",
+                "67T8V33BFQ7AUKD8",
+                "Q3KWYZ3TM7ZT645U"
+              ]
+            }
+          },
+          "termAttributes": {
+            "Restriction": "Limited SKU Usage"
+          }
+        }
+      },
+      "J5F97VTUKDBTW8X5": {
+        "J5F97VTUKDBTW8X5.JRTCKXETXF": {
+          "offerTermCode": "JRTCKXETXF",
+          "sku": "J5F97VTUKDBTW8X5",
+          "effectiveDate": "2026-06-01T00:00:00Z",
+          "priceDimensions": {
+            "J5F97VTUKDBTW8X5.JRTCKXETXF.6YS6EN2CT7": {
+              "rateCode": "J5F97VTUKDBTW8X5.JRTCKXETXF.6YS6EN2CT7",
+              "description": "$0.02 per GB - EU (London) data transfer to US East (Northern Virginia)",
+              "beginRange": "0",
+              "endRange": "Inf",
+              "unit": "GB",
+              "pricePerUnit": {
+                "USD": "0.0200000000"
+              },
+              "appliesTo": []
+            }
+          },
+          "termAttributes": {}
+        }
+      },
+      "TZSWRRM2EWTHHHRZ": {
+        "TZSWRRM2EWTHHHRZ.JRTCKXETXF": {
+          "offerTermCode": "JRTCKXETXF",
+          "sku": "TZSWRRM2EWTHHHRZ",
+          "effectiveDate": "2026-06-01T00:00:00Z",
+          "priceDimensions": {
+            "TZSWRRM2EWTHHHRZ.JRTCKXETXF.6YS6EN2CT7": {
+              "rateCode": "TZSWRRM2EWTHHHRZ.JRTCKXETXF.6YS6EN2CT7",
+              "description": "$0.02 per GB - EU (London) data transfer to EU (Ireland)",
+              "beginRange": "0",
+              "endRange": "Inf",
+              "unit": "GB",
+              "pricePerUnit": {
+                "USD": "0.0200000000"
+              },
+              "appliesTo": []
+            }
+          },
+          "termAttributes": {}
+        }
+      },
+      "JNYSB2CFFU532DFN": {
+        "JNYSB2CFFU532DFN.JRTCKXETXF": {
+          "offerTermCode": "JRTCKXETXF",
+          "sku": "JNYSB2CFFU532DFN",
+          "effectiveDate": "2026-06-01T00:00:00Z",
+          "priceDimensions": {
+            "JNYSB2CFFU532DFN.JRTCKXETXF.6YS6EN2CT7": {
+              "rateCode": "JNYSB2CFFU532DFN.JRTCKXETXF.6YS6EN2CT7",
+              "description": "$0.02 per GB - US East (Northern Virginia) data transfer to EU (London)",
+              "beginRange": "0",
+              "endRange": "Inf",
+              "unit": "GB",
+              "pricePerUnit": {
+                "USD": "0.0200000000"
+              },
+              "appliesTo": []
+            }
+          },
+          "termAttributes": {}
+        }
+      }
+    }
+  },
+  "attributesList": {
+    "usagetype": ["ignored"]
+  }
+}

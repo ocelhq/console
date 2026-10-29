@@ -16,11 +16,12 @@
   "dependencies": {
     "@console/db": "workspace:*",
     "@console/git": "workspace:*",
+    "@console/infra": "workspace:*",
+    "@console/pricing": "workspace:*",
     "drizzle-orm": "catalog:",
     "ocel": "catalog:"
   },
   "devDependencies": {
-    "@console/infra": "workspace:*",
     "@types/node": "^20",
     "typescript": "catalog:",
     "vitest": "^4.1.9"

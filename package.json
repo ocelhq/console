@@ -3,7 +3,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "gen": "buf generate",
+    "gen": "buf generate && scripts/sync-ocel.sh",
     "lint": "biome ci .",
     "format": "biome check --write .",
     "typecheck": "tsc --noEmit -p . && bun run --filter '*' typecheck",
@@ -16,6 +16,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
     "@changesets/cli": "^3.0.3",
+    "@ocel/transforms": "0.0.4",
     "ocel": "catalog:",
     "typescript": "catalog:",
     "zod": "^4.4.3"

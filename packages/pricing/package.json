@@ -1,0 +1,32 @@
+{
+  "name": "@console/pricing",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "the price catalog: ingest from AWS, GCP and static catalogs, and the lookup that answers price queries",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "scripts": {
+    "pricing:ingest": "node --env-file-if-exists=../../apps/web/.env.local ../../apps/web/scripts/dev-env.mjs tsx src/bin/ingest.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@aws-sdk/client-pricing": "^3.1157.0",
+    "@aws-sdk/client-sts": "^3.1157.0",
+    "@console/db": "workspace:*",
+    "@console/infra": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "google-auth-library": "^11.3.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.20.6",
+    "typescript": "catalog:",
+    "vitest": "^4.1.9"
+  }
+}

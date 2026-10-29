@@ -4,5 +4,7 @@ export * from "./deployment";
 export * from "./git";
 export * from "./job";
 export * from "./pipeline";
+export * from "./pricing";
 export * from "./project";
+export * from "./ratelimit";
 export * from "./target";
