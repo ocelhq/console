@@ -1,5 +1,12 @@
+import { create } from "@bufbuild/protobuf";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { VariableClass } from "@console/connectors/gen/app/resources/v1/variables_pb";
+import {
+  CoverageSchema,
+  type Estimate,
+  Profile,
+  ResourceEstimate_Status,
+} from "@console/connectors/gen/common/cost/v1/cost_pb";
 import type { Environment } from "@console/connectors/gen/common/environment/v1/environment_pb";
 import { Tier as WireTier } from "@console/connectors/gen/common/environment/v1/environment_pb";
 import {
@@ -20,6 +27,7 @@ import type {
   AppOutcome as AppOutcomeName,
   DeploymentApp,
   DeploymentCi,
+  DeploymentEstimate,
   DeploymentGit,
   DeploymentKind as DeploymentKindName,
   DeploymentOutcome as DeploymentOutcomeName,
@@ -28,6 +36,8 @@ import type {
   DeploymentTrigger,
   DeploymentVariable,
   EnvironmentEventKind as EnvironmentEventKindName,
+  EstimateProfile,
+  ResourceEstimateStatus,
   Tier,
   TriggerKind as TriggerKindName,
   VariableClass as VariableClassName,
@@ -74,6 +84,19 @@ const variableClasses: Partial<Record<VariableClass, VariableClassName>> = {
   [VariableClass.SENSITIVE]: "sensitive",
   [VariableClass.SECRET]: "secret",
   [VariableClass.DERIVED]: "derived",
+};
+
+const profiles: Partial<Record<Profile, EstimateProfile>> = {
+  [Profile.LIGHT]: "light",
+  [Profile.MODERATE]: "moderate",
+  [Profile.HEAVY]: "heavy",
+};
+
+const resourceEstimateStatuses: Partial<Record<ResourceEstimate_Status, ResourceEstimateStatus>> = {
+  [ResourceEstimate_Status.PRICED]: "priced",
+  [ResourceEstimate_Status.FREE]: "free",
+  [ResourceEstimate_Status.UNSUPPORTED]: "unsupported",
+  [ResourceEstimate_Status.NO_PRICE]: "no-price",
 };
 
 function named<K extends number, V>(names: Partial<Record<K, V>>, key: K, what: string): V {
@@ -200,6 +223,27 @@ function resourcesOf(deployment: Deployment): DeploymentResource[] {
   });
 }
 
+function estimateOf(estimate: Estimate | undefined): DeploymentEstimate | null {
+  if (!estimate) {
+    return null;
+  }
+  const { supported, free, unsupported, noPrice } = estimate.coverage ?? create(CoverageSchema);
+  return {
+    currency: estimate.currency,
+    profile: named(profiles, estimate.profile, "estimate profile"),
+    monthlyFixed: estimate.monthlyFixed,
+    monthlyUsage: estimate.monthlyUsage,
+    resources: estimate.resources.map((resource) => ({
+      resource: resource.resource,
+      status: named(resourceEstimateStatuses, resource.status, "resource estimate status"),
+      monthlyFixed: resource.monthlyFixed,
+      monthlyUsage: resource.monthlyUsage,
+    })),
+    coverage: { supported, free, unsupported, noPrice },
+    notes: estimate.notes,
+  };
+}
+
 export function deploymentValues(projectId: string, id: string, deployment: Deployment) {
   const trigger: DeploymentTrigger = {
     kind: named(triggerKinds, deployment.trigger?.kind ?? 0, "trigger kind"),
@@ -240,6 +284,7 @@ export function deploymentValues(projectId: string, id: string, deployment: Depl
         description: present(group.description),
       })),
     },
+    estimate: estimateOf(deployment.estimate),
   };
 }
 

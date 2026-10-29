@@ -3,6 +3,7 @@ import { project } from "@console/db/schema";
 import {
   ArrowLeftIcon,
   CaretRightIcon,
+  CurrencyDollarIcon,
   GitBranchIcon,
   GitCommitIcon,
   GitPullRequestIcon,
@@ -30,6 +31,7 @@ import {
   shortId,
 } from "@/lib/deployment-view";
 import { findDeployment } from "@/lib/deployments";
+import { costOf } from "@/lib/estimate";
 import { targetOf } from "@/lib/providers";
 import { absoluteTime } from "@/lib/relative-time";
 import { labelType } from "@/lib/type";
@@ -42,6 +44,7 @@ import {
   AppList,
   BuildLog,
   Checks,
+  CostBreakdown,
   checksOf,
   Domains,
   hostnamesOf,
@@ -113,6 +116,10 @@ export default async function DeploymentPage({
   const EnvironmentIcon = deployment.tier === "production" ? GlobeSimpleIcon : GitPullRequestIcon;
   const hostnames = hostnamesOf(deployment.topology.apps).length;
   const checks = checksOf(deployment.topology.apps).length;
+  const cost = deployment.estimate && {
+    estimate: deployment.estimate,
+    ...costOf(deployment.estimate),
+  };
 
   return (
     <div className="flex flex-1 flex-col gap-6 px-5 pt-8 pb-12 md:px-8">
@@ -302,6 +309,22 @@ export default async function DeploymentPage({
             <Checks apps={deployment.topology.apps} />
           </AccordionContent>
         </AccordionItem>
+        {cost && (
+          <AccordionItem value="cost" id="cost">
+            <AccordionTrigger className={trigger}>
+              <Caret />
+              <CurrencyDollarIcon aria-hidden className={icon} />
+              Estimated cost
+              <span className={aside}>
+                {cost.line}
+                {cost.unpriced ? ` · ${cost.unpriced}` : ""}
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className={panel}>
+              <CostBreakdown estimate={cost.estimate} />
+            </AccordionContent>
+          </AccordionItem>
+        )}
       </Accordion>
     </div>
   );

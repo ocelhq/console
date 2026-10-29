@@ -3,7 +3,9 @@ import { type Deployment, project } from "@console/db/schema";
 import { and, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { requireOrganization } from "@/lib/access";
+import { deploymentHref } from "@/lib/deployment-view";
 import { latestDeployments } from "@/lib/deployments";
+import { costOf } from "@/lib/estimate";
 import { tierOf, withTier } from "@/lib/tier";
 import type { Provenance } from "./overview/provenance";
 import { ServiceMap } from "./overview/service-map";
@@ -11,13 +13,17 @@ import { LoadError, NeverDeployed, TornDown } from "./overview/states";
 
 const canvas = "h-[calc(100svh-3.5rem)] min-h-0 overflow-hidden";
 
-function provenanceOf(record: Deployment): Provenance {
+function provenanceOf(record: Deployment, slug: string): Provenance {
   return {
     deployedAt: record.deployedAt.toISOString(),
     promotionId: record.promotionId,
     tag: record.tag,
     providerName: record.providerName,
     providerRegion: record.providerRegion,
+    cost: record.estimate && {
+      estimate: costOf(record.estimate),
+      href: `${deploymentHref(slug, record.id)}#cost`,
+    },
   };
 }
 
@@ -72,6 +78,7 @@ export default async function ProjectPage({
       tag: null,
       providerName: latest.providerName,
       providerRegion: latest.providerRegion,
+      cost: null,
     };
     return (
       <div className={canvas}>
@@ -91,7 +98,7 @@ export default async function ProjectPage({
         {lastPromoted ? (
           <ServiceMap
             topology={lastPromoted.topology}
-            provenance={provenanceOf(lastPromoted)}
+            provenance={provenanceOf(lastPromoted, slug)}
             failure={failure}
             now={now}
           />
@@ -104,7 +111,7 @@ export default async function ProjectPage({
 
   return (
     <div className={canvas}>
-      <ServiceMap topology={latest.topology} provenance={provenanceOf(latest)} now={now} />
+      <ServiceMap topology={latest.topology} provenance={provenanceOf(latest, slug)} now={now} />
     </div>
   );
 }
