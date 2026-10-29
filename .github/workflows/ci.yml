@@ -93,12 +93,11 @@ jobs:
           install -m 0755 "$dir/buf-Linux-x86_64" "$dir/buf"
           echo "$dir" >> "$GITHUB_PATH"
       - run: buf generate
-      - name: Generated code matches buf generate
+      - run: scripts/sync-ocel.sh
+      - name: Bindings, contract fixtures and price catalog match the ocel commit buf.gen.yaml pins
         run: |
           git add --intent-to-add --all
           git diff --exit-code
-      - name: Contract fixtures match the ocel commit they were synced from
-        run: scripts/check-contract.sh "$(cat packages/api/test/contract/OCEL_REF)"
 
   build:
     name: build

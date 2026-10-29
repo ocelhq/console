@@ -2,12 +2,13 @@ version: v2
 clean: true
 inputs:
   - git_repo: https://github.com/ocelhq/ocel.git
-    ref: 19c63fcefc499ffc0dc4e9d82a6c0fff2588eb7b
+    ref: 185fcae9eca06ee004639872b3bd74e3b136a35f
     subdir: proto
     paths:
       - provider/variablestore
       - common/environment
       - common/bindings
+      - common/cost
       - console/v1
       - cloud/v1
 plugins:
