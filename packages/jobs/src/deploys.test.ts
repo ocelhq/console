@@ -14,6 +14,8 @@ import { pg } from "@console/infra";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { deployIn } from "./deploys";
+import type { JobDeps } from "./deps";
+import { fakeRunner } from "./fake-runner";
 
 const suffix = crypto.randomUUID();
 const orgId = `org-${suffix}`;
@@ -23,19 +25,28 @@ const store = gitStore(envKeyStore(randomBytes(32).toString("base64")));
 const repo = { repository: "acme/web", repositoryId: "1234", repositoryOwnerId: "42" };
 
 let notified: Job[] = [];
-const notify = async (changed: Job) => {
-  notified.push(changed);
+const notify: JobDeps = {
+  runners: fakeRunner(),
+  notify: async (changed: Job) => {
+    notified.push(changed);
+  },
 };
 
-async function queued(status: Job["status"]) {
+async function queued(status: Job["status"], over: Partial<typeof job.$inferInsert> = {}) {
   await db.insert(job).values({
     id: crypto.randomUUID(),
     projectId,
     kind: "preview-up",
+    tier: "preview",
     status,
     pr: status === "queued" ? 7 : 8,
     dedupeKey: crypto.randomUUID(),
     eventAt: new Date(),
+    runnerId: "ocel-cloud",
+    spec: {
+      source: { git: { cloneUrl: "https://github.com/acme/web.git", commit: "a".repeat(40) } },
+    },
+    ...over,
   });
 }
 
@@ -85,18 +96,25 @@ afterAll(async () => {
 });
 
 describe("moving a project's deploys to its own CI", () => {
-  it("cancels what waits for a runner, trusts the linked repo's pipelines, and says so", async () => {
+  it("cancels what waits for a runner, asks a runner to stop what it runs, trusts the linked repo's pipelines, and says so", async () => {
     await queued("queued");
-    await queued("running");
+    await queued("running", { dispatchedAt: new Date(), acknowledgedAt: new Date() });
+    await queued("queued", { pr: 9, spec: { source: { sourceId: "c".repeat(64) } } });
 
     await deployIn(projectId, { mode: "ci", by: null }, notify);
 
     expect(await store.linkedRepo(projectId)).toMatchObject({ deploys: "ci" });
-    const statuses = (await db.select().from(job).where(eq(job.projectId, projectId)))
-      .map((row) => row.status)
-      .sort();
-    expect(statuses).toEqual(["canceled", "running"]);
-    expect(notified.map((changed) => changed.status)).toEqual(["canceled"]);
+    const rows = await db.select().from(job).where(eq(job.projectId, projectId));
+    expect(rows.map((row) => [row.pr, row.status, row.cancelRequested]).sort()).toEqual([
+      [7, "canceled", false],
+      [8, "canceled", true],
+      [9, "queued", false],
+    ]);
+    expect(notified.map((changed) => [changed.pr, changed.status])).toEqual([
+      [7, "canceled"],
+      [8, "running"],
+      [8, "canceled"],
+    ]);
     expect(await pipelinesOf(projectId)).toMatchObject([
       { origin: "linked", kind: "github-actions", ...repo, branches: ["*"] },
     ]);

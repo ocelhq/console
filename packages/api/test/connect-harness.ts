@@ -11,8 +11,15 @@ import {
   type DeploymentSchema,
   TriggerKind,
 } from "@console/connectors/gen/console/v1/deployment_pb";
+import { RunnerService } from "@console/connectors/gen/runner/v1/runner_pb";
 import { db } from "@console/db";
-import { project } from "@console/db/schema";
+import {
+  endpoint,
+  organization,
+  project,
+  runnerBinding,
+  type Tier as TierName,
+} from "@console/db/schema";
 import { CONNECT_PREFIX, type ConnectDeps, connectHandler } from "../src/routes/connect/route";
 
 export const TRACE_ID = "0af7651916cd43dd8448eb211c80319c";
@@ -45,6 +52,46 @@ export async function projectIn(organizationId: string, slug: string): Promise<s
   const id = crypto.randomUUID();
   await db.insert(project).values({ id, organizationId, name: "My Project", slug });
   return id;
+}
+
+const RUNNERS_ORGANIZATION = "runners-of-the-connect-tests";
+
+export async function runnerEndpoint(id: string): Promise<string> {
+  await db
+    .insert(organization)
+    .values({
+      id: RUNNERS_ORGANIZATION,
+      name: "Runners",
+      slug: RUNNERS_ORGANIZATION,
+      createdAt: new Date(),
+    })
+    .onConflictDoNothing();
+  await db
+    .insert(endpoint)
+    .values({
+      id,
+      organizationId: RUNNERS_ORGANIZATION,
+      name: `runner-${id.slice(0, 8)}`,
+      vendor: "vps",
+      url: "https://runner.example.com",
+      services: [RunnerService.typeName],
+      allowedScopes: ["apps.read", "apps.write"],
+    })
+    .onConflictDoNothing();
+  return id;
+}
+
+export async function bindRunnerRow(
+  projectId: string,
+  tier: TierName,
+  runnerId: string,
+  credentials: boolean,
+): Promise<void> {
+  const values =
+    runnerId === "ocel-cloud"
+      ? { runner: "ocel-cloud" as const, endpointId: null }
+      : { runner: "endpoint" as const, endpointId: await runnerEndpoint(runnerId) };
+  await db.insert(runnerBinding).values({ projectId, tier, credentials, ...values });
 }
 
 export function deploymentRecord(

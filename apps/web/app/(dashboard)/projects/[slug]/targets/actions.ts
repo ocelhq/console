@@ -1,5 +1,6 @@
 "use server";
 
+import { bindRunner, unbindRunner } from "@console/api";
 import { db } from "@console/db";
 import { grantCredentials } from "@console/git";
 import { bindProject, projectInOrganization, targetOf, unbindProject } from "@console/targets";
@@ -51,5 +52,24 @@ export async function grantPipelineCredentials(
       return failed("That pipeline is gone.");
     }
     return done;
+  });
+}
+
+export async function bindProjectRunner(
+  projectId: string,
+  tierName: string,
+  runnerId: string,
+  credentials: boolean,
+): Promise<Answer> {
+  return attempt(async () => {
+    const reached = await administering();
+    if (!reached.ok) return reached;
+    const tier = parseTier(tierName);
+    if (!tier) return failed("A tier is production or preview.");
+    const { organizationId } = reached.result;
+    const answer = runnerId
+      ? await bindRunner(organizationId, { projectId, tier, runnerId, credentials })
+      : await unbindRunner(organizationId, projectId, tier);
+    return answer.ok ? done : failed(answer.message);
   });
 }
