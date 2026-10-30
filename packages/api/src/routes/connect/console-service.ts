@@ -1,23 +1,12 @@
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError, type ServiceImpl } from "@connectrpc/connect";
-import type { Scope } from "@console/connectors/gen/cloud/v1/scope_pb";
+import { refusedScope, scopeName } from "@console/connectors";
 import type { ConsoleService } from "@console/connectors/gen/console/v1/console_pb";
+import { endpointOf, readCloudOffer, signEndpointToken } from "@console/endpoints";
 import { version } from "../../../../../apps/web/package.json";
-import { cloudCallerOf } from "../../cloud/caller";
-import { readCloudOffer } from "../../cloud/offer";
-import { claimOf, lackedScope, scopeOf, signCloudToken } from "../../cloud/token";
+import { memberOf } from "../../endpoints/member";
 
-const cloudTokenLifetime = 5 * 60;
-
-function scopesAsked(asked: readonly string[]): Scope[] {
-  return asked.map((named) => {
-    const scope = scopeOf(named);
-    if (scope === undefined) {
-      throw new ConnectError(`"${named}" is no Ocel Cloud scope`, Code.InvalidArgument);
-    }
-    return scope;
-  });
-}
+const endpointTokenLifetime = 5 * 60;
 
 export const consoleService: ServiceImpl<typeof ConsoleService> = {
   async describe() {
@@ -29,8 +18,8 @@ export const consoleService: ServiceImpl<typeof ConsoleService> = {
     };
   },
 
-  async issueCloudToken(request, context) {
-    const reach = await cloudCallerOf(context.requestHeader, request.organizationId);
+  async issueEndpointToken(request, context) {
+    const reach = await memberOf(context.requestHeader, request.organizationId);
     if (reach.state === "signed-out") {
       throw new ConnectError("A session is required", Code.Unauthenticated);
     }
@@ -40,23 +29,37 @@ export const consoleService: ServiceImpl<typeof ConsoleService> = {
         Code.PermissionDenied,
       );
     }
-    const cloud = readCloudOffer();
-    if (!cloud) {
-      throw new ConnectError("This console offers no Ocel Cloud", Code.FailedPrecondition);
-    }
-    const scopes = scopesAsked(request.scopes);
-    const lacked = lackedScope(reach.caller.role, scopes);
-    if (lacked !== undefined) {
+    const { member } = reach;
+    const endpoint = await endpointOf(member.organizationId, request.endpointId);
+    if (!endpoint) {
       throw new ConnectError(
-        `Your role in this organization (${reach.caller.role}) does not allow ${claimOf(lacked)}`,
-        Code.PermissionDenied,
+        `No endpoint ${request.endpointId} in organization ${member.organizationId}`,
+        Code.NotFound,
       );
     }
-    const { token, expiresAt } = await signCloudToken(
-      cloud,
-      reach.caller,
-      scopes,
-      cloudTokenLifetime,
+    const refused = refusedScope(member.role, endpoint.allowedScopes, request.scopes);
+    switch (refused?.because) {
+      case "not-user":
+        throw new ConnectError(
+          `${scopeName(refused.scope)} is no scope a person can hold`,
+          Code.InvalidArgument,
+        );
+      case "role":
+        throw new ConnectError(
+          `Your role in this organization does not allow ${scopeName(refused.scope)}`,
+          Code.PermissionDenied,
+        );
+      case "endpoint":
+        throw new ConnectError(
+          `Endpoint ${endpoint.name} does not allow ${scopeName(refused.scope)}`,
+          Code.PermissionDenied,
+        );
+    }
+    const { token, expiresAt } = await signEndpointToken(
+      endpoint,
+      member,
+      request.scopes,
+      endpointTokenLifetime,
     );
     return { token, expiresAt: timestampFromDate(expiresAt) };
   },

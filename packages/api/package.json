@@ -20,6 +20,7 @@
     "@console/auth": "workspace:*",
     "@console/connectors": "workspace:*",
     "@console/db": "workspace:*",
+    "@console/endpoints": "workspace:*",
     "@console/git": "workspace:*",
     "@console/infra": "workspace:*",
     "@console/jobs": "workspace:*",

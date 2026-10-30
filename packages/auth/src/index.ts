@@ -1,9 +1,9 @@
 export { auth, type Session } from "./auth";
 export { OCEL_CLI_CLIENT_ID } from "./constants";
 export { consoleOrigin } from "./origin";
+export { administers, highestRole } from "./roles";
 export {
   type ActiveOrganizationSession,
-  administers,
   getActiveOrganizationSession,
   getSessionUserId,
   roleOf,

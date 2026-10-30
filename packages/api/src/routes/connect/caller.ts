@@ -13,10 +13,12 @@ import {
 } from "@console/auth";
 import { GITHUB_ACTIONS_ISSUER } from "@console/git";
 import { decodeJwt } from "jose";
+import { isJobToken, type JobClaims, verifyJobToken } from "./job-token";
 
 export type Caller =
   | { kind: "session"; session: ActiveOrganizationSession }
-  | { kind: "pipeline-token"; token: string };
+  | { kind: "pipeline-token"; token: string }
+  | { kind: "job"; job: JobClaims };
 
 const callerKey = createContextKey<Caller | null>(null);
 
@@ -47,21 +49,35 @@ async function sessionCaller(header: Headers): Promise<Caller> {
   return { kind: "session", session };
 }
 
+async function callerFor(
+  method: DescMethod,
+  header: Headers,
+  pipelines: ReadonlySet<DescMethod>,
+  jobs: ReadonlySet<DescMethod>,
+): Promise<Caller> {
+  const bearer = bearerOf(header);
+  if (bearer && pipelines.has(method) && fromGithubActions(bearer)) {
+    return { kind: "pipeline-token", token: bearer };
+  }
+  if (bearer && jobs.has(method) && isJobToken(bearer)) {
+    return { kind: "job", job: await verifyJobToken(bearer) };
+  }
+  return sessionCaller(header);
+}
+
 export function callerInterceptor(options: {
   open: readonly DescMethod[];
   pipelines: readonly DescMethod[];
+  jobs: readonly DescMethod[];
 }): Interceptor {
   const unauthenticated = new Set(options.open);
   const pipelines = new Set(options.pipelines);
+  const jobs = new Set(options.jobs);
   return (next) => async (request) => {
     if (unauthenticated.has(request.method)) {
       return next(request);
     }
-    const bearer = bearerOf(request.header);
-    const caller: Caller =
-      pipelines.has(request.method) && bearer && fromGithubActions(bearer)
-        ? { kind: "pipeline-token", token: bearer }
-        : await sessionCaller(request.header);
+    const caller = await callerFor(request.method, request.header, pipelines, jobs);
     request.contextValues.set(callerKey, caller);
     return next(request);
   };
@@ -78,7 +94,7 @@ export function callerOf(context: HandlerContext): Caller {
 export function sessionOf(context: HandlerContext): ActiveOrganizationSession {
   const caller = callerOf(context);
   if (caller.kind !== "session") {
-    throw new Error("a handler that serves only sessions ran for a pipeline");
+    throw new Error("a handler that serves only sessions ran for a pipeline or a job");
   }
   return caller.session;
 }

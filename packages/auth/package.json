@@ -7,7 +7,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./next": "./src/next.ts",
-    "./settings": "./src/settings.ts"
+    "./settings": "./src/settings.ts",
+    "./token": "./src/token.ts",
+    "./origin": "./src/origin.ts"
   },
   "scripts": {
     "auth:generate": "bunx @better-auth/cli@latest generate --config ./src/auth.ts --output ../db/src/schema/auth-schema.ts",
@@ -16,6 +18,7 @@
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "catalog:",
+    "@console/connectors": "workspace:*",
     "@console/db": "workspace:*",
     "@console/infra": "workspace:*",
     "better-auth": "catalog:",

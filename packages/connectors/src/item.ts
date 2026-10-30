@@ -4,6 +4,7 @@ export const REFUSALS = [
   "denied",
   "unauthenticated",
   "lost-lease",
+  "needs-runner",
   "failed",
 ] as const;
 

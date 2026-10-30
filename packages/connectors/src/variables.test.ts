@@ -6,20 +6,21 @@ import {
   type SetEnvSourceValueRequest,
   VariableStoreService,
 } from "./gen/provider/variablestore/v1/variablestore_pb";
-import type { Connector } from "./transport";
+import type { Endpoint } from "./transport";
 import { describeEnvSource, list, setEnvSourceValue } from "./variables";
 
 let server: Server | undefined;
 
 afterEach(() => server?.close());
 
-function serving(routes: (router: ConnectRouter) => void): Promise<Connector> {
+function serving(routes: (router: ConnectRouter) => void): Promise<Endpoint> {
   server = createServer(connectNodeAdapter({ routes }));
   return new Promise((resolve) => {
     server?.listen(0, "127.0.0.1", () => {
       const address = server?.address();
       const port = typeof address === "object" && address !== null ? address.port : 0;
-      resolve({ id: "conn-1", url: `http://127.0.0.1:${port}`, token: "t", capabilities: [] });
+      const url = `http://127.0.0.1:${port}`;
+      resolve({ url, controlUrl: url, authorize: async () => "t" });
     });
   });
 }

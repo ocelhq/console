@@ -1,44 +1,65 @@
+import type { DescMethod } from "@bufbuild/protobuf";
 import {
   type Client,
   Code,
   ConnectError,
   createClient,
   type Interceptor,
+  type Transport,
 } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-node";
 
+import { VersionUnservedSchema } from "./gen/endpoint/v1/endpoint_pb";
+import { RefusalCode, RefusalSchema } from "./gen/provider/contract/v1/contract_pb";
 import { VariableStoreService } from "./gen/provider/variablestore/v1/variablestore_pb";
+import { RunnerService } from "./gen/runner/v1/runner_pb";
 import { type Outcome, refuse, ValueError } from "./item";
 
-export const SCOPES = ["variables.read", "variables.write", "variables.reveal"] as const;
+export type Tier = "production" | "preview";
 
-export type Scope = (typeof SCOPES)[number];
+export type Authorize = (call: DescMethod) => Promise<string>;
 
-export interface Connector {
-  id: string;
+export interface Endpoint {
   url: string;
-  token: string;
-  capabilities: readonly string[];
+  controlUrl: string;
+  authorize: Authorize;
 }
 
-export type VariableStore = Client<typeof VariableStoreService>;
+export interface Clients {
+  runner: Client<typeof RunnerService>;
+  variableStore: Client<typeof VariableStoreService>;
+}
 
-function bearing(token: string): Interceptor {
-  return (next) => (request) => {
-    request.header.set("Authorization", `Bearer ${token}`);
+const RUNNER_CALL_TIMEOUT_MS = 15_000;
+
+export function transportTo(
+  url: string,
+  authorize: Authorize,
+  options: { interceptors?: Interceptor[]; timeoutMs?: number } = {},
+): Transport {
+  const bearing: Interceptor = (next) => async (request) => {
+    request.header.set("Authorization", `Bearer ${await authorize(request.method)}`);
     return next(request);
   };
+  return createConnectTransport({
+    baseUrl: url,
+    httpVersion: "1.1",
+    interceptors: [bearing, ...(options.interceptors ?? [])],
+    defaultTimeoutMs: options.timeoutMs,
+  });
 }
 
-export function variableStore(connector: Connector): VariableStore {
-  return createClient(
-    VariableStoreService,
-    createConnectTransport({
-      baseUrl: connector.url,
-      httpVersion: "1.1",
-      interceptors: [bearing(connector.token)],
-    }),
-  );
+export function clientsOf(endpoint: Endpoint): Clients {
+  return {
+    runner: createClient(
+      RunnerService,
+      transportTo(endpoint.url, endpoint.authorize, { timeoutMs: RUNNER_CALL_TIMEOUT_MS }),
+    ),
+    variableStore: createClient(
+      VariableStoreService,
+      transportTo(endpoint.controlUrl, endpoint.authorize),
+    ),
+  };
 }
 
 const valueCodes = new Map<Code, number>([
@@ -53,6 +74,16 @@ export async function ask<T>(run: () => Promise<T>): Promise<Outcome<T>> {
     return { done: true, result: await run() };
   } catch (thrown) {
     if (thrown instanceof ConnectError) {
+      if (
+        thrown
+          .findDetails(RefusalSchema)
+          .some((refusal) => refusal.code === RefusalCode.NEEDS_RUNNER)
+      ) {
+        return refuse("needs-runner", thrown.rawMessage);
+      }
+      if (thrown.findDetails(VersionUnservedSchema).length > 0) {
+        return refuse("incompatible", thrown.rawMessage);
+      }
       const status = valueCodes.get(thrown.code);
       if (status !== undefined) throw new ValueError(status, thrown.rawMessage);
       if (thrown.code === Code.PermissionDenied) {
@@ -62,44 +93,11 @@ export async function ask<T>(run: () => Promise<T>): Promise<Outcome<T>> {
         return refuse("incompatible", thrown.rawMessage);
       }
       if (thrown.code === Code.Unauthenticated) {
-        return refuse(
-          "unauthenticated",
-          `the connector refused the console's token: ${thrown.rawMessage}`,
-        );
+        return refuse("unauthenticated", `the console's token was refused: ${thrown.rawMessage}`);
       }
       return refuse("offline", thrown.rawMessage);
     }
     if (thrown instanceof ValueError) throw thrown;
-    return refuse("offline", thrown instanceof Error ? thrown.message : String(thrown));
-  }
-}
-
-export function capabilitiesURL(url: string): string {
-  const base = new URL(url);
-  base.pathname = `${base.pathname.replace(/\/+$/, "")}/v1/capabilities`;
-  return base.toString();
-}
-
-export async function capabilities(
-  url: string,
-  token: string,
-): Promise<Outcome<ReadonlyArray<string>>> {
-  try {
-    const response = await fetch(capabilitiesURL(url), {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (response.status === 401 || response.status === 403) {
-      return refuse(
-        "unauthenticated",
-        `the connector refused the console's token with ${response.status}`,
-      );
-    }
-    if (!response.ok) {
-      return refuse("incompatible", `the connector answered ${response.status}`);
-    }
-    const read = (await response.json()) as { capabilities?: string[] };
-    return { done: true, result: read.capabilities ?? [] };
-  } catch (thrown) {
     return refuse("offline", thrown instanceof Error ? thrown.message : String(thrown));
   }
 }

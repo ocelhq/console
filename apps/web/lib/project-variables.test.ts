@@ -1,7 +1,6 @@
 import { connectHandler } from "@console/api";
 import { VariableClass } from "@console/connectors/gen/app/resources/v1/variables_pb";
 import { Lifecycle, Tier } from "@console/connectors/gen/common/environment/v1/environment_pb";
-import { ConnectorReach } from "@console/connectors/gen/console/v1/connector_pb";
 import {
   AppOutcome,
   ComputeKind,
@@ -9,12 +8,14 @@ import {
   DeploymentOutcome,
   TriggerKind,
 } from "@console/connectors/gen/console/v1/deployment_pb";
+import { EndpointReach } from "@console/connectors/gen/console/v1/endpoint_pb";
 import { db } from "@console/db";
-import { project } from "@console/db/schema";
+import { endpoint, project } from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
+import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createTestSessionWithOrganization } from "@/test/auth-harness";
-import { connectorFor } from "./connectors";
+import { endpointFor } from "./connectors";
 import { latestTopology } from "./project-variables";
 
 const connect = connectHandler({ notify: async () => {}, git: () => undefined });
@@ -61,11 +62,16 @@ function reportRequest(token: string, projectId: string): Request {
   });
 }
 
-function upsertConnectorRequest(token: string): Request {
-  return new Request("http://localhost/api/connect/console.v1.ConnectorService/Upsert", {
+function upsertEndpointRequest(token: string): Request {
+  return new Request("http://localhost/api/connect/console.v1.EndpointService/Upsert", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ target: TARGET, vendor: "aws", reach: ConnectorReach.DIAL }),
+    body: JSON.stringify({
+      name: "aws-main",
+      target: TARGET,
+      vendor: "aws",
+      reach: EndpointReach.DIAL,
+    }),
   });
 }
 
@@ -74,7 +80,7 @@ describe("a deployment reported over Connect", () => {
     await setupTestDatabase();
   });
 
-  it("gives the variables page its declared variables and the connector of the target it landed in", async () => {
+  it("gives the variables page its declared variables and the endpoint of the target it landed in", async () => {
     const session = await createTestSessionWithOrganization();
     const organizationId = session.organization.id;
     try {
@@ -85,7 +91,7 @@ describe("a deployment reported over Connect", () => {
 
       const reported = await connect(reportRequest(session.token, projectId));
       expect(reported.status).toBe(200);
-      const upserted = await connect(upsertConnectorRequest(session.token));
+      const upserted = await connect(upsertEndpointRequest(session.token));
       expect(upserted.status).toBe(200);
 
       const latest = await latestTopology(projectId, "production");
@@ -96,8 +102,15 @@ describe("a deployment reported over Connect", () => {
         { key: "DATABASE_URL", class: "secret", folder: "/web", required: true },
         { key: "PUBLIC_URL", class: "plain", folder: "", required: false },
       ]);
-      const found = await connectorFor(organizationId, latest.row.target);
-      expect(found).toMatchObject({ organizationId, target: TARGET, vendor: "aws" });
+      await db
+        .update(endpoint)
+        .set({ url: "http://127.0.0.1:7777" })
+        .where(eq(endpoint.organizationId, organizationId));
+      const found = await endpointFor(
+        { userId: session.user.id, activeOrganizationId: organizationId },
+        latest.row.target,
+      );
+      expect(found?.endpoint.url).toBe("http://127.0.0.1:7777");
     } finally {
       await session.cleanup();
     }

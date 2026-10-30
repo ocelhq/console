@@ -1,25 +1,49 @@
 import { generateKeyPairSync, type KeyObject } from "node:crypto";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError } from "@connectrpc/connect";
-import { ConnectorReach, ConnectorService } from "@console/connectors/gen/console/v1/connector_pb";
+import { Tier } from "@console/connectors/gen/common/environment/v1/environment_pb";
+import { Scope } from "@console/connectors/gen/common/scope/v1/scope_pb";
 import { ComputeKind } from "@console/connectors/gen/console/v1/deployment_pb";
+import { EndpointReach, EndpointService } from "@console/connectors/gen/console/v1/endpoint_pb";
 import { db } from "@console/db";
-import { connector } from "@console/db/schema";
+import { endpoint } from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
 import { eq } from "drizzle-orm";
 import { SignJWT } from "jose";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   createTestSessionWithOrganization,
   createTestSessionWithRole,
 } from "../../../test/auth-harness";
 import { serviceClient } from "../../../test/connect-harness";
 
-const vpsTarget = "vps/sha256:abc/ocel";
-const dialled = { target: vpsTarget, vendor: "vps", reach: ConnectorReach.DIAL };
+const offered = vi.hoisted(() => ({
+  offer: undefined as
+    | { apiUrl: string; providerUrl: string; audience: string; version: string }
+    | undefined,
+}));
 
-function connectors(bearer: string | null) {
-  return serviceClient(ConnectorService, bearer);
+vi.mock("../../../../endpoints/src/offer", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../../endpoints/src/offer")>()),
+  readCloudOffer: () => offered.offer,
+}));
+
+afterEach(() => {
+  offered.offer = undefined;
+});
+
+const cloudOffer = {
+  apiUrl: "https://cloud.example.test/api",
+  providerUrl: "https://provider.cloud.example.test",
+  audience: "ocel-cloud",
+  version: "0.0.9",
+};
+
+const vpsTarget = "vps/sha256:abc/ocel";
+const dialled = { name: "box", target: vpsTarget, vendor: "vps", reach: EndpointReach.DIAL };
+
+function endpoints(bearer: string | null) {
+  return serviceClient(EndpointService, bearer);
 }
 
 async function codeOf(call: Promise<unknown>): Promise<Code> {
@@ -31,8 +55,8 @@ async function codeOf(call: Promise<unknown>): Promise<Code> {
 }
 
 async function registered(bearer: string): Promise<string> {
-  const response = await connectors(bearer).upsert(dialled);
-  return response.connector?.id ?? "";
+  const response = await endpoints(bearer).upsert(dialled);
+  return response.endpoint?.id ?? "";
 }
 
 const origin = "http://localhost:3000";
@@ -61,18 +85,22 @@ function signed(
 async function paired(bearer: string) {
   const id = await registered(bearer);
   const keys = keyPair();
-  await db.update(connector).set({ publicKey: keys.publicKey }).where(eq(connector.id, id));
+  await db.update(endpoint).set({ publicKey: keys.publicKey }).where(eq(endpoint.id, id));
   return { id, keys };
 }
 
 async function row(id: string) {
-  const [found] = await db.select().from(connector).where(eq(connector.id, id));
+  const [found] = await db.select().from(endpoint).where(eq(endpoint.id, id));
   return found;
 }
 
-const beat = { version: "0.0.0-alpha", capabilities: ["variables.read"] };
+const beat = {
+  version: "0.0.0-alpha",
+  services: ["provider.variablestore.v1.VariableStoreService"],
+  allowedScopes: [Scope.VARIABLES_READ],
+};
 
-describe("ConnectorService over Connect", () => {
+describe("EndpointService over Connect", () => {
   beforeAll(async () => {
     await setupTestDatabase();
   });
@@ -80,13 +108,23 @@ describe("ConnectorService over Connect", () => {
   describe("the session", () => {
     it("returns Unauthenticated for every RPC with no session", async () => {
       const id = crypto.randomUUID();
-      const client = connectors(null);
+      const client = endpoints(null);
       expect(await codeOf(client.list({}))).toBe(Code.Unauthenticated);
       expect(await codeOf(client.upsert(dialled))).toBe(Code.Unauthenticated);
       expect(await codeOf(client.remove({ id }))).toBe(Code.Unauthenticated);
       expect(await codeOf(client.setAddress({ id, url: "https://x.test/c" }))).toBe(
         Code.Unauthenticated,
       );
+      const projectId = crypto.randomUUID();
+      expect(
+        await codeOf(client.bindRunner({ projectId, tier: Tier.PRODUCTION, runnerId: id })),
+      ).toBe(Code.Unauthenticated);
+      expect(await codeOf(client.unbindRunner({ projectId, tier: Tier.PRODUCTION }))).toBe(
+        Code.Unauthenticated,
+      );
+      expect(
+        await codeOf(client.resolveRunner({ projectId, tier: Tier.PRODUCTION, provider: "aws" })),
+      ).toBe(Code.Unauthenticated);
     });
   });
 
@@ -94,12 +132,12 @@ describe("ConnectorService over Connect", () => {
     it("creates the row in the caller's active organization", async () => {
       const session = await createTestSessionWithOrganization();
       try {
-        const { connector: saved } = await connectors(session.token).upsert(dialled);
+        const { endpoint: saved } = await endpoints(session.token).upsert(dialled);
 
         expect(saved).toMatchObject({
           target: vpsTarget,
           vendor: "vps",
-          reach: ConnectorReach.DIAL,
+          reach: EndpointReach.DIAL,
           compute: ComputeKind.UNSPECIFIED,
           organizationId: session.organization.id,
           online: false,
@@ -112,17 +150,17 @@ describe("ConnectorService over Connect", () => {
       }
     });
 
-    it("converges on the same row for the same target and keeps the address", async () => {
+    it("converges on the same row for the same name and keeps the address", async () => {
       const session = await createTestSessionWithOrganization();
       try {
         const id = await registered(session.token);
-        await connectors(session.token).setAddress({
+        await endpoints(session.token).setAddress({
           id,
           url: "https://box.example/.ocel/connector",
           publicKey: "aGk=",
         });
 
-        const { connector: again } = await connectors(session.token).upsert(dialled);
+        const { endpoint: again } = await endpoints(session.token).upsert(dialled);
 
         expect(again).toMatchObject({
           id,
@@ -131,8 +169,8 @@ describe("ConnectorService over Connect", () => {
         });
         const rows = await db
           .select()
-          .from(connector)
-          .where(eq(connector.organizationId, session.organization.id));
+          .from(endpoint)
+          .where(eq(endpoint.organizationId, session.organization.id));
         expect(rows).toHaveLength(1);
       } finally {
         await session.cleanup();
@@ -145,11 +183,11 @@ describe("ConnectorService over Connect", () => {
         const id = await registered(session.token);
         const now = new Date();
         await db
-          .update(connector)
+          .update(endpoint)
           .set({ connectedAt: now, lastSeenAt: now })
-          .where(eq(connector.id, id));
+          .where(eq(endpoint.id, id));
 
-        const { connector: again } = await connectors(session.token).upsert(dialled);
+        const { endpoint: again } = await endpoints(session.token).upsert(dialled);
         expect(again?.online).toBe(true);
       } finally {
         await session.cleanup();
@@ -171,10 +209,11 @@ describe("ConnectorService over Connect", () => {
     it("takes a vendor no table in the console names", async () => {
       const session = await createTestSessionWithOrganization();
       try {
-        const { connector: saved } = await connectors(session.token).upsert({
+        const { endpoint: saved } = await endpoints(session.token).upsert({
+          name: "azure",
           target: "azure/sub-1/westeurope/ocel",
           vendor: "azure",
-          reach: ConnectorReach.DIAL,
+          reach: EndpointReach.DIAL,
         });
         expect(saved?.vendor).toBe("azure");
       } finally {
@@ -185,7 +224,7 @@ describe("ConnectorService over Connect", () => {
     it("returns InvalidArgument for a target, a vendor or a reach the console cannot store", async () => {
       const session = await createTestSessionWithOrganization();
       try {
-        const client = connectors(session.token);
+        const client = endpoints(session.token);
         expect(await codeOf(client.upsert({ ...dialled, target: "vps" }))).toBe(
           Code.InvalidArgument,
         );
@@ -195,9 +234,29 @@ describe("ConnectorService over Connect", () => {
         expect(await codeOf(client.upsert({ ...dialled, vendor: "AWS" }))).toBe(
           Code.InvalidArgument,
         );
-        expect(await codeOf(client.upsert({ ...dialled, reach: ConnectorReach.UNSPECIFIED }))).toBe(
+        expect(await codeOf(client.upsert({ ...dialled, reach: EndpointReach.UNSPECIFIED }))).toBe(
           Code.InvalidArgument,
         );
+      } finally {
+        await session.cleanup();
+      }
+    });
+
+    it("refuses Ocel Cloud's target, which no row may shadow, and stores nothing", async () => {
+      const session = await createTestSessionWithOrganization();
+      try {
+        const refused = endpoints(session.token).upsert({
+          ...dialled,
+          target: "ocel/cloud",
+          vendor: "ocel",
+        });
+        expect(await codeOf(refused)).toBe(Code.InvalidArgument);
+        expect(
+          await db
+            .select()
+            .from(endpoint)
+            .where(eq(endpoint.organizationId, session.organization.id)),
+        ).toHaveLength(0);
       } finally {
         await session.cleanup();
       }
@@ -207,12 +266,12 @@ describe("ConnectorService over Connect", () => {
       const session = await createTestSessionWithOrganization();
       const plain = await createTestSessionWithRole(session.organization.id, "member");
       try {
-        expect(await codeOf(connectors(plain.token).upsert(dialled))).toBe(Code.PermissionDenied);
+        expect(await codeOf(endpoints(plain.token).upsert(dialled))).toBe(Code.PermissionDenied);
         expect(
           await db
             .select()
-            .from(connector)
-            .where(eq(connector.organizationId, session.organization.id)),
+            .from(endpoint)
+            .where(eq(endpoint.organizationId, session.organization.id)),
         ).toHaveLength(0);
       } finally {
         await plain.cleanup();
@@ -232,19 +291,83 @@ describe("ConnectorService over Connect", () => {
     });
   });
 
+  describe("Upsert by name", () => {
+    it("registers an endpoint that serves no target", async () => {
+      const session = await createTestSessionWithOrganization();
+      try {
+        const { endpoint: saved } = await endpoints(session.token).upsert({
+          name: "runner-box",
+          vendor: "vps",
+          reach: EndpointReach.DIAL,
+        });
+        expect(saved).toMatchObject({ name: "runner-box", target: "" });
+        expect((await row(saved?.id ?? ""))?.target).toBeNull();
+      } finally {
+        await session.cleanup();
+      }
+    });
+
+    it("moves the target of the endpoint its name already holds", async () => {
+      const session = await createTestSessionWithOrganization();
+      try {
+        const id = await registered(session.token);
+        const { endpoint: again } = await endpoints(session.token).upsert({
+          ...dialled,
+          target: "vps/sha256:def/ocel",
+        });
+        expect(again).toMatchObject({ id, target: "vps/sha256:def/ocel" });
+      } finally {
+        await session.cleanup();
+      }
+    });
+
+    it("refuses the name ocel-cloud, which names Ocel Cloud's endpoint", async () => {
+      const session = await createTestSessionWithOrganization();
+      try {
+        expect(
+          await codeOf(endpoints(session.token).upsert({ ...dialled, name: "ocel-cloud" })),
+        ).toBe(Code.InvalidArgument);
+      } finally {
+        await session.cleanup();
+      }
+    });
+
+    it("returns AlreadyExists for a target another endpoint of the organization serves", async () => {
+      const session = await createTestSessionWithOrganization();
+      try {
+        await registered(session.token);
+        expect(await codeOf(endpoints(session.token).upsert({ ...dialled, name: "other" }))).toBe(
+          Code.AlreadyExists,
+        );
+      } finally {
+        await session.cleanup();
+      }
+    });
+  });
+
   describe("List", () => {
+    it("never lists Ocel Cloud's endpoint", async () => {
+      const session = await createTestSessionWithOrganization();
+      try {
+        offered.offer = cloudOffer;
+        expect((await endpoints(session.token).list({})).endpoints).toEqual([]);
+      } finally {
+        await session.cleanup();
+      }
+    });
     it("lists the active organization's rows and none from another", async () => {
       const session = await createTestSessionWithOrganization();
       const other = await createTestSessionWithOrganization();
       try {
         await registered(session.token);
-        await connectors(other.token).upsert({
+        await endpoints(other.token).upsert({
+          name: "aws-main",
           target: "aws/1/eu-west-1/ocel",
           vendor: "aws",
-          reach: ConnectorReach.DIAL,
+          reach: EndpointReach.DIAL,
         });
 
-        const { connectors: listed } = await connectors(session.token).list({});
+        const { endpoints: listed } = await endpoints(session.token).list({});
 
         expect(listed.map((row) => row.target)).toEqual([vpsTarget]);
       } finally {
@@ -257,37 +380,38 @@ describe("ConnectorService over Connect", () => {
       const session = await createTestSessionWithOrganization();
       try {
         const id = await registered(session.token);
-        const online = async () => (await connectors(session.token).list({})).connectors[0]?.online;
+        const online = async () => (await endpoints(session.token).list({})).endpoints[0]?.online;
 
         expect(await online()).toBe(false);
 
         const now = new Date();
         await db
-          .update(connector)
+          .update(endpoint)
           .set({ connectedAt: now, lastSeenAt: now })
-          .where(eq(connector.id, id));
+          .where(eq(endpoint.id, id));
         expect(await online()).toBe(true);
 
         await db
-          .update(connector)
+          .update(endpoint)
           .set({ lastSeenAt: new Date(Date.now() - 600_000) })
-          .where(eq(connector.id, id));
+          .where(eq(endpoint.id, id));
         expect(await online()).toBe(false);
       } finally {
         await session.cleanup();
       }
     });
 
-    it("carries the heartbeat's times, capabilities and last refusal", async () => {
+    it("carries the heartbeat's times, services, allowed scopes and last refusal", async () => {
       const session = await createTestSessionWithOrganization();
       try {
         const id = await registered(session.token);
         const seen = new Date("2026-01-02T03:04:05.678Z");
         await db
-          .update(connector)
+          .update(endpoint)
           .set({
             version: "0.0.0-alpha",
-            capabilities: ["variables.read"],
+            services: ["provider.variablestore.v1.VariableStoreService"],
+            allowedScopes: ["variables.read"],
             connectedAt: seen,
             lastSeenAt: seen,
             lastDenied: {
@@ -296,12 +420,13 @@ describe("ConnectorService over Connect", () => {
               message: "the token has no variables.write scope",
             },
           })
-          .where(eq(connector.id, id));
+          .where(eq(endpoint.id, id));
 
-        const [listed] = (await connectors(session.token).list({})).connectors;
+        const [listed] = (await endpoints(session.token).list({})).endpoints;
 
         expect(listed?.version).toBe("0.0.0-alpha");
-        expect(listed?.capabilities).toEqual(["variables.read"]);
+        expect(listed?.services).toEqual(["provider.variablestore.v1.VariableStoreService"]);
+        expect(listed?.allowedScopes).toEqual([Scope.VARIABLES_READ]);
         expect(listed?.connectedAt && timestampDate(listed.connectedAt)).toEqual(seen);
         expect(listed?.lastSeenAt && timestampDate(listed.lastSeenAt)).toEqual(seen);
         expect(listed?.lastDenied).toMatchObject({
@@ -320,7 +445,7 @@ describe("ConnectorService over Connect", () => {
       try {
         await registered(session.token);
 
-        expect((await connectors(plain.token).list({})).connectors).toHaveLength(1);
+        expect((await endpoints(plain.token).list({})).endpoints).toHaveLength(1);
       } finally {
         await plain.cleanup();
         await session.cleanup();
@@ -334,7 +459,7 @@ describe("ConnectorService over Connect", () => {
       try {
         const id = await registered(session.token);
 
-        const { connector: saved } = await connectors(session.token).setAddress({
+        const { endpoint: saved } = await endpoints(session.token).setAddress({
           id,
           url: "https://box.example/.ocel/connector",
           publicKey: "aGk=",
@@ -357,7 +482,7 @@ describe("ConnectorService over Connect", () => {
       const session = await createTestSessionWithOrganization();
       try {
         const id = await registered(session.token);
-        const client = connectors(session.token);
+        const client = endpoints(session.token);
         await client.setAddress({
           id,
           url: "https://box.example/.ocel/connector",
@@ -366,7 +491,7 @@ describe("ConnectorService over Connect", () => {
           compute: ComputeKind.CONTAINER,
         });
 
-        const { connector: saved } = await client.setAddress({
+        const { endpoint: saved } = await client.setAddress({
           id,
           url: "https://other.example/.ocel/connector",
         });
@@ -387,14 +512,14 @@ describe("ConnectorService over Connect", () => {
       try {
         const id = await registered(session.token);
         const address = { id, url: "https://box.example/.ocel/connector" };
-        expect((await connectors(session.token).setAddress(address)).connector?.online).toBe(false);
+        expect((await endpoints(session.token).setAddress(address)).endpoint?.online).toBe(false);
 
         const now = new Date();
         await db
-          .update(connector)
+          .update(endpoint)
           .set({ connectedAt: now, lastSeenAt: now })
-          .where(eq(connector.id, id));
-        expect((await connectors(session.token).setAddress(address)).connector?.online).toBe(true);
+          .where(eq(endpoint.id, id));
+        expect((await endpoints(session.token).setAddress(address)).endpoint?.online).toBe(true);
       } finally {
         await session.cleanup();
       }
@@ -404,7 +529,7 @@ describe("ConnectorService over Connect", () => {
       const session = await createTestSessionWithOrganization();
       try {
         const id = await registered(session.token);
-        expect(await codeOf(connectors(session.token).setAddress({ id, url: "box" }))).toBe(
+        expect(await codeOf(endpoints(session.token).setAddress({ id, url: "box" }))).toBe(
           Code.InvalidArgument,
         );
       } finally {
@@ -418,7 +543,7 @@ describe("ConnectorService over Connect", () => {
       try {
         const id = await registered(session.token);
         expect(
-          await codeOf(connectors(other.token).setAddress({ id, url: "https://x.test/c" })),
+          await codeOf(endpoints(other.token).setAddress({ id, url: "https://x.test/c" })),
         ).toBe(Code.NotFound);
       } finally {
         await session.cleanup();
@@ -434,11 +559,11 @@ describe("ConnectorService over Connect", () => {
 
         expect(
           await codeOf(
-            connectors(plain.token).setAddress({ id, url: "https://attacker.example/c" }),
+            endpoints(plain.token).setAddress({ id, url: "https://attacker.example/c" }),
           ),
         ).toBe(Code.PermissionDenied);
 
-        const [row] = await db.select().from(connector).where(eq(connector.id, id));
+        const [row] = await db.select().from(endpoint).where(eq(endpoint.id, id));
         expect(row?.url).toBeNull();
       } finally {
         await plain.cleanup();
@@ -453,9 +578,9 @@ describe("ConnectorService over Connect", () => {
       try {
         const id = await registered(session.token);
 
-        await connectors(session.token).remove({ id });
+        await endpoints(session.token).remove({ id });
 
-        expect(await db.select().from(connector).where(eq(connector.id, id))).toHaveLength(0);
+        expect(await db.select().from(endpoint).where(eq(endpoint.id, id))).toHaveLength(0);
       } finally {
         await session.cleanup();
       }
@@ -467,8 +592,8 @@ describe("ConnectorService over Connect", () => {
       try {
         const id = await registered(session.token);
 
-        expect(await codeOf(connectors(other.token).remove({ id }))).toBe(Code.NotFound);
-        expect(await db.select().from(connector).where(eq(connector.id, id))).toHaveLength(1);
+        expect(await codeOf(endpoints(other.token).remove({ id }))).toBe(Code.NotFound);
+        expect(await db.select().from(endpoint).where(eq(endpoint.id, id))).toHaveLength(1);
       } finally {
         await session.cleanup();
         await other.cleanup();
@@ -481,8 +606,8 @@ describe("ConnectorService over Connect", () => {
       try {
         const id = await registered(session.token);
 
-        expect(await codeOf(connectors(plain.token).remove({ id }))).toBe(Code.PermissionDenied);
-        expect(await db.select().from(connector).where(eq(connector.id, id))).toHaveLength(1);
+        expect(await codeOf(endpoints(plain.token).remove({ id }))).toBe(Code.PermissionDenied);
+        expect(await db.select().from(endpoint).where(eq(endpoint.id, id))).toHaveLength(1);
       } finally {
         await plain.cleanup();
         await session.cleanup();
@@ -496,15 +621,16 @@ describe("ConnectorService over Connect", () => {
       try {
         const { id, keys } = await paired(session.token);
 
-        await connectors(await signed(keys.privateKey, id)).heartbeat({ id, ...beat });
+        await endpoints(await signed(keys.privateKey, id)).heartbeat({ id, ...beat });
 
         const first = await row(id);
         expect(first.connectedAt).not.toBeNull();
         expect(first.lastSeenAt).not.toBeNull();
         expect(first.version).toBe("0.0.0-alpha");
-        expect(first.capabilities).toEqual(["variables.read"]);
+        expect(first.services).toEqual(["provider.variablestore.v1.VariableStoreService"]);
+        expect(first.allowedScopes).toEqual(["variables.read"]);
 
-        await connectors(await signed(keys.privateKey, id)).heartbeat({ id, ...beat });
+        await endpoints(await signed(keys.privateKey, id)).heartbeat({ id, ...beat });
         const again = await row(id);
         expect(again.connectedAt?.getTime()).toBe(first.connectedAt?.getTime());
         expect(again.lastSeenAt?.getTime()).toBeGreaterThanOrEqual(
@@ -515,11 +641,44 @@ describe("ConnectorService over Connect", () => {
       }
     });
 
+    it("records first contact and last contact as the same moment, whatever the console's time zone", async () => {
+      const zone = process.env.TZ;
+      process.env.TZ = "Asia/Riyadh";
+      const session = await createTestSessionWithOrganization();
+      try {
+        const { id, keys } = await paired(session.token);
+
+        await endpoints(await signed(keys.privateKey, id)).heartbeat({ id, ...beat });
+
+        const first = await row(id);
+        expect(first.connectedAt?.getTime()).toBe(first.lastSeenAt?.getTime());
+      } finally {
+        process.env.TZ = zone;
+        await session.cleanup();
+      }
+    });
+
+    it("returns InvalidArgument for an allowed scope no person can hold, and records nothing", async () => {
+      const session = await createTestSessionWithOrganization();
+      try {
+        const { id, keys } = await paired(session.token);
+        const refused = endpoints(await signed(keys.privateKey, id)).heartbeat({
+          id,
+          ...beat,
+          allowedScopes: [Scope.VARIABLES_READ, Scope.JOB],
+        });
+        expect(await codeOf(refused)).toBe(Code.InvalidArgument);
+        expect((await row(id))?.lastSeenAt).toBeNull();
+      } finally {
+        await session.cleanup();
+      }
+    });
+
     it("returns NotFound for an id the console has no record of", async () => {
       const id = crypto.randomUUID();
       const keys = keyPair();
       expect(
-        await codeOf(connectors(await signed(keys.privateKey, id)).heartbeat({ id, ...beat })),
+        await codeOf(endpoints(await signed(keys.privateKey, id)).heartbeat({ id, ...beat })),
       ).toBe(Code.NotFound);
     });
 
@@ -540,7 +699,7 @@ describe("ConnectorService over Connect", () => {
           "minted an hour ago": await signed(keys.privateKey, id, { issuedAt: hourAgo }),
         };
         for (const [name, bearer] of Object.entries(refused)) {
-          expect(await codeOf(connectors(bearer).heartbeat({ id, ...beat })), name).toBe(
+          expect(await codeOf(endpoints(bearer).heartbeat({ id, ...beat })), name).toBe(
             Code.Unauthenticated,
           );
         }
@@ -556,7 +715,7 @@ describe("ConnectorService over Connect", () => {
         const id = await registered(session.token);
         const keys = keyPair();
         expect(
-          await codeOf(connectors(await signed(keys.privateKey, id)).heartbeat({ id, ...beat })),
+          await codeOf(endpoints(await signed(keys.privateKey, id)).heartbeat({ id, ...beat })),
         ).toBe(Code.Unauthenticated);
       } finally {
         await session.cleanup();
