@@ -5,6 +5,8 @@
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../buf/validate/validate_pb";
+import type { Scope } from "../../common/scope/v1/scope_pb";
+import { file_common_scope_v1_scope } from "../../common/scope/v1/scope_pb";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
@@ -13,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file console/v1/console.proto.
  */
 export const file_console_v1_console: GenFile = /*@__PURE__*/
-  fileDesc("Chhjb25zb2xlL3YxL2NvbnNvbGUucHJvdG8SCmNvbnNvbGUudjEiRQoKQ2xvdWRPZmZlchIPCgdhcGlfdXJsGAEgASgJEhQKDHByb3ZpZGVyX3VybBgCIAEoCRIQCghhdWRpZW5jZRgDIAEoCSIRCg9EZXNjcmliZVJlcXVlc3QiaAoQRGVzY3JpYmVSZXNwb25zZRIXCg9jb25zb2xlX3ZlcnNpb24YASABKAkSFAoMY2FwYWJpbGl0aWVzGAIgAygJEiUKBWNsb3VkGAMgASgLMhYuY29uc29sZS52MS5DbG91ZE9mZmVyIoYBChZJc3N1ZUNsb3VkVG9rZW5SZXF1ZXN0EjUKBnNjb3BlcxgBIAMoCUIlukgikgEfCAEQIBgBIhdyFRABGEAyD15bYS16MC05Ll86LV0rJBI1Cg9vcmdhbml6YXRpb25faWQYAiABKAlCHLpIGXIXEAEYgAEyEF5bQS1aYS16MC05Xy1dKyQiXQoXSXNzdWVDbG91ZFRva2VuUmVzcG9uc2USEgoFdG9rZW4YASABKAlCA4ABARIuCgpleHBpcmVzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcDKzAQoOQ29uc29sZVNlcnZpY2USRQoIRGVzY3JpYmUSGy5jb25zb2xlLnYxLkRlc2NyaWJlUmVxdWVzdBocLmNvbnNvbGUudjEuRGVzY3JpYmVSZXNwb25zZRJaCg9Jc3N1ZUNsb3VkVG9rZW4SIi5jb25zb2xlLnYxLklzc3VlQ2xvdWRUb2tlblJlcXVlc3QaIy5jb25zb2xlLnYxLklzc3VlQ2xvdWRUb2tlblJlc3BvbnNlQjdaNWdpdGh1Yi5jb20vb2NlbGhxL29jZWwvcGtnL3Byb3RvL2NvbnNvbGUvdjE7Y29uc29sZXYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("Chhjb25zb2xlL3YxL2NvbnNvbGUucHJvdG8SCmNvbnNvbGUudjEiVgoKQ2xvdWRPZmZlchIPCgdhcGlfdXJsGAEgASgJEhQKDHByb3ZpZGVyX3VybBgCIAEoCRIQCghhdWRpZW5jZRgDIAEoCRIPCgd2ZXJzaW9uGAQgASgJIhEKD0Rlc2NyaWJlUmVxdWVzdCJoChBEZXNjcmliZVJlc3BvbnNlEhcKD2NvbnNvbGVfdmVyc2lvbhgBIAEoCRIUCgxjYXBhYmlsaXRpZXMYAiADKAkSJQoFY2xvdWQYAyABKAsyFi5jb25zb2xlLnYxLkNsb3VkT2ZmZXIi+gEKGUlzc3VlRW5kcG9pbnRUb2tlblJlcXVlc3QSNQoPb3JnYW5pemF0aW9uX2lkGAEgASgJQhy6SBlyFxABGIABMhBeW0EtWmEtejAtOV8tXSskEmcKC2VuZHBvaW50X2lkGAIgASgJQlK6SE9yTTJLXihvY2VsLWNsb3VkfFswLTlhLWZdezh9LVswLTlhLWZdezR9LVswLTlhLWZdezR9LVswLTlhLWZdezR9LVswLTlhLWZdezEyfSkkEj0KBnNjb3BlcxgDIAMoDjIWLmNvbW1vbi5zY29wZS52MS5TY29wZUIVukgSkgEPCAEQEBgBIgeCAQQQASAAImAKGklzc3VlRW5kcG9pbnRUb2tlblJlc3BvbnNlEhIKBXRva2VuGAEgASgJQgOAAQESLgoKZXhwaXJlc19hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAyvAEKDkNvbnNvbGVTZXJ2aWNlEkUKCERlc2NyaWJlEhsuY29uc29sZS52MS5EZXNjcmliZVJlcXVlc3QaHC5jb25zb2xlLnYxLkRlc2NyaWJlUmVzcG9uc2USYwoSSXNzdWVFbmRwb2ludFRva2VuEiUuY29uc29sZS52MS5Jc3N1ZUVuZHBvaW50VG9rZW5SZXF1ZXN0GiYuY29uc29sZS52MS5Jc3N1ZUVuZHBvaW50VG9rZW5SZXNwb25zZUI3WjVnaXRodWIuY29tL29jZWxocS9vY2VsL3BrZy9wcm90by9jb25zb2xlL3YxO2NvbnNvbGV2MWIGcHJvdG8z", [file_buf_validate_validate, file_common_scope_v1_scope, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message console.v1.CloudOffer
@@ -33,6 +35,11 @@ export type CloudOffer = Message<"console.v1.CloudOffer"> & {
    * @generated from field: string audience = 3;
    */
   audience: string;
+
+  /**
+   * @generated from field: string version = 4;
+   */
+  version: string;
 };
 
 /**
@@ -83,31 +90,36 @@ export const DescribeResponseSchema: GenMessage<DescribeResponse> = /*@__PURE__*
   messageDesc(file_console_v1_console, 2);
 
 /**
- * @generated from message console.v1.IssueCloudTokenRequest
+ * @generated from message console.v1.IssueEndpointTokenRequest
  */
-export type IssueCloudTokenRequest = Message<"console.v1.IssueCloudTokenRequest"> & {
+export type IssueEndpointTokenRequest = Message<"console.v1.IssueEndpointTokenRequest"> & {
   /**
-   * @generated from field: repeated string scopes = 1;
-   */
-  scopes: string[];
-
-  /**
-   * @generated from field: string organization_id = 2;
+   * @generated from field: string organization_id = 1;
    */
   organizationId: string;
+
+  /**
+   * @generated from field: string endpoint_id = 2;
+   */
+  endpointId: string;
+
+  /**
+   * @generated from field: repeated common.scope.v1.Scope scopes = 3;
+   */
+  scopes: Scope[];
 };
 
 /**
- * Describes the message console.v1.IssueCloudTokenRequest.
- * Use `create(IssueCloudTokenRequestSchema)` to create a new message.
+ * Describes the message console.v1.IssueEndpointTokenRequest.
+ * Use `create(IssueEndpointTokenRequestSchema)` to create a new message.
  */
-export const IssueCloudTokenRequestSchema: GenMessage<IssueCloudTokenRequest> = /*@__PURE__*/
+export const IssueEndpointTokenRequestSchema: GenMessage<IssueEndpointTokenRequest> = /*@__PURE__*/
   messageDesc(file_console_v1_console, 3);
 
 /**
- * @generated from message console.v1.IssueCloudTokenResponse
+ * @generated from message console.v1.IssueEndpointTokenResponse
  */
-export type IssueCloudTokenResponse = Message<"console.v1.IssueCloudTokenResponse"> & {
+export type IssueEndpointTokenResponse = Message<"console.v1.IssueEndpointTokenResponse"> & {
   /**
    * @generated from field: string token = 1;
    */
@@ -120,10 +132,10 @@ export type IssueCloudTokenResponse = Message<"console.v1.IssueCloudTokenRespons
 };
 
 /**
- * Describes the message console.v1.IssueCloudTokenResponse.
- * Use `create(IssueCloudTokenResponseSchema)` to create a new message.
+ * Describes the message console.v1.IssueEndpointTokenResponse.
+ * Use `create(IssueEndpointTokenResponseSchema)` to create a new message.
  */
-export const IssueCloudTokenResponseSchema: GenMessage<IssueCloudTokenResponse> = /*@__PURE__*/
+export const IssueEndpointTokenResponseSchema: GenMessage<IssueEndpointTokenResponse> = /*@__PURE__*/
   messageDesc(file_console_v1_console, 4);
 
 /**
@@ -139,12 +151,12 @@ export const ConsoleService: GenService<{
     output: typeof DescribeResponseSchema;
   },
   /**
-   * @generated from rpc console.v1.ConsoleService.IssueCloudToken
+   * @generated from rpc console.v1.ConsoleService.IssueEndpointToken
    */
-  issueCloudToken: {
+  issueEndpointToken: {
     methodKind: "unary";
-    input: typeof IssueCloudTokenRequestSchema;
-    output: typeof IssueCloudTokenResponseSchema;
+    input: typeof IssueEndpointTokenRequestSchema;
+    output: typeof IssueEndpointTokenResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_console_v1_console, 0);

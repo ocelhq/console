@@ -2,14 +2,17 @@ version: v2
 clean: true
 inputs:
   - git_repo: https://github.com/ocelhq/ocel.git
-    ref: 19c63fcefc499ffc0dc4e9d82a6c0fff2588eb7b
+    ref: b00a812cff6f97f0ad43415d234f27d0e8986a1d
     subdir: proto
     paths:
+      - provider/contract
       - provider/variablestore
       - common/environment
       - common/bindings
+      - common/scope
       - console/v1
-      - cloud/v1
+      - endpoint/v1
+      - runner/v1
 plugins:
   - remote: buf.build/bufbuild/es:v2.12.1
     out: packages/connectors/src/gen

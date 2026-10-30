@@ -158,8 +158,8 @@ const setups: Record<string, (session: Session) => Promise<Binding>> = {
   "organization-set-active": async () => ({}),
   "sign-out": async () => ({}),
   "console-describe": async () => cloud,
-  "cloud-token": async () => ({}),
-  "cloud-token-without-session": async () => ({}),
+  "endpoint-token-ocel-cloud": async () => ({}),
+  "endpoint-token-without-session": async () => ({}),
 };
 
 describe("the requests the ocel CLI sends", () => {
