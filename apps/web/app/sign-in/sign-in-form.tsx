@@ -6,15 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
 import { labelType } from "@/lib/type";
+import { WaitlistForm } from "./waitlist-form";
 
 export function SignInForm({
   github,
   email,
   callbackURL,
+  waitlist,
 }: {
   github: boolean;
   email: boolean;
   callbackURL: string;
+  waitlist?: string;
 }) {
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [isLoading, setIsLoading] = useState(false);
@@ -109,15 +112,19 @@ export function SignInForm({
           <Button type="submit" disabled={isLoading} className="h-10 w-full">
             {signingUp ? "Create account" : "Sign in"}
           </Button>
-          <button
-            type="button"
-            onClick={() => setMode(signingUp ? "sign-in" : "sign-up")}
-            className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-          >
-            {signingUp ? "Have an account? Sign in" : "New here? Create an account"}
-          </button>
+          {!waitlist && (
+            <button
+              type="button"
+              onClick={() => setMode(signingUp ? "sign-in" : "sign-up")}
+              className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+            >
+              {signingUp ? "Have an account? Sign in" : "New here? Create an account"}
+            </button>
+          )}
         </form>
       )}
+
+      {waitlist && <WaitlistForm endpoint={waitlist} />}
 
       {error && <AuthError>{error}</AuthError>}
     </AuthPanel>

@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { SignInForm } from "./sign-in-form";
 
-function render(methods: { github: boolean; email: boolean }) {
+function render(methods: { github: boolean; email: boolean; waitlist?: string }) {
   return renderToStaticMarkup(<SignInForm {...methods} callbackURL="/" />);
 }
 
@@ -24,5 +24,16 @@ describe("SignInForm", () => {
     const html = render({ github: true, email: true });
     expect(html).toContain("Sign in with GitHub");
     expect(html).toContain('type="password"');
+  });
+
+  it("asks for the waitlist instead of offering sign-up when there is one", () => {
+    const html = render({ github: true, email: true, waitlist: "https://ocel.dev/api/waitlist" });
+    expect(html).toContain("Join the waitlist");
+    expect(html).not.toContain("Create an account");
+    expect(html).toContain('type="password"');
+  });
+
+  it("offers sign-up when there is no waitlist", () => {
+    expect(render({ github: false, email: true })).toContain("Create an account");
   });
 });
