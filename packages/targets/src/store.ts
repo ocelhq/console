@@ -11,32 +11,46 @@ import {
   type Vendor,
 } from "@console/db/schema";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { DEFAULT_NAMESPACE } from "./namespace";
 import type { TierIdentity } from "./vendors";
 
 export interface TargetPlace {
   vendor: Vendor;
   account: string;
   region: string;
+  namespace: string;
 }
 
+const UNKNOWN_NAMESPACE = "";
+
 export async function prepareTarget(organizationId: string, place: TargetPlace): Promise<Target> {
-  await db
-    .insert(target)
-    .values({ organizationId, ...place })
-    .onConflictDoNothing();
-  const [found] = await db
-    .select()
-    .from(target)
-    .where(
-      and(
-        eq(target.organizationId, organizationId),
-        eq(target.vendor, place.vendor),
-        eq(target.account, place.account),
-        eq(target.region, place.region),
-      ),
+  const at = (namespace: string) =>
+    and(
+      eq(target.organizationId, organizationId),
+      eq(target.vendor, place.vendor),
+      eq(target.account, place.account),
+      eq(target.region, place.region),
+      eq(target.namespace, namespace),
     );
-  if (!found) throw new Error("the target was not stored");
-  return found;
+  return db.transaction(async (tx) => {
+    const [found] = await tx.select().from(target).where(at(place.namespace));
+    if (found) return found;
+    if (place.namespace === DEFAULT_NAMESPACE) {
+      const [adopted] = await tx
+        .update(target)
+        .set({ namespace: place.namespace })
+        .where(at(UNKNOWN_NAMESPACE))
+        .returning();
+      if (adopted) return adopted;
+    }
+    await tx
+      .insert(target)
+      .values({ organizationId, ...place })
+      .onConflictDoNothing();
+    const [made] = await tx.select().from(target).where(at(place.namespace));
+    if (!made) throw new Error("the target was not stored");
+    return made;
+  });
 }
 
 export async function targetOf(
@@ -82,9 +96,15 @@ export async function recordTier(tx: Executor, recorded: RecordedTier): Promise<
 }
 
 export async function forgetTier(targetId: string, tier: Tier): Promise<void> {
-  await db
-    .delete(targetTier)
-    .where(and(eq(targetTier.targetId, targetId), eq(targetTier.tier, tier)));
+  await db.transaction(async (tx) => {
+    const forgotten = await tx
+      .delete(targetTier)
+      .where(and(eq(targetTier.targetId, targetId), eq(targetTier.tier, tier)))
+      .returning({ tier: targetTier.tier });
+    if (forgotten.length > 0) {
+      await tx.update(target).set({ tierForgottenAt: new Date() }).where(eq(target.id, targetId));
+    }
+  });
 }
 
 export async function bindProject(
@@ -193,6 +213,7 @@ export async function issuancesOf(
       vendor: target.vendor,
       account: target.account,
       region: target.region,
+      namespace: target.namespace,
       tier: credentialIssuance.tier,
       purpose: credentialIssuance.purpose,
       principal: credentialIssuance.principal,

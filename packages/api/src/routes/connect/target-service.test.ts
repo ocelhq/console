@@ -1,12 +1,16 @@
 import { generateKeyPairSync } from "node:crypto";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError } from "@connectrpc/connect";
+import { auth } from "@console/auth";
 import { Tier } from "@console/connectors/gen/common/environment/v1/environment_pb";
 import { TargetService } from "@console/connectors/gen/console/v1/target_pb";
 import { db } from "@console/db";
 import {
   type CredentialGrant,
   credentialIssuance,
+  type JobKind,
+  type JobStatus,
+  job,
   targetBinding,
   targetTier,
 } from "@console/db/schema";
@@ -14,13 +18,13 @@ import { setupTestDatabase } from "@console/db/testing";
 import { addPipeline } from "@console/git";
 import { createIssuer, keySigner } from "@console/targets";
 import { eq } from "drizzle-orm";
-import { createLocalJWKSet, jwtVerify } from "jose";
+import { createLocalJWKSet, jwtVerify, SignJWT } from "jose";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   createTestSessionWithOrganization,
   createTestSessionWithRole,
 } from "../../../test/auth-harness";
-import { projectIn, serviceClient } from "../../../test/connect-harness";
+import { bindRunnerRow, projectIn, serviceClient } from "../../../test/connect-harness";
 import { AUDIENCE, githubActions } from "../../pipelines/testing";
 
 const ISSUER = "http://localhost:3000/oidc";
@@ -60,14 +64,18 @@ async function refusal(call: Promise<unknown>) {
   );
 }
 
-const place = { vendor: "aws", account: "123456789012", region: "eu-west-1" };
+const place = { vendor: "aws", account: "123456789012", region: "eu-west-1", namespace: "ocel" };
+const box = { vendor: "vps", account: "box.example.com", region: "" };
+const BOX_ENDPOINT = "https://box.example.com";
 
-async function bootstrapped(over: { bind?: boolean } = {}) {
-  const prepared = await client(owner.token).prepare({ ...place, projectId });
+async function bootstrapped(over: { bind?: boolean; vps?: boolean } = {}) {
+  const prepared = await client(owner.token).prepare({ ...(over.vps ? box : place), projectId });
   await client(owner.token).recordTier({
     targetId: prepared.targetId,
     tier: Tier.PRODUCTION,
-    identity: { identityProvider: PROVIDER, principal: ROLE },
+    identity: over.vps
+      ? { identityProvider: BOX_ENDPOINT, principal: "" }
+      : { identityProvider: PROVIDER, principal: ROLE },
     cliVersion: "0.0.3",
     ...(over.bind === false ? {} : { projectId }),
   });
@@ -127,6 +135,25 @@ describe("preparing a target", () => {
     expect((await client(owner.token).prepare(place)).targetId).toBe(prepared.targetId);
   });
 
+  it("prepares a target per namespace in one account and region", async () => {
+    const ocel = await client(owner.token).prepare({ ...place, region: "eu-west-3" });
+    const staging = await client(owner.token).prepare({
+      ...place,
+      region: "eu-west-3",
+      namespace: "staging",
+    });
+
+    expect(staging.targetId).not.toBe(ocel.targetId);
+  });
+
+  it("refuses a namespace bootstrap could not name resources with", async () => {
+    const error = await refusal(
+      client(owner.token).prepare({ ...place, namespace: "Not_A-Namespace" }),
+    );
+
+    expect(error.code).toBe(Code.InvalidArgument);
+  });
+
   it("is refused to a member who is no owner or admin", async () => {
     const error = await refusal(client(member.token).prepare(place));
 
@@ -145,7 +172,7 @@ describe("preparing a target", () => {
     const error = await refusal(client(owner.token).prepare({ ...place, vendor: "azure" }));
 
     expect(error.code).toBe(Code.InvalidArgument);
-    expect(error.rawMessage).toContain("aws or gcp, not azure");
+    expect(error.rawMessage).toContain("aws, gcp or vps, not azure");
   });
 
   it("is refused for an account the vendor has no such form of", async () => {
@@ -153,6 +180,23 @@ describe("preparing a target", () => {
 
     expect(error.code).toBe(Code.InvalidArgument);
     expect(error.rawMessage).toContain("12 digits");
+  });
+
+  it("is refused for a region the vendor has none of, or lacking one it needs", async () => {
+    const regionless = await refusal(client(owner.token).prepare({ ...place, region: "" }));
+    expect(regionless.code).toBe(Code.InvalidArgument);
+    expect(regionless.rawMessage).toContain("needs a region");
+
+    const boxed = await refusal(client(owner.token).prepare({ ...box, region: "eu-west-1" }));
+    expect(boxed.code).toBe(Code.InvalidArgument);
+    expect(boxed.rawMessage).toContain("has no region");
+  });
+
+  it("is refused for a VPS box named by its IP address", async () => {
+    const error = await refusal(client(owner.token).prepare({ ...box, account: "192.0.2.10" }));
+
+    expect(error.code).toBe(Code.InvalidArgument);
+    expect(error.rawMessage).toContain("not an IP address");
   });
 
   it("is refused, naming what to set, while the console has no issuer key", async () => {
@@ -244,6 +288,7 @@ describe("issuing a credential", () => {
       targetId: prepared.targetId,
       account: "123456789012",
       region: "eu-west-1",
+      namespace: "ocel",
       sessionName: `ocel-${String(payload.jti).slice(0, 12)}`,
       identity: { identityProvider: PROVIDER, principal: ROLE },
     });
@@ -342,6 +387,184 @@ describe("issuing a credential", () => {
     const error = await refusal(issue(owner.token));
 
     expect(error.code).toBe(Code.PermissionDenied);
+  });
+});
+
+const RUNNER = "0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b";
+
+async function dispatched(
+  over: { kind?: JobKind; status?: JobStatus; runner?: string } = {},
+): Promise<string> {
+  const id = crypto.randomUUID();
+  await db.insert(job).values({
+    id,
+    projectId,
+    kind: over.kind ?? "deploy",
+    tier: "production",
+    status: over.status ?? "running",
+    dedupeKey: id,
+    eventAt: new Date(),
+    runnerId: over.runner ?? RUNNER,
+  });
+  return id;
+}
+
+async function boundRunner(credentials: boolean, runnerId = RUNNER) {
+  await bindRunnerRow(projectId, "production", runnerId, credentials);
+}
+
+async function jobToken(
+  jobId: string,
+  over: { runner?: string; tier?: string; project?: string; audience?: string } = {},
+): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const { token } = await auth.api.signJWT({
+    body: {
+      payload: {
+        iss: "http://localhost:3000",
+        aud: over.audience ?? "ocel-job",
+        sub: `org:${owner.organization.id}:tier:${over.tier ?? "production"}:project:${over.project ?? projectId}`,
+        job_id: jobId,
+        runner: over.runner ?? RUNNER,
+        slug: "web",
+        jti: crypto.randomUUID(),
+        iat: now,
+        exp: now + 600,
+      },
+    },
+  });
+  return token;
+}
+
+describe("issuing a credential to a job", () => {
+  it("mints for a job on the tier's bound runner with credentials, logs the job, and never spends its token", async () => {
+    const prepared = await bootstrapped();
+    await boundRunner(true);
+    const jobId = await dispatched();
+    const token = await jobToken(jobId);
+
+    const issued = await issue(token);
+    await expect(issue(token)).resolves.toBeDefined();
+
+    const { payload } = await jwtVerify(issued.token, createLocalJWKSet(await issuer.jwks()), {
+      issuer: ISSUER,
+      audience: `ocel-target:${prepared.targetId}`,
+    });
+    expect(payload).toMatchObject({ project: projectId, tier: "production", purpose: "deploy" });
+    const [logged] = await db
+      .select()
+      .from(credentialIssuance)
+      .where(eq(credentialIssuance.tokenJti, String(payload.jti)));
+    expect(logged?.principal).toEqual({ kind: "job", jobId, runner: RUNNER });
+  });
+
+  it("is refused, naming the fix, while the tier's runner is bound without credentials", async () => {
+    await bootstrapped();
+    await boundRunner(false);
+
+    const error = await refusal(issue(await jobToken(await dispatched())));
+
+    expect(error.code).toBe(Code.PermissionDenied);
+    expect(error.rawMessage).toContain("with credentials");
+  });
+
+  it("is refused to a job on a runner other than the tier's bound one", async () => {
+    await bootstrapped();
+    await boundRunner(true, "ocel-cloud");
+
+    const error = await refusal(issue(await jobToken(await dispatched())));
+
+    expect(error.code).toBe(Code.PermissionDenied);
+    expect(error.rawMessage).toContain("not the runner bound to production");
+  });
+
+  it("is refused to a build, which deploys nothing", async () => {
+    await bootstrapped();
+    await boundRunner(true);
+
+    const error = await refusal(issue(await jobToken(await dispatched({ kind: "build" }))));
+
+    expect(error.code).toBe(Code.PermissionDenied);
+    expect(error.rawMessage).toContain("build");
+  });
+
+  it("is refused to a job that has ended", async () => {
+    await bootstrapped();
+    await boundRunner(true);
+
+    const error = await refusal(issue(await jobToken(await dispatched({ status: "done" }))));
+
+    expect(error.code).toBe(Code.PermissionDenied);
+    expect(error.rawMessage).toContain("has ended");
+  });
+
+  it("is refused to a job token for another tier or project", async () => {
+    await bootstrapped();
+    await boundRunner(true);
+    const jobId = await dispatched();
+
+    for (const token of [
+      await jobToken(jobId, { tier: "preview" }),
+      await jobToken(jobId, { project: crypto.randomUUID() }),
+    ]) {
+      expect((await refusal(issue(token))).code).toBe(Code.PermissionDenied);
+    }
+  });
+
+  it("is refused to a job token this console did not sign", async () => {
+    await bootstrapped();
+    await boundRunner(true);
+    const jobId = await dispatched();
+    const { privateKey } = generateKeyPairSync("ed25519");
+    const forged = await new SignJWT({ job_id: jobId, runner: RUNNER, slug: "web" })
+      .setProtectedHeader({ alg: "EdDSA", kid: "forged" })
+      .setIssuer("http://localhost:3000")
+      .setAudience("ocel-job")
+      .setSubject(`org:${owner.organization.id}:tier:production:project:${projectId}`)
+      .setJti(crypto.randomUUID())
+      .setIssuedAt()
+      .setExpirationTime("10m")
+      .sign(privateKey);
+
+    expect((await refusal(issue(forged))).code).toBe(Code.Unauthenticated);
+  });
+
+  it("answers a VPS box's endpoint as the identity, with no region, no principal and the empty namespace of a target prepared without one", async () => {
+    const prepared = await bootstrapped({ vps: true });
+    await boundRunner(true);
+
+    const issued = await client(await jobToken(await dispatched())).issueCredential({
+      projectId,
+      tier: Tier.PRODUCTION,
+      vendor: "vps",
+      cliVersion: "0.0.4",
+    });
+
+    expect(issued).toMatchObject({
+      targetId: prepared.targetId,
+      account: "box.example.com",
+      region: "",
+      namespace: "",
+      identity: { identityProvider: BOX_ENDPOINT, principal: "" },
+    });
+  });
+});
+
+describe("recording a VPS tier", () => {
+  it("is refused for an endpoint on another host than the box", async () => {
+    const prepared = await client(owner.token).prepare({ ...box, projectId });
+
+    const error = await refusal(
+      client(owner.token).recordTier({
+        targetId: prepared.targetId,
+        tier: Tier.PRODUCTION,
+        identity: { identityProvider: "https://other.example.com", principal: "" },
+        cliVersion: "0.0.3",
+        projectId,
+      }),
+    );
+
+    expect(error.code).toBe(Code.InvalidArgument);
   });
 });
 

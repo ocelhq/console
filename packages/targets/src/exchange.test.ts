@@ -132,3 +132,53 @@ describe("exchanging a tier token on GCP", () => {
     });
   });
 });
+
+const vps = {
+  vendor: "vps" as const,
+  identity: { identityProvider: "https://box.example.com", principal: "" },
+  token: "header.payload.signature",
+  sessionName: "ocel-0f8fad5b-d9c",
+};
+
+describe("exchanging a tier token on a VPS box", () => {
+  it("asks the box's endpoint for an SSH certificate with the token, and reports its principal", async () => {
+    const { calls, fetch } = fetcher(
+      Response.json({
+        certificate: "ssh-ed25519-cert-v01@openssh.com AAAA",
+        principal: "ocel-deploy",
+      }),
+    );
+
+    const result = await exchangeToken(vps, fetch);
+
+    expect(result).toEqual({ ok: true, detail: "got a certificate for ocel-deploy" });
+    expect(calls[0]?.url).toBe(
+      "https://box.example.com/endpoint.v1.SshCertificateService/IssueUserCertificate",
+    );
+    expect(new Headers(calls[0]?.init.headers).get("authorization")).toBe(`Bearer ${vps.token}`);
+    const body = JSON.parse(String(calls[0]?.init.body));
+    expect(body.publicKey).toMatch(/^ssh-ed25519 [A-Za-z0-9+/]+={0,2}$/);
+  });
+
+  it("follows no redirect, so the token reaches only the box the account names", async () => {
+    const { calls, fetch } = fetcher(Response.json({ certificate: "c", principal: "p" }));
+
+    await exchangeToken(vps, fetch);
+
+    expect(calls[0]?.init.redirect).toBe("error");
+  });
+
+  it("reports the box's refusal", async () => {
+    const { fetch } = fetcher(
+      Response.json(
+        { code: "permission_denied", message: "the credential is for another target" },
+        { status: 403 },
+      ),
+    );
+
+    expect(await exchangeToken(vps, fetch)).toEqual({
+      ok: false,
+      error: "The box refused the token: permission_denied: the credential is for another target",
+    });
+  });
+});

@@ -47,6 +47,7 @@ async function targetIn(organizationId: string) {
     vendor: "aws",
     account: "123456789012",
     region: "eu-west-1",
+    namespace: "ocel",
   });
   await recordTier(db, {
     targetId: target.id,

@@ -13,7 +13,7 @@ import { organization } from "./auth-schema";
 import { tier } from "./deployment";
 import { project } from "./project";
 
-export const VENDORS = ["aws", "gcp"] as const;
+export const VENDORS = ["aws", "gcp", "vps"] as const;
 export type Vendor = (typeof VENDORS)[number];
 
 export const target = pgTable(
@@ -26,14 +26,17 @@ export const target = pgTable(
     vendor: text("vendor").$type<Vendor>().notNull(),
     account: text("account").notNull(),
     region: text("region").notNull(),
+    namespace: text("namespace").notNull().default(""),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    tierForgottenAt: timestamp("tier_forgotten_at"),
   },
   (table) => [
-    uniqueIndex("target_organizationId_vendor_account_region_uidx").on(
+    uniqueIndex("target_organizationId_vendor_account_region_namespace_uidx").on(
       table.organizationId,
       table.vendor,
       table.account,
       table.region,
+      table.namespace,
     ),
   ],
 );
@@ -81,7 +84,8 @@ export const issuancePurpose = pgEnum("issuance_purpose", ISSUANCE_PURPOSES);
 
 export type IssuancePrincipal =
   | { kind: "pipeline"; pipelineId: string; jti: string; runUrl: string }
-  | { kind: "session"; userId: string };
+  | { kind: "session"; userId: string }
+  | { kind: "job"; jobId: string; runner: string };
 
 export const credentialIssuance = pgTable(
   "credential_issuance",

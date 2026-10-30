@@ -6,7 +6,8 @@
   "description": "the console as an OIDC issuer, and the targets that trust it",
   "license": "Apache-2.0",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./namespace": "./src/namespace.ts"
   },
   "scripts": {
     "test": "vitest run",

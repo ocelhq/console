@@ -1,3 +1,4 @@
+import { generateKeyPairSync } from "node:crypto";
 import type { Vendor } from "@console/db/schema";
 import type { TierIdentity } from "./vendors";
 
@@ -98,6 +99,43 @@ async function gcp(
   return { ok: true, detail: `impersonated ${identity.principal}` };
 }
 
+function sshString(bytes: Buffer): Buffer {
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(bytes.length);
+  return Buffer.concat([length, bytes]);
+}
+
+function throwawaySshKey(): string {
+  const { publicKey } = generateKeyPairSync("ed25519");
+  const { x } = publicKey.export({ format: "jwk" });
+  const blob = Buffer.concat([
+    sshString(Buffer.from("ssh-ed25519")),
+    sshString(Buffer.from(x ?? "", "base64url")),
+  ]);
+  return `ssh-ed25519 ${blob.toString("base64")}`;
+}
+
+async function vps(
+  { identity, token }: Exchange,
+  fetch: typeof globalThis.fetch,
+): Promise<ExchangeResult> {
+  const base = identity.identityProvider.replace(/\/+$/, "");
+  const response = await fetch(`${base}/endpoint.v1.SshCertificateService/IssueUserCertificate`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ publicKey: throwawaySshKey() }),
+    redirect: "error",
+  });
+  const answer = await json(response);
+  if (!response.ok || typeof answer.certificate !== "string") {
+    return {
+      ok: false,
+      error: `The box refused the token: ${answer.code ?? `HTTP ${response.status}`}: ${answer.message ?? "no message"}`,
+    };
+  }
+  return { ok: true, detail: `got a certificate for ${answer.principal ?? "the box's user"}` };
+}
+
 export async function exchangeToken(
   exchange: Exchange,
   fetch: typeof globalThis.fetch = globalThis.fetch,
@@ -108,6 +146,8 @@ export async function exchangeToken(
         return await aws(exchange, fetch);
       case "gcp":
         return await gcp(exchange, fetch);
+      case "vps":
+        return await vps(exchange, fetch);
     }
   } catch (thrown) {
     return {

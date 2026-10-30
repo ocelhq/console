@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { removalWarning } from "@/lib/targets";
+import { noTierNote, removalWarning } from "@/lib/target-text";
 import { labelType } from "@/lib/type";
 import { Stamp } from "../stamp";
 import { removeOrganizationTarget, testConnection } from "./actions";
@@ -37,6 +37,8 @@ export type TargetView = {
   vendor: string;
   account: string;
   region: string;
+  namespace: string;
+  tierForgottenAt: string | null;
   tiers: TierView[];
   bound: string[];
 };
@@ -90,7 +92,11 @@ function TargetCard({
             <span className="uppercase">{target.vendor}</span>{" "}
             <span className="font-mono text-sm">{target.account}</span>
           </p>
-          <p className={labelType}>{target.region}</p>
+          <p className={labelType}>
+            {[target.region, target.namespace && `namespace ${target.namespace}`]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
         </div>
         {administers && (
           <Popover open={confirming} onOpenChange={setConfirming}>
@@ -129,7 +135,13 @@ function TargetCard({
       </div>
       {target.tiers.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No tier recorded yet: bootstrap stopped before it recorded the identity it made.
+          {noTierNote(target.tierForgottenAt)}
+          {target.tierForgottenAt && (
+            <>
+              {" "}
+              Last removed <Stamp at={target.tierForgottenAt} now={now} />.
+            </>
+          )}
         </p>
       ) : (
         <Table>
