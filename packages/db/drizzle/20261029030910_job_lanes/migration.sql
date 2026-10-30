@@ -1,0 +1,1 @@
+ALTER TABLE "job" ADD COLUMN "lane" text DEFAULT '' NOT NULL;

@@ -37,7 +37,7 @@ describe("migrateDatabase", () => {
       "select table_name from information_schema.tables where table_schema = 'public'",
     );
     expect(tables.rows.map((row) => row.table_name)).toEqual(
-      expect.arrayContaining(["user", "session", "organization", "invitation", "connector"]),
+      expect.arrayContaining(["user", "session", "organization", "invitation", "endpoint"]),
     );
     const applied = await pool.query("select hash from drizzle.__drizzle_migrations");
     expect(applied.rowCount).toBe(migrations.length);
@@ -125,6 +125,140 @@ describe("migrateDatabase", () => {
     }
   });
 
+  it("keeps the history of jobs from before runners, and fails the ones the console never ran", async () => {
+    const before = `${database}_jobs`;
+    await admin.query(`CREATE DATABASE "${before}"`);
+    const old = new Pool({ connectionString: new URL(`/${before}`, url).toString() });
+    try {
+      const earlier = migrations.slice(
+        0,
+        migrations.findIndex((migration) => migration.name.endsWith("_jobs_tiered")),
+      );
+      await migrate(earlier, drizzle({ client: old }), "__drizzle_migrations");
+      await old.query(
+        `insert into "organization" (id, name, slug, created_at) values ('org', 'Org', 'org', now());
+         insert into "project" (id, organization_id, name, slug) values ('p', 'org', 'Shop', 'shop');
+         insert into "job" (id, project_id, kind, status, pr, dedupe_key, event_at, finished_at, error, revision, synced_revision)
+           values ('queued', 'p', 'deploy', 'queued', 0, 'd1', now(), null, null, 1, 1),
+                  ('claimed', 'p', 'preview-up', 'claimed', 7, 'd2', now(), null, null, 1, 1),
+                  ('running', 'p', 'preview-rm', 'running', 9, 'd3', now(), null, 'kept', 2, 2),
+                  ('reported', 'p', 'deploy', 'done', 0, 'report:a', now(), '2026-01-02', null, 1, 1),
+                  ('broke', 'p', 'preview-up', 'failed', 8, 'report:b', now(), '2026-01-03', 'it broke', 1, 1);
+         insert into "deployment" (id, project_id, deployment_id, kind, tier, provider_name, target,
+           outcome, trigger, deployed_at, trace, topology)
+           values ('d', 'p', 'a', 'deploy', 'production', 'aws', 't', 'succeeded', '{"kind":"ci"}',
+             now(), '[]', '{"apps":[],"resources":[],"usages":[]}');`,
+      );
+
+      await migrateDatabase(old);
+
+      const jobs = await old.query<{
+        id: string;
+        tier: string;
+        status: string;
+        error: string | null;
+        ended: boolean;
+        unsynced: boolean;
+      }>(
+        `select id, tier::text, status::text, error, finished_at is not null as ended,
+           revision <> synced_revision as unsynced
+         from "job" order by id`,
+      );
+      const stopped = "the console stopped claiming jobs before this one ran";
+      expect(jobs.rows).toEqual([
+        {
+          id: "broke",
+          tier: "preview",
+          status: "failed",
+          error: "it broke",
+          ended: true,
+          unsynced: false,
+        },
+        {
+          id: "claimed",
+          tier: "preview",
+          status: "failed",
+          error: stopped,
+          ended: true,
+          unsynced: true,
+        },
+        {
+          id: "queued",
+          tier: "production",
+          status: "failed",
+          error: stopped,
+          ended: true,
+          unsynced: true,
+        },
+        {
+          id: "reported",
+          tier: "production",
+          status: "done",
+          error: null,
+          ended: true,
+          unsynced: false,
+        },
+        {
+          id: "running",
+          tier: "preview",
+          status: "failed",
+          error: "kept",
+          ended: true,
+          unsynced: true,
+        },
+      ]);
+      const deployment = await old.query<{ outcome_by: string }>(
+        `select outcome_by::text from "deployment" where id = 'd'`,
+      );
+      expect(deployment.rows).toEqual([{ outcome_by: "ocel" }]);
+    } finally {
+      await old.end();
+      await admin.query(`DROP DATABASE "${before}"`);
+    }
+  });
+
+  it("names each preview job's lane after its preview", async () => {
+    const before = `${database}_lanes`;
+    await admin.query(`CREATE DATABASE "${before}"`);
+    const old = new Pool({ connectionString: new URL(`/${before}`, url).toString() });
+    try {
+      const earlier = migrations.slice(
+        0,
+        migrations.findIndex((migration) => migration.name.endsWith("_job_lanes")),
+      );
+      await migrate(earlier, drizzle({ client: old }), "__drizzle_migrations");
+      await old.query(
+        `insert into "organization" (id, name, slug, created_at) values ('org', 'Org', 'org', now());
+         insert into "project" (id, organization_id, name, slug) values ('p', 'org', 'Shop', 'shop');
+         insert into "deployment" (id, project_id, deployment_id, kind, tier, environment_identity,
+           provider_name, target, outcome, outcome_by, trigger, deployed_at)
+           values ('d', 'p', 'ci-dep', 'preview-up', 'preview', 'feature-x', 'aws', 't',
+             'succeeded', 'ocel', '{"kind":"ci"}', now());
+         insert into "job" (id, project_id, kind, tier, status, pr, dedupe_key, event_at, spec, deployment_id)
+           values ('cli', 'p', 'preview-up', 'preview', 'done', 0, 'a', now(),
+                   '{"source":{"sourceId":"s"},"preview":{"name":"mine","persistent":false}}', null),
+                  ('ci', 'p', 'preview-up', 'preview', 'done', 8, 'b', now(), null, 'ci-dep'),
+                  ('git', 'p', 'preview-rm', 'preview', 'done', 7, 'c', now(), null, null),
+                  ('prod', 'p', 'deploy', 'production', 'done', 0, 'e', now(), null, null);`,
+      );
+
+      await migrateDatabase(old);
+
+      const lanes = await old.query<{ id: string; lane: string }>(
+        `select id, lane from "job" order by id`,
+      );
+      expect(lanes.rows).toEqual([
+        { id: "ci", lane: "feature-x" },
+        { id: "cli", lane: "mine" },
+        { id: "git", lane: "pr-7" },
+        { id: "prod", lane: "" },
+      ]);
+    } finally {
+      await old.end();
+      await admin.query(`DROP DATABASE "${before}"`);
+    }
+  });
+
   it('lets `bun run db:migrate` migrate the database postgres("main") binds, as lifecycle.preBuild does', async () => {
     const target = `${database}_prebuild`;
     await admin.query(`CREATE DATABASE "${target}"`);
@@ -153,7 +287,7 @@ describe("migrateDatabase", () => {
         "select table_name from information_schema.tables where table_schema = 'public'",
       );
       expect(tables.rows.map((row) => row.table_name)).toEqual(
-        expect.arrayContaining(["user", "session", "organization", "invitation", "connector"]),
+        expect.arrayContaining(["user", "session", "organization", "invitation", "endpoint"]),
       );
       const applied = await bound.query("select hash from drizzle.__drizzle_migrations");
       expect(applied.rowCount).toBe(migrations.length);
