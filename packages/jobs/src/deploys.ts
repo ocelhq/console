@@ -1,15 +1,18 @@
 import { db } from "@console/db";
-import { type DeployMode, type Job, job, projectRepo } from "@console/db/schema";
+import { type DeployMode, job, projectRepo } from "@console/db/schema";
 import { syncLinkedPipeline } from "@console/git";
-import { and, eq, sql } from "drizzle-orm";
-import { changed } from "./queue";
+import { and, eq } from "drizzle-orm";
+import { type JobDeps, nowOf } from "./deps";
+import { isFromGit } from "./state";
+import { followCancels, stopJobs } from "./stop";
 
 export async function deployIn(
   projectId: string,
   where: { mode: DeployMode; by: string | null },
-  notify: (changed: Job) => Promise<void>,
+  deps: JobDeps,
 ): Promise<void> {
-  const canceled = await db.transaction(async (tx) => {
+  const now = nowOf(deps);
+  const stopped = await db.transaction(async (tx) => {
     const [linked] = await tx
       .update(projectRepo)
       .set({ deploys: where.mode })
@@ -21,15 +24,7 @@ export async function deployIn(
     }
     await syncLinkedPipeline(tx, projectId, where.by);
     if (where.mode === "runners") return [];
-    return tx
-      .update(job)
-      .set({ status: "canceled", finishedAt: sql`now()`, ...changed() })
-      .where(and(eq(job.projectId, projectId), eq(job.status, "queued")))
-      .returning();
+    return stopJobs(tx, and(eq(job.projectId, projectId), isFromGit), now);
   });
-  for (const row of canceled) {
-    await notify(row).catch((error: unknown) => {
-      console.error("jobs: a canceled job went unreported until resync", { id: row.id, error });
-    });
-  }
+  await followCancels(stopped, deps);
 }

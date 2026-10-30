@@ -1,6 +1,27 @@
 import { db } from "@console/db";
-import { type Deployment, deployment, environmentEvent, type Tier } from "@console/db/schema";
-import { and, desc, eq, inArray, lt } from "drizzle-orm";
+import {
+  type Deployment,
+  type DeploymentOutcome,
+  deployment,
+  deploymentAt,
+  environmentEvent,
+  type Tier,
+} from "@console/db/schema";
+import { and, desc, eq, inArray, isNotNull, lt, or } from "drizzle-orm";
+
+export type Ended<T> = T & { outcome: DeploymentOutcome; deployedAt: Date };
+
+function ended<T extends Pick<Deployment, "outcome" | "deployedAt">>(row: T): row is Ended<T> {
+  return row.outcome !== null && row.deployedAt !== null;
+}
+
+export const isEnded = isNotNull(deployment.outcome);
+
+export async function endedDeployments<T extends Pick<Deployment, "outcome" | "deployedAt">>(
+  rows: Promise<T[]>,
+): Promise<Ended<T>[]> {
+  return (await rows).filter(ended);
+}
 
 export function environmentKey(row: Pick<Deployment, "tier" | "environmentIdentity">) {
   return `${row.tier}/${row.environmentIdentity}`;
@@ -8,15 +29,8 @@ export function environmentKey(row: Pick<Deployment, "tier" | "environmentIdenti
 
 export type ActiveDeployment = Pick<
   Deployment,
-  | "id"
-  | "projectId"
-  | "kind"
-  | "promotionId"
-  | "tag"
-  | "tier"
-  | "environmentIdentity"
-  | "deployedAt"
->;
+  "id" | "projectId" | "kind" | "promotionId" | "tag" | "tier" | "environmentIdentity"
+> & { deployedAt: Date };
 
 function placeKey(row: Pick<Deployment, "projectId" | "tier" | "environmentIdentity">) {
   return `${row.projectId}/${environmentKey(row)}`;
@@ -48,7 +62,7 @@ type Placed = Pick<Deployment, "projectId" | "tier" | "environmentIdentity" | "d
 
 function tornDownAfter(tornDown: Map<string, Date>, placed: Placed): Date | null {
   const at = tornDown.get(placeKey(placed));
-  return at && at > placed.deployedAt ? at : null;
+  return at && placed.deployedAt && at > placed.deployedAt ? at : null;
 }
 
 async function activeDeployments(projectIds: string[]): Promise<Map<string, ActiveDeployment>> {
@@ -65,33 +79,36 @@ async function activeDeployments(projectIds: string[]): Promise<Map<string, Acti
 }
 
 async function succeededDeployments(projectIds: string[]): Promise<ActiveDeployment[]> {
-  return db
-    .selectDistinctOn([deployment.projectId, deployment.tier, deployment.environmentIdentity], {
-      id: deployment.id,
-      projectId: deployment.projectId,
-      kind: deployment.kind,
-      promotionId: deployment.promotionId,
-      tag: deployment.tag,
-      tier: deployment.tier,
-      environmentIdentity: deployment.environmentIdentity,
-      deployedAt: deployment.deployedAt,
-    })
-    .from(deployment)
-    .where(and(inArray(deployment.projectId, projectIds), eq(deployment.outcome, "succeeded")))
-    .orderBy(
-      deployment.projectId,
-      deployment.tier,
-      deployment.environmentIdentity,
-      desc(deployment.deployedAt),
-    );
+  return endedDeployments(
+    db
+      .selectDistinctOn([deployment.projectId, deployment.tier, deployment.environmentIdentity], {
+        id: deployment.id,
+        projectId: deployment.projectId,
+        kind: deployment.kind,
+        promotionId: deployment.promotionId,
+        tag: deployment.tag,
+        tier: deployment.tier,
+        environmentIdentity: deployment.environmentIdentity,
+        outcome: deployment.outcome,
+        deployedAt: deployment.deployedAt,
+      })
+      .from(deployment)
+      .where(and(inArray(deployment.projectId, projectIds), eq(deployment.outcome, "succeeded")))
+      .orderBy(
+        deployment.projectId,
+        deployment.tier,
+        deployment.environmentIdentity,
+        desc(deployment.deployedAt),
+      ),
+  );
 }
 
 export type OverviewLoad =
   | { error: true }
   | {
       error: false;
-      latest: Deployment | null;
-      lastPromoted: Deployment | null;
+      latest: Ended<Deployment> | null;
+      lastPromoted: Ended<Deployment> | null;
       tornDownAt: Date | null;
     };
 
@@ -100,13 +117,22 @@ export async function latestDeployments(projectId: string, tier: Tier): Promise<
 
   try {
     const [[latest], [lastPromoted], tornDown] = await Promise.all([
-      db.select().from(deployment).where(scope).orderBy(desc(deployment.deployedAt)).limit(1),
-      db
-        .select()
-        .from(deployment)
-        .where(and(scope, eq(deployment.outcome, "succeeded")))
-        .orderBy(desc(deployment.deployedAt))
-        .limit(1),
+      endedDeployments(
+        db
+          .select()
+          .from(deployment)
+          .where(and(scope, isEnded))
+          .orderBy(desc(deployment.deployedAt))
+          .limit(1),
+      ),
+      endedDeployments(
+        db
+          .select()
+          .from(deployment)
+          .where(and(scope, eq(deployment.outcome, "succeeded")))
+          .orderBy(desc(deployment.deployedAt))
+          .limit(1),
+      ),
       teardowns([projectId]),
     ]);
 
@@ -145,7 +171,7 @@ export async function listDeployments(
     filters.push(eq(deployment.tier, tier));
   }
   if (before) {
-    filters.push(lt(deployment.deployedAt, before));
+    filters.push(lt(deploymentAt, before));
   }
 
   try {
@@ -154,7 +180,7 @@ export async function listDeployments(
         .select()
         .from(deployment)
         .where(and(...filters))
-        .orderBy(desc(deployment.deployedAt))
+        .orderBy(desc(deploymentAt), desc(deployment.id))
         .limit(DEPLOYMENTS_PAGE + 1),
       activeDeployments(projectIds),
     ]);
@@ -182,7 +208,12 @@ export async function findDeployment(projectId: string, id: string): Promise<Dep
       db
         .select()
         .from(deployment)
-        .where(and(eq(deployment.projectId, projectId), eq(deployment.id, id))),
+        .where(
+          and(
+            eq(deployment.projectId, projectId),
+            or(eq(deployment.id, id), eq(deployment.deploymentId, id)),
+          ),
+        ),
       activeDeployments([projectId]),
     ]);
     if (!found) {
@@ -194,9 +225,11 @@ export async function findDeployment(projectId: string, id: string): Promise<Dep
   }
 }
 
-export type LatestDeployment = Pick<
-  Deployment,
-  "projectId" | "kind" | "outcome" | "deployedAt" | "providerName" | "providerRegion"
+export type LatestDeployment = Ended<
+  Pick<
+    Deployment,
+    "projectId" | "kind" | "outcome" | "deployedAt" | "providerName" | "providerRegion"
+  >
 > & { tornDownAt: Date | null };
 
 export async function latestDeploymentByProject(
@@ -225,16 +258,20 @@ export async function latestDeploymentByProject(
 }
 
 async function latestProductionDeployments(projectIds: string[]) {
-  return db
-    .selectDistinctOn([deployment.projectId], {
-      projectId: deployment.projectId,
-      kind: deployment.kind,
-      outcome: deployment.outcome,
-      deployedAt: deployment.deployedAt,
-      providerName: deployment.providerName,
-      providerRegion: deployment.providerRegion,
-    })
-    .from(deployment)
-    .where(and(inArray(deployment.projectId, projectIds), eq(deployment.tier, "production")))
-    .orderBy(deployment.projectId, desc(deployment.deployedAt));
+  return endedDeployments(
+    db
+      .selectDistinctOn([deployment.projectId], {
+        projectId: deployment.projectId,
+        kind: deployment.kind,
+        outcome: deployment.outcome,
+        deployedAt: deployment.deployedAt,
+        providerName: deployment.providerName,
+        providerRegion: deployment.providerRegion,
+      })
+      .from(deployment)
+      .where(
+        and(inArray(deployment.projectId, projectIds), eq(deployment.tier, "production"), isEnded),
+      )
+      .orderBy(deployment.projectId, desc(deployment.deployedAt)),
+  );
 }

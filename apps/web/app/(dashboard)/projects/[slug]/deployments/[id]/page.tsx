@@ -1,5 +1,6 @@
-import { db } from "@console/db";
-import { project } from "@console/db/schema";
+import { runOfDeployment } from "@console/api";
+import { ProviderService } from "@console/connectors/gen/provider/contract/v1/contract_pb";
+import { jobDeps } from "@console/jobs/tasks";
 import {
   ArrowLeftIcon,
   CaretRightIcon,
@@ -10,7 +11,6 @@ import {
   HeartbeatIcon,
   TerminalWindowIcon,
 } from "@phosphor-icons/react/dist/ssr";
-import { and, eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -19,8 +19,10 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { requireOrganization } from "@/lib/access";
+import { requireMember, requireOrganization } from "@/lib/access";
+import { endpointFor } from "@/lib/connectors";
 import {
+  atOf,
   authorOf,
   commandOf,
   deploymentHref,
@@ -28,16 +30,20 @@ import {
   duration,
   kindVerbs,
   shortId,
+  unreportedNote,
 } from "@/lib/deployment-view";
 import { findDeployment } from "@/lib/deployments";
 import { targetOf } from "@/lib/providers";
 import { absoluteTime } from "@/lib/relative-time";
+import { rollbackable } from "@/lib/rollback";
 import { labelType } from "@/lib/type";
+import { viewedProject } from "@/lib/viewed-project";
 import { EdgeMark, ProviderMark } from "../../../../marks";
 import { Field, Joined, NotReported, Panel } from "../../../../panels";
 import { Stamp } from "../../../../stamp";
 import { Author, EnvironmentBadge, StatusDot, Trigger } from "../cells";
-import { DeploymentActions } from "./actions";
+import { DeploymentActions, type Rollback } from "./actions";
+import { RunSection } from "./run/section";
 import {
   AppList,
   BuildLog,
@@ -74,18 +80,26 @@ function countOf(n: number, noun: string) {
 
 export default async function DeploymentPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string; id: string }>;
+  searchParams: Promise<{ org?: string | string[] }>;
 }) {
-  const [{ slug, id }, session] = await Promise.all([params, requireOrganization()]);
+  const [{ slug, id }, { org }, session] = await Promise.all([
+    params,
+    searchParams,
+    requireOrganization(),
+  ]);
 
-  const [found] = await db
-    .select({ id: project.id })
-    .from(project)
-    .where(and(eq(project.organizationId, session.activeOrganizationId), eq(project.slug, slug)));
+  const found = await viewedProject(
+    session,
+    { slug },
+    typeof org === "string" && org !== "" ? org : undefined,
+  );
   if (!found) {
     notFound();
   }
+  const { viewer } = found;
 
   const load = await findDeployment(found.id, id);
   const now = new Date().toISOString();
@@ -99,7 +113,23 @@ export default async function DeploymentPage({
   }
 
   const { deployment, active } = load;
-  const status = deploymentStatus(deployment);
+  const run = deployment.jobId
+    ? await runOfDeployment(
+        deployment.id,
+        await requireMember(viewer.activeOrganizationId),
+        jobDeps(),
+      )
+    : undefined;
+  const status = deploymentStatus(deployment, run?.job.status ?? null, new Date(now));
+  const reported = deployment.outcome !== null;
+  const runSection = run ? (
+    <RunSection
+      subject={{ of: "deployments", id: deployment.id }}
+      run={run}
+      href={deploymentHref(slug, deployment.id)}
+      now={now}
+    />
+  ) : null;
   const isActive = active?.id === deployment.id;
   const superseded = !isActive && deployment.outcome === "succeeded" && active;
   const took = duration(deployment);
@@ -113,6 +143,16 @@ export default async function DeploymentPage({
   const EnvironmentIcon = deployment.tier === "production" ? GlobeSimpleIcon : GitPullRequestIcon;
   const hostnames = hostnamesOf(deployment.topology.apps).length;
   const checks = checksOf(deployment.topology.apps).length;
+  const rollback: Rollback | null = rollbackable(deployment, active)
+    ? {
+        promotionId: deployment.promotionId,
+        served: (await endpointFor(viewer, deployment.target))?.serves(
+          ProviderService.method.rollback,
+        )
+          ? { projectId: found.id, deploymentId: deployment.id, slug }
+          : null,
+      }
+    : null;
 
   return (
     <div className="flex flex-1 flex-col gap-6 px-5 pt-8 pb-12 md:px-8">
@@ -140,7 +180,7 @@ export default async function DeploymentPage({
                 </span>
               </span>
               <span className="text-muted-foreground">
-                <Stamp at={deployment.deployedAt.toISOString()} now={now} />
+                <Stamp at={atOf(deployment).toISOString()} now={now} />
               </span>
               <EnvironmentBadge tier={deployment.tier} active={isActive} />
               {deployment.environmentIdentity && (
@@ -160,6 +200,11 @@ export default async function DeploymentPage({
                 <Stamp at={active.deployedAt.toISOString()} now={now} />.
               </p>
             )}
+            {unreportedNote(deployment) && (
+              <p role="note" className="max-w-xl border border-warn p-3 text-sm text-warn">
+                {unreportedNote(deployment)}
+              </p>
+            )}
             {deployment.error && (
               <p
                 role="alert"
@@ -171,12 +216,10 @@ export default async function DeploymentPage({
           </div>
           <DeploymentActions
             url={url}
-            outcome={deployment.outcome}
-            promotionId={deployment.promotionId}
             tier={deployment.tier}
             environmentIdentity={deployment.environmentIdentity}
-            active={isActive}
             own={target.own}
+            rollback={rollback}
           />
         </div>
       </header>
@@ -253,56 +296,64 @@ export default async function DeploymentPage({
         </Field>
       </Joined>
 
-      <Joined>
-        <Panel heading="Apps">
-          <AppList apps={deployment.topology.apps} />
-        </Panel>
-        <Panel heading="Resources">
-          <ResourceList
-            resources={deployment.topology.resources}
-            readers={readersOf(deployment)}
-            provider={deployment.providerName}
-          />
-        </Panel>
-      </Joined>
+      {!reported && runSection}
 
-      <Accordion className="border border-border">
-        <AccordionItem value="build">
-          <AccordionTrigger className={trigger}>
-            <Caret />
-            <TerminalWindowIcon aria-hidden className={icon} />
-            Build logs
-            <span className={aside}>
-              {stageCount === 0 ? "Not reported" : (took ?? `${stageCount} stages`)}
-            </span>
-          </AccordionTrigger>
-          <AccordionContent className={panel}>
-            <BuildLog stages={deployment.trace} />
-          </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="domains">
-          <AccordionTrigger className={trigger}>
-            <Caret />
-            <GlobeSimpleIcon aria-hidden className={icon} />
-            Domains
-            <span className={aside}>{countOf(hostnames, "hostname")}</span>
-          </AccordionTrigger>
-          <AccordionContent className={panel}>
-            <Domains apps={deployment.topology.apps} own={target.own} />
-          </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="checks">
-          <AccordionTrigger className={trigger}>
-            <Caret />
-            <HeartbeatIcon aria-hidden className={icon} />
-            Checks
-            <span className={aside}>{countOf(checks, "check")}</span>
-          </AccordionTrigger>
-          <AccordionContent className={panel}>
-            <Checks apps={deployment.topology.apps} />
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+      {reported && (
+        <Joined>
+          <Panel heading="Apps">
+            <AppList apps={deployment.topology.apps} />
+          </Panel>
+          <Panel heading="Resources">
+            <ResourceList
+              resources={deployment.topology.resources}
+              readers={readersOf(deployment)}
+              provider={deployment.providerName}
+            />
+          </Panel>
+        </Joined>
+      )}
+
+      {reported && (
+        <Accordion className="border border-border">
+          <AccordionItem value="build">
+            <AccordionTrigger className={trigger}>
+              <Caret />
+              <TerminalWindowIcon aria-hidden className={icon} />
+              Build logs
+              <span className={aside}>
+                {stageCount === 0 ? "Not reported" : (took ?? `${stageCount} stages`)}
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className={panel}>
+              <BuildLog stages={deployment.trace} />
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="domains">
+            <AccordionTrigger className={trigger}>
+              <Caret />
+              <GlobeSimpleIcon aria-hidden className={icon} />
+              Domains
+              <span className={aside}>{countOf(hostnames, "hostname")}</span>
+            </AccordionTrigger>
+            <AccordionContent className={panel}>
+              <Domains apps={deployment.topology.apps} own={target.own} />
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="checks">
+            <AccordionTrigger className={trigger}>
+              <Caret />
+              <HeartbeatIcon aria-hidden className={icon} />
+              Checks
+              <span className={aside}>{countOf(checks, "check")}</span>
+            </AccordionTrigger>
+            <AccordionContent className={panel}>
+              <Checks apps={deployment.topology.apps} />
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )}
+
+      {reported && runSection}
     </div>
   );
 }

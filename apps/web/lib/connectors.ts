@@ -1,76 +1,37 @@
-import { type ActiveOrganizationSession, roleOf } from "@console/auth";
-import type { Connector as Dialled, Refusal } from "@console/connectors";
-import { db } from "@console/db";
-import { type Connector, connector } from "@console/db/schema";
+import { sessionMember } from "@console/api";
+import type { ActiveOrganizationSession } from "@console/auth";
+import type { DescMethod, Endpoint, Refusal } from "@console/connectors";
+import { endpointServing, type ResolvedEndpoint, reachOf, recordDenied } from "@console/endpoints";
 import type { Ability } from "@ocelhq/variables-ui";
-import { and, eq } from "drizzle-orm";
-import { abilityOf, scopesFor } from "./connector-policy";
-import { connectorToken } from "./connector-token";
+import { abilityOf } from "./endpoint-grant";
 
-export type { Connector };
+export interface Reach {
+  endpoint: Endpoint;
+  ability: Ability;
+  serves(call: DescMethod): boolean;
+  denied(verb: string, refusal: Refusal): Promise<void>;
+}
 
-const barred: Ability = { write: false, reveal: false };
+export const barred: Ability = { write: false, reveal: false };
 
-export async function dial(
-  session: ActiveOrganizationSession,
-  row: Connector,
-): Promise<Dialled | null> {
-  if (row.url === null) {
-    return null;
-  }
-  const role = await roleOf(session.userId, session.activeOrganizationId);
+type Session = Pick<ActiveOrganizationSession, "userId" | "activeOrganizationId">;
+
+export async function sessionReach(
+  session: Session,
+  endpoint: ResolvedEndpoint,
+): Promise<Reach | null> {
+  const reach = reachOf(await sessionMember(session), endpoint);
+  if (!reach) return null;
   return {
-    id: row.id,
-    url: row.url,
-    capabilities: row.capabilities,
-    token: await connectorToken({
-      connectorId: row.id,
-      organizationId: session.activeOrganizationId,
-      userId: session.userId,
-      scope: scopesFor(role, row.capabilities),
-    }),
+    endpoint: reach.at,
+    ability: abilityOf(reach),
+    serves: reach.serves,
+    denied: (verb, refusal) => recordDenied(endpoint, verb, refusal),
   };
 }
 
-export async function abilityFor(
-  session: ActiveOrganizationSession,
-  row: Connector | null,
-): Promise<Ability> {
-  if (row === null || row.url === null) {
-    return barred;
-  }
-  const role = await roleOf(session.userId, session.activeOrganizationId);
-  return abilityOf(scopesFor(role, row.capabilities));
-}
-
-export async function connectorsOf(organizationId: string): Promise<Connector[]> {
-  return db.select().from(connector).where(eq(connector.organizationId, organizationId));
-}
-
-export async function connectorFor(
-  organizationId: string,
-  target: string | null,
-): Promise<Connector | null> {
-  if (target === null || target === "") {
-    return null;
-  }
-  const [found] = await db
-    .select()
-    .from(connector)
-    .where(and(eq(connector.organizationId, organizationId), eq(connector.target, target)));
-  return found ?? null;
-}
-
-export async function noteDenial(
-  connectorId: string,
-  verb: string,
-  refusal: Refusal,
-): Promise<void> {
-  if (refusal.reason !== "denied") {
-    return;
-  }
-  await db
-    .update(connector)
-    .set({ lastDenied: { verb, at: new Date().toISOString(), message: refusal.message } })
-    .where(eq(connector.id, connectorId));
+export async function endpointFor(session: Session, target: string | null): Promise<Reach | null> {
+  if (!target) return null;
+  const endpoint = await endpointServing(session.activeOrganizationId, target);
+  return endpoint ? sessionReach(session, endpoint) : null;
 }

@@ -30,12 +30,6 @@ export async function roleOf(userId: string, organizationId: string): Promise<st
   return membership?.role ?? "";
 }
 
-const administrative = new Set(["owner", "admin"]);
-
-export function administers(role: string): boolean {
-  return role.split(",").some((named) => administrative.has(named.trim()));
-}
-
 export async function getSessionUserId(headers: Headers): Promise<string | null> {
   const session = await auth.api.getSession({ headers });
   return session?.user.id ?? null;

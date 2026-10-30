@@ -4,7 +4,7 @@ import { project } from "@console/db/schema";
 import { and, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { requireOrganization } from "@/lib/access";
-import { abilityFor, connectorFor, dial } from "@/lib/connectors";
+import { barred, endpointFor } from "@/lib/connectors";
 import { latestTopology, namedEnvironments } from "@/lib/project-variables";
 import { tierOf } from "@/lib/tier";
 import { stateOf } from "@/lib/variables";
@@ -50,14 +50,12 @@ export default async function VariablesPage({
   }
 
   const environments = await namedEnvironments(found.id);
-  const connector = await connectorFor(session.activeOrganizationId, latest.row.target);
-  const can = await abilityFor(session, connector);
+  const reach = await endpointFor(session, latest.row.target);
 
   let stored: readonly Stored[] = [];
   let refusal = null;
-  const dialled = connector === null ? null : await dial(session, connector);
-  if (dialled !== null) {
-    const answer = await variables.list(dialled, tier, found.slug);
+  if (reach !== null) {
+    const answer = await variables.list(reach.endpoint, tier, found.slug);
     if (answer.done) {
       stored = answer.result;
     } else {
@@ -65,14 +63,14 @@ export default async function VariablesPage({
     }
   }
 
-  const readOnly = dialled === null || refusal !== null;
+  const readOnly = reach === null || refusal !== null;
   const state = stateOf(
     found.slug,
     tier,
     latest.row.topology,
     stored,
     environments,
-    can,
+    reach?.ability ?? barred,
     readOnly ? "unknown" : "live",
   );
   const now = new Date().toISOString();
@@ -85,9 +83,9 @@ export default async function VariablesPage({
         promotion={latest.row.promotionId}
         provider={latest.row.providerName}
         region={latest.row.providerRegion}
-        live={dialled !== null && refusal === null}
+        live={reach !== null && refusal === null}
       />
-      {dialled === null && <NoConnector vendor={latest.row.providerName} />}
+      {reach === null && <NoConnector vendor={latest.row.providerName} />}
       {refusal !== null && (
         <Refused
           reason={refusal.reason}

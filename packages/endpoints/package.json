@@ -1,0 +1,30 @@
+{
+  "name": "@console/endpoints",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "the endpoints an organization's console reaches, Ocel Cloud's among them, and the tokens it reaches them with",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.12.1",
+    "@connectrpc/connect": "^2.1.0",
+    "@console/auth": "workspace:*",
+    "@console/connectors": "workspace:*",
+    "@console/db": "workspace:*",
+    "@console/infra": "workspace:*",
+    "drizzle-orm": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "catalog:",
+    "vitest": "^4.1.9",
+    "jose": "^6.2.12"
+  }
+}

@@ -66,6 +66,10 @@ const refusals: Record<RefusalReason, { heading: string; body: string; command?:
     heading: "The request timed out",
     body: "The connector took the work and never reported back. Nothing was retried, so nothing ran twice.",
   },
+  "needs-runner": {
+    heading: "The connector runs no provisioning engine",
+    body: "This request needs a runner, so the connector refused it. Nothing in your cloud was changed.",
+  },
   failed: {
     heading: "The connector failed",
     body: "It answered, but could not complete the request. Nothing in your cloud was changed.",

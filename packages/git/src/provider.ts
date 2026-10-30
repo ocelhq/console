@@ -59,7 +59,7 @@ export interface PullRequestHead {
 
 export type CommitState = "pending" | "success" | "failure" | "error";
 
-export type DeploymentState = "queued" | "in_progress" | "success" | "failure";
+export type DeploymentState = "queued" | "in_progress" | "success" | "failure" | "inactive";
 
 export interface RepoToken {
   token: string;
@@ -88,6 +88,11 @@ export interface GitProvider {
     pr: number,
   ): Promise<PullRequestHead | undefined>;
   repoToken(installation: InstallationRef, repo: RepoRef, access: "read"): Promise<RepoToken>;
+  readFile(
+    installation: InstallationRef,
+    repo: RepoRef,
+    file: { ref: string; path: string },
+  ): Promise<string | undefined>;
   setStatus(
     installation: InstallationRef,
     repo: RepoRef,

@@ -12,13 +12,23 @@ import { and, eq } from "drizzle-orm";
 
 export type ReportedDeployment = Pick<
   Deployment,
-  "deploymentId" | "kind" | "tier" | "outcome" | "error" | "git" | "startedAt" | "deployedAt"
+  | "deploymentId"
+  | "kind"
+  | "tier"
+  | "environmentIdentity"
+  | "outcome"
+  | "error"
+  | "git"
+  | "startedAt"
+  | "deployedAt"
 >;
 
 export type ReportedEvent = Pick<
   EnvironmentEvent,
-  "deploymentId" | "kind" | "tier" | "git" | "occurredAt"
+  "deploymentId" | "kind" | "tier" | "environmentIdentity" | "git" | "occurredAt"
 >;
+
+const previewLane = (identity: string, pr: number) => identity || `pr-${pr}`;
 
 export type ReportedFromCi = {
   projectId: string;
@@ -46,12 +56,13 @@ function jobOf(reported: ReportedFromCi): JobValues | undefined {
     if (event.kind !== "preview-removed" || !reported.pr) return undefined;
     return {
       kind: "preview-rm",
+      tier: "preview",
       status: "done",
       pr: reported.pr,
+      lane: previewLane(event.environmentIdentity, reported.pr),
       sha: event.git?.sha ?? null,
       branch: event.git?.branch ?? null,
       eventAt: event.occurredAt,
-      claimedAt: event.occurredAt,
       startedAt: event.occurredAt,
       finishedAt: event.occurredAt,
     };
@@ -60,17 +71,18 @@ function jobOf(reported: ReportedFromCi): JobValues | undefined {
   const preview = deployment.kind === "preview-up";
   const production = deployment.kind === "deploy" && deployment.tier === "production";
   if (!(preview && reported.pr) && !production) return undefined;
-  const startedAt = deployment.startedAt ?? deployment.deployedAt;
+  const startedAt = deployment.startedAt ?? deployment.deployedAt ?? new Date();
   return {
     kind: preview ? "preview-up" : "deploy",
+    tier: deployment.tier,
     status: deployment.outcome === "succeeded" ? "done" : "failed",
     pr: preview ? reported.pr : 0,
+    lane: preview && reported.pr ? previewLane(deployment.environmentIdentity, reported.pr) : "",
     sha: deployment.git?.sha ?? null,
     branch: deployment.git?.branch ?? null,
     deploymentId: deployment.deploymentId,
     error: deployment.error,
     eventAt: startedAt,
-    claimedAt: startedAt,
     startedAt,
     finishedAt: deployment.deployedAt,
   };
@@ -160,16 +172,4 @@ export async function recordReportedJob(
     })
     .onConflictDoNothing()
     .returning();
-}
-
-export async function notifyReported(
-  made: Job[],
-  notify: (changed: Job) => Promise<void>,
-): Promise<void> {
-  for (const changed of made) {
-    // The job is stored; a report lost here is sent again by the resync.
-    await notify(changed).catch((error: unknown) => {
-      console.error("jobs: a reported job went unreported until resync", { id: changed.id, error });
-    });
-  }
 }

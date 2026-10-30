@@ -1,6 +1,7 @@
 import { db } from "@console/db";
 import { deployment, environmentEvent, project } from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
+import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createTestSessionWithOrganization } from "@/test/auth-harness";
 import {
@@ -33,6 +34,7 @@ async function deployed(projectId: string, place: Place, at: string): Promise<st
     providerName: "aws",
     target: "aws/123456789012/us-east-1/main",
     outcome: "succeeded",
+    outcomeBy: "ocel",
     trigger: { kind: "cli" },
     deployedAt: new Date(at),
     trace: [],
@@ -164,6 +166,62 @@ describe("latestDeploymentByProject", () => {
 
       const listed = await latestDeploymentByProject([projectId]);
       expect(listed.get(projectId)).toMatchObject({ tornDownAt: null });
+    } finally {
+      await session.cleanup();
+    }
+  });
+});
+
+describe("listDeployments", () => {
+  beforeAll(async () => {
+    await setupTestDatabase();
+  });
+
+  it("orders a running deployment by when it started among the ended ones, not ahead of them all", async () => {
+    const session = await createTestSessionWithOrganization();
+    try {
+      const projectId = await projectIn(session.organization.id);
+      const older = await deployed(projectId, PRODUCTION, "2026-01-01T00:00:00Z");
+      const newer = await deployed(projectId, PRODUCTION, "2026-01-03T00:00:00Z");
+      const running = crypto.randomUUID();
+      await db.insert(deployment).values({
+        id: running,
+        projectId,
+        deploymentId: crypto.randomUUID().replaceAll("-", ""),
+        kind: "deploy",
+        tier: "production",
+        trigger: { kind: "cli" },
+        startedAt: new Date("2026-01-02T00:00:00Z"),
+      });
+
+      const load = await listDeployments([projectId], null, null);
+      const page = await listDeployments([projectId], null, new Date("2026-01-02T12:00:00Z"));
+
+      expect(!load.error && load.rows.map((row) => row.id)).toEqual([newer, running, older]);
+      expect(!page.error && page.rows.map((row) => row.id)).toEqual([running, older]);
+    } finally {
+      await session.cleanup();
+    }
+  });
+});
+
+describe("findDeployment", () => {
+  beforeAll(async () => {
+    await setupTestDatabase();
+  });
+
+  it("finds a deployment by the deployment id the CLI links to, as well as by its row", async () => {
+    const session = await createTestSessionWithOrganization();
+    try {
+      const projectId = await projectIn(session.organization.id);
+      const id = await deployed(projectId, PRODUCTION, "2026-01-01T00:00:00Z");
+      const [row] = await db.select().from(deployment).where(eq(deployment.id, id));
+
+      const byRow = await findDeployment(projectId, id);
+      const byDeployment = await findDeployment(projectId, row?.deploymentId ?? "");
+
+      expect(!byRow.error && byRow.deployment?.id).toBe(id);
+      expect(!byDeployment.error && byDeployment.deployment?.id).toBe(id);
     } finally {
       await session.cleanup();
     }

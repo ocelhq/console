@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "the job queue runners claim from, and the git events that fill and report on it",
+  "description": "the jobs the console dispatches to runners, and the git events that dispatch and report on them",
   "license": "Apache-2.0",
   "exports": {
     ".": "./src/index.ts",
@@ -14,14 +14,22 @@
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
+    "@bufbuild/protobuf": "^2.12.1",
+    "@connectrpc/connect": "^2.1.0",
+    "@console/auth": "workspace:*",
+    "@console/connectors": "workspace:*",
     "@console/db": "workspace:*",
+    "@console/endpoints": "workspace:*",
     "@console/git": "workspace:*",
+    "@console/infra": "workspace:*",
     "drizzle-orm": "catalog:",
-    "ocel": "catalog:"
+    "jsonc-parser": "^3.3.1",
+    "ocel": "catalog:",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@console/infra": "workspace:*",
     "@types/node": "^20",
+    "jose": "^6.2.12",
     "typescript": "catalog:",
     "vitest": "^4.1.9"
   }

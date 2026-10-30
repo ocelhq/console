@@ -96,6 +96,11 @@ export const env = defineEnv({
         description:
           "The aud of the tokens the console signs for Ocel Cloud; the origin of CONSOLE_CLOUD_URL when unset.",
       },
+      CONSOLE_CLOUD_VERSION: {
+        class: "plain",
+        schema: z.string().min(1).max(64).optional(),
+        description: "The ocel version Ocel Cloud's provider serves to CLI sessions.",
+      },
     },
     {
       optional: true,

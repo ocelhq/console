@@ -34,9 +34,9 @@ export const relations = defineRelations(schema, (r) => ({
     }),
     user: r.one.user({ from: r.invitation.inviterId, to: r.user.id, optional: false }),
   },
-  connector: {
+  endpoint: {
     organization: r.one.organization({
-      from: r.connector.organizationId,
+      from: r.endpoint.organizationId,
       to: r.organization.id,
       optional: false,
     }),

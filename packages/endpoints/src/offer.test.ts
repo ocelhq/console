@@ -1,0 +1,54 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+const keys = [
+  "CONSOLE_CLOUD_URL",
+  "CONSOLE_CLOUD_PROVIDER_URL",
+  "CONSOLE_CLOUD_AUDIENCE",
+  "CONSOLE_CLOUD_VERSION",
+] as const;
+
+async function offerWith(values: Partial<Record<(typeof keys)[number], string>>) {
+  for (const key of keys) vi.stubEnv(key, values[key]);
+  vi.resetModules();
+  const { readCloudOffer } = await import("./offer");
+  return readCloudOffer();
+}
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
+describe("readCloudOffer", () => {
+  it("offers nothing when CONSOLE_CLOUD_URL is unset", async () => {
+    expect(await offerWith({})).toBeUndefined();
+  });
+
+  it("offers the configured URLs and audience", async () => {
+    expect(
+      await offerWith({
+        CONSOLE_CLOUD_URL: "https://cloud.example.test/api",
+        CONSOLE_CLOUD_PROVIDER_URL: "https://provider.cloud.example.test",
+        CONSOLE_CLOUD_AUDIENCE: "ocel-cloud",
+        CONSOLE_CLOUD_VERSION: "0.0.9",
+      }),
+    ).toEqual({
+      apiUrl: "https://cloud.example.test/api",
+      providerUrl: "https://provider.cloud.example.test",
+      audience: "ocel-cloud",
+      version: "0.0.9",
+    });
+  });
+
+  it("takes the origin of CONSOLE_CLOUD_URL as the audience when none is set", async () => {
+    expect(await offerWith({ CONSOLE_CLOUD_URL: "https://cloud.example.test/api" })).toEqual({
+      apiUrl: "https://cloud.example.test/api",
+      providerUrl: "",
+      audience: "https://cloud.example.test",
+      version: "",
+    });
+  });
+
+  it("refuses a CONSOLE_CLOUD_URL that is not a URL", async () => {
+    await expect(offerWith({ CONSOLE_CLOUD_URL: "cloud" })).rejects.toThrow("CONSOLE_CLOUD_URL");
+  });
+});

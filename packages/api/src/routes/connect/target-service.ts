@@ -3,6 +3,7 @@ import { Code, ConnectError, type HandlerContext, type ServiceImpl } from "@conn
 import { type ActiveOrganizationSession, administers, roleOf } from "@console/auth";
 import type { TargetService } from "@console/connectors/gen/console/v1/target_pb";
 import { db } from "@console/db";
+import type { IssuancePrincipal, Target, Tier } from "@console/db/schema";
 import {
   accountProblem,
   audienceOf,
@@ -18,17 +19,20 @@ import {
   prepareTarget,
   projectInOrganization,
   recordTier,
+  regionProblem,
   targetOf,
   unsupportedVendor,
 } from "@console/targets";
 import { tierNamed } from "../../deployments/record";
+import { admitJobCredential } from "../../jobs/admit";
 import {
+  type AdmittedPipeline,
   admitCredential,
   claimAdmission,
   type PipelineKeys,
   runUrlOf,
 } from "../../pipelines/admit";
-import { callerOf } from "./caller";
+import { type Caller, callerOf } from "./caller";
 import { required } from "./required";
 
 export interface TargetServiceDeps {
@@ -60,6 +64,47 @@ async function ownedProject(organizationId: string, projectId: string): Promise<
   }
 }
 
+function described(target: Target): string {
+  const place = `${target.vendor} account ${target.account}`;
+  return target.region === "" ? place : `${place} (${target.region})`;
+}
+
+type Admitted = {
+  principal: Extract<IssuancePrincipal, { kind: "pipeline" | "job" }>;
+  spend: AdmittedPipeline | null;
+};
+
+async function admitted(
+  caller: Caller,
+  projectId: string,
+  tier: Tier,
+  pipelineKeys: PipelineKeys,
+): Promise<Admitted> {
+  if (caller.kind === "job") {
+    const admitted = await admitJobCredential(caller.job, projectId, tier);
+    return {
+      principal: { kind: "job", jobId: admitted.id, runner: caller.job.runner },
+      spend: null,
+    };
+  }
+  if (caller.kind !== "pipeline-token") {
+    throw new ConnectError(
+      "Credentials are issued only to a trusted pipeline's GitHub Actions token or to a job's token",
+      Code.PermissionDenied,
+    );
+  }
+  const admission = await admitCredential(caller.token, { projectId, tier }, pipelineKeys);
+  return {
+    principal: {
+      kind: "pipeline",
+      pipelineId: admission.pipeline.id,
+      jti: admission.claims.jti,
+      runUrl: runUrlOf(admission.claims),
+    },
+    spend: admission,
+  };
+}
+
 export function targetService(deps: TargetServiceDeps): ServiceImpl<typeof TargetService> {
   async function issuer(): Promise<Issuer> {
     const configured = deps.issuer();
@@ -77,7 +122,8 @@ export function targetService(deps: TargetServiceDeps): ServiceImpl<typeof Targe
       if (!isVendor(vendor)) {
         throw new ConnectError(unsupportedVendor(vendor), Code.InvalidArgument);
       }
-      const problem = accountProblem(vendor, request.account);
+      const problem =
+        accountProblem(vendor, request.account) ?? regionProblem(vendor, request.region);
       if (problem) throw new ConnectError(problem, Code.InvalidArgument);
       const organizationId = session.activeOrganizationId;
       await ownedProject(organizationId, request.projectId);
@@ -85,6 +131,7 @@ export function targetService(deps: TargetServiceDeps): ServiceImpl<typeof Targe
         vendor,
         account: request.account,
         region: request.region,
+        namespace: request.namespace,
       });
       return {
         targetId: target.id,
@@ -139,18 +186,12 @@ export function targetService(deps: TargetServiceDeps): ServiceImpl<typeof Targe
     },
 
     async issueCredential(request, context) {
-      const caller = callerOf(context);
-      if (caller.kind !== "pipeline-token") {
-        throw new ConnectError(
-          "Credentials are issued only to a trusted pipeline's GitHub Actions token",
-          Code.PermissionDenied,
-        );
-      }
       const minter = await issuer();
       const tier = tierNamed(request.tier);
-      const admitted = await admitCredential(
-        caller.token,
-        { projectId: request.projectId, tier },
+      const admission = await admitted(
+        callerOf(context),
+        request.projectId,
+        tier,
         deps.pipelineKeys(),
       );
 
@@ -164,30 +205,27 @@ export function targetService(deps: TargetServiceDeps): ServiceImpl<typeof Targe
       const { target } = bound;
       if (target.vendor !== request.vendor) {
         throw new ConnectError(
-          `The project's ${tier} deploys to ${target.vendor} account ${target.account} (${target.region}), not to ${request.vendor}`,
+          `The project's ${tier} deploys to ${described(target)}, not to ${request.vendor}`,
           Code.FailedPrecondition,
         );
       }
       if (!bound.tier) {
         throw new ConnectError(
-          `The ${tier} deploy identity of target ${target.id} (${target.vendor} account ${target.account}, ${target.region}) was removed: an admin runs \`ocel bootstrap ${tier}\``,
+          `The ${tier} deploy identity of target ${target.id} (${described(target)}) was removed: an admin runs \`ocel bootstrap ${tier}\``,
           Code.FailedPrecondition,
         );
       }
       const minted = await db.transaction(async (tx) => {
-        await claimAdmission(tx, admitted);
+        if (admission.spend) {
+          await claimAdmission(tx, admission.spend);
+        }
         return issue(tx, minter, {
           target,
           tier,
           lifetimeSeconds: CREDENTIAL_LIFETIME_SECONDS,
           purpose: "deploy",
           projectId: request.projectId,
-          principal: {
-            kind: "pipeline",
-            pipelineId: admitted.pipeline.id,
-            jti: admitted.claims.jti,
-            runUrl: runUrlOf(admitted.claims),
-          },
+          principal: admission.principal,
         });
       });
       return {
@@ -196,6 +234,7 @@ export function targetService(deps: TargetServiceDeps): ServiceImpl<typeof Targe
         targetId: target.id,
         account: target.account,
         region: target.region,
+        namespace: target.namespace,
         sessionName: minted.sessionName,
         identity: {
           identityProvider: bound.tier.identityProvider,

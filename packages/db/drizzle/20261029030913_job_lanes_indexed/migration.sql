@@ -1,0 +1,2 @@
+DROP INDEX "job_projectId_tier_pr_dispatched_uidx";--> statement-breakpoint
+CREATE UNIQUE INDEX "job_projectId_tier_lane_dispatched_uidx" ON "job" ("project_id","tier","lane") WHERE "dispatched_at" is not null and "status" in ('queued', 'running', 'input-required');

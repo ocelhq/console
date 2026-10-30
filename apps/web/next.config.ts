@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
     "@console/auth",
     "@console/connectors",
     "@console/db",
+    "@console/endpoints",
     "@console/git",
     "@console/infra",
     "@console/targets",

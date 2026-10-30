@@ -74,6 +74,7 @@ export function fakeGithub() {
     private?: boolean;
   }[] = [];
   const pulls = new Map<number, { head: { sha: string }; merge_commit_sha: string | null }>();
+  const files = new Map<string, string>();
   const oauth = {
     codes: new Map<string, string>(),
     revoked: [] as string[],
@@ -177,6 +178,15 @@ export function fakeGithub() {
       );
       return found ? reply(found) : reply({ message: "Not Found" }, 404);
     }
+    const fileOf = at.match(/^GET \/repos\/[^/]+\/[^/]+\/contents\/(.+)$/);
+    if (fileOf) {
+      const file = files.get(
+        `${url.searchParams.get("ref")}:${decodeURIComponent(fileOf[1] ?? "")}`,
+      );
+      return file === undefined
+        ? reply({ message: "Not Found" }, 404)
+        : new Response(file, { headers: { "content-type": "application/vnd.github.raw" } });
+    }
     const pullOf = at.match(/^GET \/repos\/[^/]+\/[^/]+\/pulls\/(\d+)$/);
     if (pullOf) {
       const pull = pulls.get(Number(pullOf[1]));
@@ -249,6 +259,7 @@ export function fakeGithub() {
     comments,
     repositories,
     pulls,
+    files,
     oauth,
     callsTo(method: string, pattern: RegExp) {
       return calls.filter((call) => call.method === method && pattern.test(call.path));
