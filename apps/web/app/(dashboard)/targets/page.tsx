@@ -69,6 +69,7 @@ export default async function TargetsPage() {
               vendor: target.vendor,
               account: target.account,
               region: target.region,
+              bound: target.bound.map((binding) => `${binding.slug} ${binding.tier}`),
               tiers: target.tiers.map((tier) => ({
                 tier: tier.tier,
                 principal: tier.principal,

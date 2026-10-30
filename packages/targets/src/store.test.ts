@@ -148,6 +148,24 @@ describe("forgetting a tier", () => {
   });
 });
 
+describe("listing targets", () => {
+  it("names the projects bound to each target, so its removal can say what goes", async () => {
+    const used = await prepareTarget(orgId, place("ap-south-1"));
+    const unused = await prepareTarget(orgId, place("ap-east-1"));
+    await bindProject(db, { projectId, tier: "preview", targetId: used.id });
+
+    const listed = (await targetsOf(orgId)).filter((found) =>
+      [used.id, unused.id].includes(found.id),
+    );
+
+    expect(listed.find((found) => found.id === used.id)?.bound).toEqual([
+      { slug: "w", tier: "preview" },
+    ]);
+    expect(listed.find((found) => found.id === unused.id)?.bound).toEqual([]);
+    await unbindProject(projectId, "preview");
+  });
+});
+
 describe("removing a target", () => {
   it("drops its tiers and bindings but keeps what it issued in the log", async () => {
     const removed = await prepareTarget(orgId, place("sa-east-1"));
