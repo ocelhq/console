@@ -259,12 +259,5 @@ export function stateOf(
 
 export type Latest = Pick<
   Deployment,
-  | "id"
-  | "topology"
-  | "deployedAt"
-  | "promotionId"
-  | "providerName"
-  | "providerRegion"
-  | "target"
-  | "tag"
->;
+  "id" | "topology" | "promotionId" | "providerName" | "providerRegion" | "target" | "tag"
+> & { deployedAt: Date };
