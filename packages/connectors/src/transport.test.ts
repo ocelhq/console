@@ -1,23 +1,25 @@
 import { createServer, type Server } from "node:http";
-import { afterEach, expect, it } from "vitest";
-import { capabilities, capabilitiesURL, variableStore } from "./transport";
+import { Code, ConnectError } from "@connectrpc/connect";
+import { connectNodeAdapter } from "@connectrpc/connect-node";
+import { afterEach, describe, expect, it } from "vitest";
+import { RefusalCode, RefusalSchema } from "./gen/provider/contract/v1/contract_pb";
+import { VariableStoreService } from "./gen/provider/variablestore/v1/variablestore_pb";
+import { RunnerService } from "./gen/runner/v1/runner_pb";
+import { providerOf, SLUG_HEADER, TIER_HEADER } from "./provider";
+import { clientsOf, type Endpoint } from "./transport";
+import { list } from "./variables";
 
-let server: Server | undefined;
+const servers: Server[] = [];
 
-afterEach(() => server?.close());
+afterEach(() => {
+  for (const server of servers.splice(0)) server.close();
+});
 
-function answering(seen: string[]): Promise<string> {
-  server = createServer((request, response) => {
-    seen.push(request.headers.authorization ?? "");
-    request.resume();
-    request.on("end", () => {
-      response.writeHead(200, { "Content-Type": "application/proto" });
-      response.end();
-    });
-  });
+function listening(server: Server): Promise<string> {
+  servers.push(server);
   return new Promise((resolve) => {
-    server?.listen(0, "127.0.0.1", () => {
-      const address = server?.address();
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
       resolve(
         typeof address === "object" && address !== null ? `http://127.0.0.1:${address.port}` : "",
       );
@@ -25,71 +27,117 @@ function answering(seen: string[]): Promise<string> {
   });
 }
 
-function probing(seen: string[], status: number, body: unknown): Promise<string> {
-  server = createServer((request, response) => {
-    seen.push(request.headers.authorization ?? "");
-    request.resume();
-    request.on("end", () => {
-      response.writeHead(status, { "Content-Type": "application/json" });
-      response.end(JSON.stringify(body));
-    });
-  });
-  return new Promise((resolve) => {
-    server?.listen(0, "127.0.0.1", () => {
-      const address = server?.address();
-      resolve(
-        typeof address === "object" && address !== null ? `http://127.0.0.1:${address.port}` : "",
-      );
-    });
-  });
+function answering(seen: string[], headers: string[] = []): Promise<string> {
+  return listening(
+    createServer((request, response) => {
+      seen.push(request.headers.authorization ?? "");
+      headers.push(...Object.keys(request.headers));
+      request.resume();
+      request.on("end", () => {
+        response.writeHead(200, { "Content-Type": "application/proto" });
+        response.end();
+      });
+    }),
+  );
 }
 
-it("sends the token as a bearer credential", async () => {
-  const seen: string[] = [];
-  const url = await answering(seen);
+function connector(url: string, authorize: Endpoint["authorize"]): Endpoint {
+  return { url, controlUrl: url, authorize };
+}
 
-  await variableStore({
-    id: "conn-1",
-    url,
-    token: "minted.jwt.value",
-    capabilities: [],
-  }).listValues({
-    slug: "shop",
+describe("an endpoint", () => {
+  it("sends a token minted for the call as a bearer credential", async () => {
+    const seen: string[] = [];
+    const url = await answering(seen);
+    const asked: unknown[] = [];
+
+    await clientsOf(
+      connector(url, async (call) => {
+        asked.push(call);
+        return `minted.for.${call.name}`;
+      }),
+    ).variableStore.listValues({ slug: "shop" });
+
+    expect(asked).toEqual([VariableStoreService.method.listValues]);
+    expect(seen).toEqual(["Bearer minted.for.ListValues"]);
   });
 
-  expect(seen).toEqual(["Bearer minted.jwt.value"]);
-});
+  it("opens no provider session and names no version", async () => {
+    const headers: string[] = [];
+    const url = await answering([], headers);
 
-it("asks for capabilities under the path the connector is published at", () => {
-  expect(capabilitiesURL("https://box.example/.ocel/connector")).toBe(
-    "https://box.example/.ocel/connector/v1/capabilities",
-  );
-  expect(capabilitiesURL("https://box.example/.ocel/connector/")).toBe(
-    "https://box.example/.ocel/connector/v1/capabilities",
-  );
-  expect(capabilitiesURL("http://127.0.0.1:7777")).toBe("http://127.0.0.1:7777/v1/capabilities");
-});
+    await clientsOf(connector(url, async () => "t")).variableStore.listValues({});
 
-it("sends the console's token when it probes for capabilities", async () => {
-  const seen: string[] = [];
-  const url = await probing(seen, 200, { capabilities: ["variables.read"] });
+    expect(headers).not.toContain("ocel-session");
+    expect(headers).not.toContain("ocel-version");
+  });
 
-  const answer = await capabilities(url, "minted.jwt.value");
+  it("reaches the runner at the endpoint's url and control calls at its control url", async () => {
+    const runnerSeen: string[] = [];
+    const controlSeen: string[] = [];
+    const endpoint: Endpoint = {
+      url: await answering(runnerSeen),
+      controlUrl: await answering(controlSeen),
+      authorize: async (call) => call.name,
+    };
 
-  expect(seen).toEqual(["Bearer minted.jwt.value"]);
-  expect(answer.done).toBe(true);
-  if (answer.done) {
-    expect(answer.result).toEqual(["variables.read"]);
-  }
-});
+    await clientsOf(endpoint).runner.getJob({ jobId: "j" });
+    await clientsOf(endpoint).variableStore.listValues({});
 
-it("reads a refused probe as the connector refusing the console's token", async () => {
-  const url = await probing([], 401, { error: "no bearer token" });
+    expect(runnerSeen).toEqual([`Bearer ${RunnerService.method.getJob.name}`]);
+    expect(controlSeen).toEqual(["Bearer ListValues"]);
+  });
 
-  const answer = await capabilities(url, "minted.jwt.value");
+  it("names the slug and tier a sessionless provider call is for", async () => {
+    const seen: Record<string, string>[] = [];
+    const url = await listening(
+      createServer((request, response) => {
+        seen.push({
+          slug: String(request.headers[SLUG_HEADER.toLowerCase()] ?? ""),
+          tier: String(request.headers[TIER_HEADER.toLowerCase()] ?? ""),
+        });
+        request.resume();
+        request.on("end", () => {
+          response.writeHead(200, { "Content-Type": "application/proto" });
+          response.end();
+        });
+      }),
+    );
 
-  expect(answer.done).toBe(false);
-  if (!answer.done) {
-    expect(answer.refusal.reason).toBe("unauthenticated");
-  }
+    await providerOf(
+      connector(url, async () => "t"),
+      "shop",
+      "production",
+    ).getPreviewWildcard({});
+
+    expect(seen).toEqual([{ slug: "shop", tier: "production" }]);
+  });
+
+  it("reads an endpoint that runs no provisioning engine as needing a runner", async () => {
+    const url = await listening(
+      createServer(
+        connectNodeAdapter({
+          routes: (router) =>
+            router.service(VariableStoreService, {
+              listValues: () => {
+                throw new ConnectError(
+                  "this endpoint runs no provisioning engine",
+                  Code.FailedPrecondition,
+                  undefined,
+                  [{ desc: RefusalSchema, value: { code: RefusalCode.NEEDS_RUNNER } }],
+                );
+              },
+            }),
+        }),
+      ),
+    );
+
+    const answer = await list(
+      connector(url, async () => "t"),
+      "production",
+      "shop",
+    );
+
+    expect(answer.done === false && answer.refusal.reason).toBe("needs-runner");
+  });
 });

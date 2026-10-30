@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const keys = ["CONSOLE_CLOUD_URL", "CONSOLE_CLOUD_PROVIDER_URL", "CONSOLE_CLOUD_AUDIENCE"] as const;
+const keys = [
+  "CONSOLE_CLOUD_URL",
+  "CONSOLE_CLOUD_PROVIDER_URL",
+  "CONSOLE_CLOUD_AUDIENCE",
+  "CONSOLE_CLOUD_VERSION",
+] as const;
 
 async function offerWith(values: Partial<Record<(typeof keys)[number], string>>) {
   for (const key of keys) vi.stubEnv(key, values[key]);
@@ -24,11 +29,13 @@ describe("readCloudOffer", () => {
         CONSOLE_CLOUD_URL: "https://cloud.example.test/api",
         CONSOLE_CLOUD_PROVIDER_URL: "https://provider.cloud.example.test",
         CONSOLE_CLOUD_AUDIENCE: "ocel-cloud",
+        CONSOLE_CLOUD_VERSION: "0.0.9",
       }),
     ).toEqual({
       apiUrl: "https://cloud.example.test/api",
       providerUrl: "https://provider.cloud.example.test",
       audience: "ocel-cloud",
+      version: "0.0.9",
     });
   });
 
@@ -37,6 +44,7 @@ describe("readCloudOffer", () => {
       apiUrl: "https://cloud.example.test/api",
       providerUrl: "",
       audience: "https://cloud.example.test",
+      version: "",
     });
   });
 

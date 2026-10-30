@@ -1,4 +1,4 @@
-import { type CloudCaller, cloudCallerOf } from "@console/api";
+import { memberOf } from "@console/api";
 import {
   type ActiveOrganizationSession,
   getActiveOrganizationSession,
@@ -6,6 +6,7 @@ import {
 } from "@console/auth";
 import { db } from "@console/db";
 import { member, organization, user } from "@console/db/schema";
+import type { Member } from "@console/endpoints";
 import { asc, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
@@ -41,10 +42,9 @@ export const requireOrganization = cache(async (): Promise<ActiveOrganizationSes
   return access.session;
 });
 
-export async function requireCloudCaller(organizationId: string | null): Promise<CloudCaller> {
-  const chosen = organizationId ?? (await requireOrganization()).activeOrganizationId;
+export async function requireMember(organizationId: string): Promise<Member> {
   const requestHeaders = await headers();
-  const reach = await cloudCallerOf(requestHeaders, chosen);
+  const reach = await memberOf(requestHeaders, organizationId);
   if (reach.state === "signed-out") {
     redirect(
       `/sign-in?redirect=${encodeURIComponent(requestHeaders.get(REQUEST_PATH_HEADER) ?? "/")}`,
@@ -53,7 +53,7 @@ export async function requireCloudCaller(organizationId: string | null): Promise
   if (reach.state === "not-member") {
     notFound();
   }
-  return reach.caller;
+  return reach.member;
 }
 
 export async function getViewer(userId: string) {

@@ -1,6 +1,7 @@
 import { db } from "@console/db";
 import { deployment, type Tier } from "@console/db/schema";
 import { and, desc, eq } from "drizzle-orm";
+import { endedDeployments } from "@/lib/deployments";
 import type { Latest } from "@/lib/variables";
 
 export async function latestTopology(
@@ -8,27 +9,30 @@ export async function latestTopology(
   tier: Tier,
 ): Promise<{ error: true } | { error: false; row: Latest | null }> {
   try {
-    const [row] = await db
-      .select({
-        id: deployment.id,
-        topology: deployment.topology,
-        deployedAt: deployment.deployedAt,
-        promotionId: deployment.promotionId,
-        providerName: deployment.providerName,
-        providerRegion: deployment.providerRegion,
-        target: deployment.target,
-        tag: deployment.tag,
-      })
-      .from(deployment)
-      .where(
-        and(
-          eq(deployment.projectId, projectId),
-          eq(deployment.tier, tier),
-          eq(deployment.outcome, "succeeded"),
-        ),
-      )
-      .orderBy(desc(deployment.deployedAt))
-      .limit(1);
+    const [row] = await endedDeployments(
+      db
+        .select({
+          id: deployment.id,
+          topology: deployment.topology,
+          deployedAt: deployment.deployedAt,
+          outcome: deployment.outcome,
+          promotionId: deployment.promotionId,
+          providerName: deployment.providerName,
+          providerRegion: deployment.providerRegion,
+          target: deployment.target,
+          tag: deployment.tag,
+        })
+        .from(deployment)
+        .where(
+          and(
+            eq(deployment.projectId, projectId),
+            eq(deployment.tier, tier),
+            eq(deployment.outcome, "succeeded"),
+          ),
+        )
+        .orderBy(desc(deployment.deployedAt))
+        .limit(1),
+    );
     return { error: false, row: row ?? null };
   } catch {
     return { error: true };

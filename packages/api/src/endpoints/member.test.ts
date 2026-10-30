@@ -1,13 +1,14 @@
 import { auth } from "@console/auth";
+import { Role } from "@console/connectors";
 import { setupTestDatabase } from "@console/db/testing";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   createTestSessionWithOrganization,
   createTestSessionWithRole,
 } from "../../test/auth-harness";
-import { cloudCallerOf } from "./caller";
+import { memberOf } from "./member";
 
-describe("cloudCallerOf", () => {
+describe("memberOf", () => {
   beforeAll(async () => {
     await setupTestDatabase();
   });
@@ -15,9 +16,13 @@ describe("cloudCallerOf", () => {
   it("answers the active organization and the caller's role in it when no organization is named", async () => {
     const session = await createTestSessionWithOrganization();
     try {
-      expect(await cloudCallerOf(session.headers, null)).toEqual({
+      expect(await memberOf(session.headers, null)).toEqual({
         state: "member",
-        caller: { userId: session.user.id, organizationId: session.organization.id, role: "owner" },
+        member: {
+          userId: session.user.id,
+          organizationId: session.organization.id,
+          role: Role.OWNER,
+        },
       });
     } finally {
       await session.cleanup();
@@ -33,9 +38,13 @@ describe("cloudCallerOf", () => {
         body: { userId: joined.user.id, organizationId: named.organization.id, role: "member" },
       });
 
-      expect(await cloudCallerOf(joined.headers, named.organization.id)).toEqual({
+      expect(await memberOf(joined.headers, named.organization.id)).toEqual({
         state: "member",
-        caller: { userId: joined.user.id, organizationId: named.organization.id, role: "member" },
+        member: {
+          userId: joined.user.id,
+          organizationId: named.organization.id,
+          role: Role.MEMBER,
+        },
       });
     } finally {
       await joined.cleanup();
@@ -48,7 +57,7 @@ describe("cloudCallerOf", () => {
     const mine = await createTestSessionWithOrganization();
     const theirs = await createTestSessionWithOrganization();
     try {
-      expect(await cloudCallerOf(mine.headers, theirs.organization.id)).toEqual({
+      expect(await memberOf(mine.headers, theirs.organization.id)).toEqual({
         state: "not-member",
       });
     } finally {
@@ -58,6 +67,6 @@ describe("cloudCallerOf", () => {
   });
 
   it("answers signed-out with no session", async () => {
-    expect(await cloudCallerOf(new Headers(), "org-1")).toEqual({ state: "signed-out" });
+    expect(await memberOf(new Headers(), "org-1")).toEqual({ state: "signed-out" });
   });
 });
