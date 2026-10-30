@@ -32,6 +32,7 @@ import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useRef, useState, useSyncExternalStore } from "react";
+import { forgetAnalyticsUser } from "@/components/analytics";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Combobox,
@@ -317,6 +318,7 @@ function UserMenu({ viewer }: { viewer: Viewer }) {
 
   async function signOut() {
     await authClient.signOut();
+    forgetAnalyticsUser();
     router.replace("/sign-in");
   }
 

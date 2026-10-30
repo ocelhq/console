@@ -4,6 +4,7 @@ import { asc, eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
+import { AnalyticsIdentity } from "@/components/analytics";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { getViewer, listMemberships, requireOrganization } from "@/lib/access";
 import { SIDEBAR_STATE_COOKIE, SIDEBAR_WIDTH_COOKIE } from "@/lib/sidebar-layout";
@@ -34,6 +35,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       defaultOpen={store.get(SIDEBAR_STATE_COOKIE)?.value !== "false"}
       defaultWidth={Number(store.get(SIDEBAR_WIDTH_COOKIE)?.value) || undefined}
     >
+      <AnalyticsIdentity
+        userId={session.userId}
+        email={viewer.email}
+        name={viewer.name}
+        organization={organizations.find((item) => item.id === session.activeOrganizationId)}
+      />
       <AppSidebar
         viewer={viewer}
         organizations={organizations}

@@ -276,6 +276,22 @@ Then point the CLI at your console:
 Known gaps: the console sends no email, so there is no password reset or email verification,
 and a VPS database has no backups.
 
+### Product analytics
+
+The console sends nothing anywhere unless you set both PostHog variables:
+
+```sh
+ocel env set CONSOLE_POSTHOG_TOKEN=phc_…                       # the project token, public
+ocel env set CONSOLE_POSTHOG_HOST=https://us.i.posthog.com    # or eu.i.posthog.com, or your own
+```
+
+With them set, browsers send pageviews, clicks, errors and session replays to PostHog through
+the console's own `/relay` path, which drops the console's cookies before forwarding. Each
+signed-in user is identified by their user id with their name and email, and grouped by their
+active organization. Inputs are masked in replays everywhere; the text of variable values and
+anything inside an element marked `data-private` is masked too, and clicks there send no event.
+Whether replays are recorded is set in the PostHog project.
+
 ## Checks
 
 From the repository root:
