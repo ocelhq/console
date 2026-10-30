@@ -15,8 +15,9 @@ and using it is optional.
 | `packages/auth`       | better-auth config: sessions, organizations, JWT, the CLI's device flow     |
 | `packages/db`         | Drizzle schema, relations and client                                       |
 | `packages/connectors` | The connector client; `src/gen` is generated from ocel's `proto/`          |
+| `packages/endpoints`  | The endpoints an organization reaches (Ocel Cloud's synthesised from the offer), and the scoped tokens it reaches them with |
 | `packages/git`        | The git provider port, its GitHub adapter, the sealed storage of apps, and the CI pipelines projects trust |
-| `packages/jobs`       | The job queue runners claim from, and the Ocel tasks that fill and report on it |
+| `packages/jobs`       | The jobs the console dispatches to runners, and the Ocel tasks that follow and report on them |
 | `packages/infra`      | The Ocel resources the console declares (`postgres("main")`)               |
 | `packages/targets`    | The console's OIDC issuer, and the targets that trust it                   |
 | `packages/theme`      | The design tokens shared with the other Ocel surfaces                      |
@@ -33,6 +34,7 @@ and using it is optional.
 
 ```sh
 bun install
+bun run build                                   # @ocelhq/variables-ui, which the Variables page imports built
 docker compose up -d                            # Postgres 17 on localhost:5432
 cp apps/web/.env.example apps/web/.env.local    # then set BETTER_AUTH_SECRET
 cd apps/web
@@ -45,8 +47,11 @@ tests. Set `POSTGRES_PORT` to publish it on another host port, and change the UR
 
 `bun run dev` reads `DATABASE_URL` from `.env.local`, applies the migrations to it, and hands
 it to the app as its `postgres("main")` binding. `bun run dev:ocel` runs `next dev` under
-`ocel dev` instead, which supplies the binding itself; migrate its database with
-`ocel run -c ../../ocel.aws.config.ts -- bun run --filter @console/db db:migrate`.
+`ocel dev` instead, which supplies the binding from a Postgres of its own (not
+`NEON_DATABASE_URL`, which only deploys read) and also runs the console's Ocel tasks; migrate its
+database with `ocel run -c ../../ocel.aws.config.ts -- bun run --filter @console/db db:migrate`.
+Either way, build the workspace packages first (`bun run build` at the root): the Variables page
+compiles against `@ocelhq/variables-ui`'s build output.
 
 Sign-in methods come from the env: `CONSOLE_EMAIL_AUTH=true` enables email and password, and
 `GITHUB_CLIENT_ID` with `GITHUB_CLIENT_SECRET` enables GitHub, from an OAuth app whose callback
@@ -63,11 +68,11 @@ The **Git Integration** page at `/git` holds the organization's GitHub Apps and 
 (`CONSOLE_ENCRYPTION_KEY` must be set). A project's own Git Integration page links it to a
 repository of an installation, names its production branch, and chooses where its deploys run:
 
-- **Console runners**: a push to the production branch queues a deploy, and a pull request
-  queues a preview, for a runner to claim.
+- **Console runners**: a push to the production branch dispatches a deploy, and a pull request
+  a preview, to the runner bound to the project's tier.
 - **Your CI**: git events queue nothing. The project's GitHub Actions workflows deploy and report
   to the console, which posts each report on the pull request as a comment, a commit status and a
-  GitHub deployment. Choosing it cancels deploys still waiting for a runner.
+  GitHub deployment. Choosing it cancels the jobs git events dispatched that have not ended.
 
 A project accepts reports from CI only from its **trusted pipelines**. Choosing Your CI trusts the
 linked repository's pipeline, which can be narrowed but not removed while deploys run in CI; an
@@ -200,16 +205,26 @@ organization members. Whoever installs the app comes back through the setup URL,
 GitHub, and the console connects the installation to their organization once GitHub confirms
 their account owns the account it is installed on, or is an owner of that organization.
 
-Git events become jobs on a Postgres queue (`job`, claimed by a `runner` under a lease) through three
-Ocel tasks the console declares in `packages/jobs/src/tasks`: `git-event` turns a webhook delivery into
-jobs, `git-sync` reports a job's state to GitHub, and `lease-sweep` runs every minute to requeue a claim
-nobody started, fail a run that stopped reporting, and report again any change whose report was lost.
-A push to a project's production branch (the repository's default branch unless the link names
-another) queues a deploy, and a pull request queues, replaces and removes its preview, reported in the
-`preview/pr-<n>/<project>` environment. A queued job waits for a runner; nothing runs it until runners
-exist, and a pull request from a fork queues nothing. A managed runner takes only a job labelled
-`managed`; an organization's own runner takes any of its projects' jobs whose labels it holds. Tasks
-put these requirements on the target you deploy to:
+Git events become jobs (the `job` table) through three Ocel tasks the console declares in
+`packages/jobs/src/tasks`: `git-event` turns a webhook delivery into jobs and dispatches each to the
+runner bound to its project's tier, `git-sync` reports a job's state to GitHub, and `job-sweep` runs
+every minute to send again a job its runner has not acknowledged, read each active job's state from
+its runner, fail one whose runner stopped answering or that outlived its time limit, dispatch a job
+held behind the one before it, and report again any change whose report was lost. A push to a
+project's production branch (the repository's default branch unless the link names another)
+dispatches a deploy, cancelling older pushes still held at the console; the deploy already running
+finishes. A pull request dispatches, replaces and removes its preview, reported in the
+`preview/pr-<n>/<project>` environment; closing it removes a preview its CI deployed too.
+A job clones its commit with a GitHub App installation token for that one repository, read-only and
+good for at most an hour. Before placing a git event's job, the console reads the project's config
+(`ocel.json`, `ocel.yaml` or `ocel.yml`, as the CLI looks for them) at that commit through the
+installation, and keeps the provider it names on the job. A tier with no runner bound runs nothing,
+and records a failed job saying to bind one, unless that config names no provider while this
+console offers Ocel Cloud, whose runner then runs it. The console cannot evaluate an
+`ocel.config.ts`, so such a project's tiers need a bound runner. A tier that deploys to Ocel Cloud runs only on Ocel Cloud's runner, and a
+binding must let the console follow and cancel its jobs (`apps.read` and `apps.write`). A pull
+request from a fork dispatches nothing. Tasks put these requirements on the target
+you deploy to:
 
 - AWS: the console must run on serverless compute, since an app on container compute can't send to
   a task yet. The tier must not be an ephemeral preview, which refuses to declare one.
@@ -221,26 +236,33 @@ put these requirements on the target you deploy to:
 A console can offer an Ocel Cloud as the target of projects that name no provider. These
 variables configure the offer; with `CONSOLE_CLOUD_URL` unset the console offers none:
 
-| Variable                     | Default                           | Effect                                                   |
-| ---------------------------- | --------------------------------- | -------------------------------------------------------- |
-| `CONSOLE_CLOUD_URL`          | unset                             | The Ocel Cloud API the CLI deploys to                    |
-| `CONSOLE_CLOUD_PROVIDER_URL` | unset                             | The hosted provider the CLI reaches for day-2 commands   |
-| `CONSOLE_CLOUD_AUDIENCE`     | the origin of `CONSOLE_CLOUD_URL` | The `aud` of the tokens the console signs for Ocel Cloud |
+| Variable                     | Default                           | Effect                                                        |
+| ---------------------------- | --------------------------------- | ------------------------------------------------------------- |
+| `CONSOLE_CLOUD_URL`          | unset                             | The Ocel Cloud API the CLI deploys to                         |
+| `CONSOLE_CLOUD_PROVIDER_URL` | unset                             | The hosted provider the CLI reaches for day-2 commands        |
+| `CONSOLE_CLOUD_AUDIENCE`     | the origin of `CONSOLE_CLOUD_URL` | The `aud` of the tokens the console signs for Ocel Cloud      |
+| `CONSOLE_CLOUD_VERSION`      | unset                             | The ocel version Ocel Cloud's provider serves to CLI sessions |
 
 `ocel login` asks the console what it offers (`console.v1.ConsoleService.Describe`, no session
-needed), then trades the session for five-minute Ocel Cloud tokens
-(`ConsoleService.IssueCloudToken`) signed for the organization the request names, with the
-scopes it asks for when the caller's role allows them all: members get `cloud.apps.read` and
-`cloud.apps.write`, admins add `cloud.variables.write`, owners add `cloud.variables.reveal`.
-Ocel Cloud verifies them against `{origin}/api/auth/jwks`, so it must trust this console's origin
-and expect the same audience.
+needed), then trades the session for five-minute endpoint tokens
+(`ConsoleService.IssueEndpointToken`) signed for the organization and endpoint the request names
+(`ocel-cloud` for Ocel Cloud), with the scopes it asks for when the caller's role reaches each
+scope's least role and the endpoint allows it: members get `apps.read`, `apps.write` and
+`variables.read`, admins add `variables.write`, owners add `variables.reveal`. Each token also
+names the caller's role (`member`, `admin` or `owner`), which a runner checks before it cancels,
+answers or supplies values to a job: a destroy needs an admin. A token for Ocel
+Cloud carries `CONSOLE_CLOUD_AUDIENCE`, and one for any other endpoint its id. Endpoints verify
+them against `{origin}/api/auth/jwks`, so they must trust this console's origin.
 
-The CLI links each Ocel Cloud job to `/cloud/jobs/{id}?org={organization id}`. That page reads
-the job from `cloud.v1.JobService` at `CONSOLE_CLOUD_URL` with a one-minute token of the same
-shape, signed for that organization (the viewer's active one when the link names none), and polls
-its events through `/api/cloud/jobs/{id}/events`. The console stores none of it but the
-deployment a finished job reports. Without an offer, for an organization the viewer doesn't
-belong to, or for a job Ocel Cloud doesn't show that organization, the page is a 404.
+A deployment that runs as a job shows its run on its deployment page, which the CLI links to by
+the deployment's id. While the job waits at the console (behind the tier's previous job, or for
+its runner to take it) the console says so itself; once the runner has it, the page polls the job's
+events through `/api/deployments/{id}/run/events`, read from the runner (`runner.v1.RunnerService`)
+with one-minute tokens holding only the scope each call needs. Answers go through
+`/api/deployments/{id}/run/respond`, and `/api/deployments/{id}/run/cancel` cancels the job
+through the console, which ends a held job itself and asks the runner to stop one it has. Only a
+role that reaches the job's command may cancel it. The console asks the runner with that person's
+role, and with the least role the command needs when it cancels on its own.
 
 Targets need an issuer key, separate from `BETTER_AUTH_SECRET`. With neither set, the console
 issues no credentials and its `/oidc` routes are 404s:
