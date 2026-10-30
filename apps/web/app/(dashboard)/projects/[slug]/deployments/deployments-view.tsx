@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { atOf } from "@/lib/deployment-view";
 import { listDeployments } from "@/lib/deployments";
 import { tierScopeOf } from "@/lib/tier";
 import { PageShell } from "../../../page-shell";
@@ -78,7 +79,7 @@ export async function DeploymentsView({
                 variant="outline"
                 size="sm"
                 nativeButton={false}
-                render={<Link href={href(load.rows[load.rows.length - 1].deployedAt.getTime())} />}
+                render={<Link href={href(atOf(load.rows[load.rows.length - 1]).getTime())} />}
               >
                 Older
               </Button>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { TableBody, TableCell, TableRow } from "@/components/ui/table";
 import {
+  atOf,
   authorOf,
   commandOf,
   deploymentHref,
@@ -31,7 +32,7 @@ function Row({
 }) {
   const router = useRouter();
   const href = deploymentHref(project.slug, deployment.id);
-  const status = deploymentStatus(deployment);
+  const status = deploymentStatus(deployment, null, new Date(now));
   const took = duration(deployment);
   const author = authorOf(deployment.trigger);
 
@@ -90,12 +91,12 @@ function Row({
       </TableCell>
       <TableCell className={`${cell} text-right text-muted-foreground`}>
         <span className="inline-flex items-center gap-2">
-          <Stamp at={deployment.deployedAt.toISOString()} now={now} />
+          <Stamp at={atOf(deployment).toISOString()} now={now} />
           {author && (
             <AuthorMark
               name={author}
               trigger={deployment.trigger}
-              deployedAt={deployment.deployedAt.toISOString()}
+              deployedAt={atOf(deployment).toISOString()}
             />
           )}
         </span>

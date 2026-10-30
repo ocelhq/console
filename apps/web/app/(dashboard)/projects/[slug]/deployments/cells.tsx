@@ -2,6 +2,7 @@
 
 import type { DeploymentApp, DeploymentTrigger, Tier } from "@console/db/schema";
 import {
+  BrowserIcon,
   GitBranchIcon,
   GitPullRequestIcon,
   GlobeSimpleIcon,
@@ -11,7 +12,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { Tone } from "@/lib/deployment-view";
+import { type Tone, triggerLabel, viaOf } from "@/lib/deployment-view";
 import { initials } from "@/lib/initials";
 import { absoluteTime } from "@/lib/relative-time";
 import { AppMark } from "../../../marks";
@@ -99,16 +100,17 @@ const triggerIcons: Record<DeploymentTrigger["kind"], typeof TerminalIcon> = {
   cli: TerminalIcon,
   ci: RobotIcon,
   git: GitBranchIcon,
+  console: BrowserIcon,
 };
 
 export function Trigger({ trigger, command }: { trigger: DeploymentTrigger; command: string }) {
   const Icon = triggerIcons[trigger.kind];
-  const via = trigger.kind === "ci" ? (trigger.ci?.provider ?? "ci") : null;
+  const via = viaOf(trigger);
   return (
     <span className="inline-flex items-center gap-1.5">
       <Icon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
-      <span>{command}</span>
-      {via && <span className="text-muted-foreground">via {via}</span>}
+      <span>{triggerLabel(trigger, command)}</span>
+      {via && <span className="text-muted-foreground">{via}</span>}
     </span>
   );
 }
@@ -124,10 +126,14 @@ export function AuthorMark({
 }) {
   const via =
     trigger.kind === "ci"
-      ? `via ${trigger.ci?.provider ?? "ci"}`
+      ? viaOf(trigger)
       : trigger.kind === "git"
         ? "via git push"
-        : "from the terminal";
+        : trigger.kind === "console"
+          ? "from the console"
+          : trigger.remote
+            ? "from the terminal, run remotely"
+            : "from the terminal";
   return (
     <Tooltip>
       <TooltipTrigger

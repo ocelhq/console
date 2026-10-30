@@ -2,16 +2,26 @@ import { db } from "@console/db";
 import { type Deployment, project } from "@console/db/schema";
 import { and, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import { requireOrganization } from "@/lib/access";
-import { latestDeployments } from "@/lib/deployments";
+import { type Ended, latestDeployments } from "@/lib/deployments";
+import { jobActivity } from "@/lib/job-activity";
 import { tierOf, withTier } from "@/lib/tier";
+import { JobActivity } from "./overview/activity";
 import type { Provenance } from "./overview/provenance";
 import { ServiceMap } from "./overview/service-map";
 import { LoadError, NeverDeployed, TornDown } from "./overview/states";
 
-const canvas = "h-[calc(100svh-3.5rem)] min-h-0 overflow-hidden";
+function Framed({ activity, children }: { activity: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex h-[calc(100svh-3.5rem)] flex-col">
+      {activity}
+      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+    </div>
+  );
+}
 
-function provenanceOf(record: Deployment): Provenance {
+function provenanceOf(record: Ended<Deployment>): Provenance {
   return {
     deployedAt: record.deployedAt.toISOString(),
     promotionId: record.promotionId,
@@ -44,14 +54,18 @@ export default async function ProjectPage({
     notFound();
   }
 
-  const load = await latestDeployments(found.id, tier);
+  const [load, rows] = await Promise.all([
+    latestDeployments(found.id, tier),
+    jobActivity(found.id, tier, new Date()),
+  ]);
   const now = new Date().toISOString();
+  const activity = <JobActivity rows={rows} slug={slug} now={now} />;
 
   if (load.error) {
     return (
-      <div className={canvas}>
+      <Framed activity={activity}>
         <LoadError href={withTier(`/projects/${slug}`, tier)} />
-      </div>
+      </Framed>
     );
   }
 
@@ -59,9 +73,9 @@ export default async function ProjectPage({
 
   if (!latest) {
     return (
-      <div className={canvas}>
+      <Framed activity={activity}>
         <NeverDeployed tier={tier} now={now} />
-      </div>
+      </Framed>
     );
   }
 
@@ -74,20 +88,20 @@ export default async function ProjectPage({
       providerRegion: latest.providerRegion,
     };
     return (
-      <div className={canvas}>
+      <Framed activity={activity}>
         {lastPromoted ? (
           <TornDown topology={lastPromoted.topology} provenance={stamp} now={now} />
         ) : (
           <NeverDeployed tier={tier} stamp={stamp} now={now} />
         )}
-      </div>
+      </Framed>
     );
   }
 
   if (latest.outcome === "failed") {
     const failure = { deployedAt: latest.deployedAt.toISOString(), error: latest.error };
     return (
-      <div className={canvas}>
+      <Framed activity={activity}>
         {lastPromoted ? (
           <ServiceMap
             topology={lastPromoted.topology}
@@ -98,13 +112,13 @@ export default async function ProjectPage({
         ) : (
           <NeverDeployed tier={tier} failure={failure} now={now} />
         )}
-      </div>
+      </Framed>
     );
   }
 
   return (
-    <div className={canvas}>
+    <Framed activity={activity}>
       <ServiceMap topology={latest.topology} provenance={provenanceOf(latest)} now={now} />
-    </div>
+    </Framed>
   );
 }
