@@ -173,6 +173,24 @@ running `ocel deploy`, through `lifecycle.preBuild`: `drizzle-kit migrate` again
 To migrate without deploying, run
 `ocel run --env production -- bun run --filter @console/db db:migrate`.
 
+app.ocelhq.com deploys from `.github/workflows/deploy.yml` once CI passes on `main`, or by hand
+with Run workflow. It installs the CLI version the `ocel` catalog entry pins and runs
+`ocel deploy -c ocel.aws.config.ts` in the `production` environment, which sets:
+
+| Kind     | Name                        | Value                                                        |
+| -------- | --------------------------- | ------------------------------------------------------------ |
+| secret   | `AWS_DEPLOY_ROLE_ARN`       | A role the repo's `production` environment may assume by OIDC |
+| variable | `AWS_ACCOUNT_ID`            | The only account the run may deploy into                     |
+| variable | `CONSOLE_AWS_REGION`        | The region the console runs in                               |
+| variable | `CONSOLE_DOMAIN`            | The production hostname                                      |
+| variable | `CONSOLE_VARIABLES_KMS_KEY` | The KMS key the console's variables are sealed with          |
+| secret   | `NEON_DATABASE_URL`         | The production database                                      |
+| secret   | `CLOUDFLARE_API_TOKEN`      | The token for the edge and DNS                               |
+| variable | `CLOUDFLARE_ACCOUNT_ID`     | The Cloudflare account                                       |
+
+A run missing any of them fails before it deploys. Runtime variables (`BETTER_AUTH_SECRET`,
+`CONSOLE_POSTHOG_TOKEN`, …) stay where `ocel env set` put them.
+
 Sign-in is configured with these variables:
 
 | Variable                                     | Default  | Effect                                                     |
