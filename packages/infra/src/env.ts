@@ -88,13 +88,19 @@ export const env = defineEnv({
         class: "plain",
         schema: z.url(),
         description:
-          "PostHog's ingestion host: https://us.i.posthog.com, https://eu.i.posthog.com, or your own.",
+          "Where browsers send events: https://us.i.posthog.com, https://eu.i.posthog.com, a managed proxy, or your own PostHog.",
+      },
+      CONSOLE_POSTHOG_UI_HOST: {
+        class: "plain",
+        schema: z.url().optional(),
+        description:
+          "Where links into PostHog open, when CONSOLE_POSTHOG_HOST is a proxy: https://us.posthog.com or https://eu.posthog.com.",
       },
     },
     {
       optional: true,
       description:
-        "Sends product analytics, session replays and errors to PostHog, through the console's own origin. Off unless set.",
+        "Sends product analytics, session replays and errors to PostHog. Off unless set.",
     },
   ),
   ocelCloud: group(
