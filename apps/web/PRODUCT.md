@@ -24,8 +24,11 @@ such; jargon that is not axiomatic is still avoided.
 The console is the optional UI over Ocel and the visual half of a CLI-first product.
 It is a viewer: it shows what the CLI did and where things landed, in the customer's
 own cloud or on Ocel Cloud, the zero-config managed target a console may offer. Everything starts from the CLI except creating an account and an
-organization. The console never triggers a deploy, creates a project, or edits
-infrastructure.
+organization. The console never creates a project or edits infrastructure. Its mutating
+actions are few and named: it starts a job on a project tier's bound runner for a git event or a
+CLI `--remote` run, relays a running job's answers and cancel, binds runners and targets, and rolls
+production back to an earlier promotion through an endpoint that serves the rollback (recorded as
+a deployment of its own); everything else names the command that does it.
 
 Success is a reader understanding a project's state faster than they could from the
 terminal, and trusting that what they see is exactly what the CLI last reported.
@@ -34,9 +37,11 @@ terminal, and trusting that what they see is exactly what the CLI last reported.
 
 - **A viewer, not a cloud.** Infrastructure lives in the customer's account or on Ocel
   Cloud, never in the console. The console stores only what the CLI reports to it and
-  what a connector or Ocel Cloud lets it pull. On an Ocel Cloud job page it relays the
-  answers a paused job asks for (missing variable values, a confirmation) and a cancel;
-  it starts no deploy.
+  what a connector or Ocel Cloud lets it pull. A deployment that runs as a job on a runner
+  shows its phases and log on its deployment page, which relays the answers a paused job
+  asks for (a confirmation, or missing variable values for an admin) and a cancel. The
+  console starts a job only for a git event or a CLI `--remote` run, on the runner bound to
+  the project's tier.
 - **CLI-first.** Every mutating action the console cannot perform names the command
   that can. The command pane is the console's call to action.
 - **Own the history, borrow the state.** The console stores events the CLI pushes
@@ -49,10 +54,12 @@ terminal, and trusting that what they see is exactly what the CLI last reported.
 - Link flow: `ocel login` points the CLI at a console URL; `ocel link` ties a local
   project to a console project (the link is a local sidecar, not a server record). The
   project appears on the console with nothing to show until the first deploy.
-- A deploy runs from the developer's machine into their provider account and, once
-  finished, reports a single terminal record to the console: identity, environment,
-  provider, outcome, the apps with their live urls and variable names, the resources
-  and bindings, and the app-to-resource usages that form the graph.
+- A deploy runs from the developer's machine, from their CI, or as a job on the runner
+  bound to the project's tier (for a git push or pull request, or `ocel deploy --remote`).
+  Wherever it runs, it records the deployment with the console when it starts and reports
+  one terminal record when it ends: identity, environment, provider, outcome, the apps
+  with their live urls and variable names, the resources and bindings, and the
+  app-to-resource usages that form the graph.
 - Environments are production and preview. The console shows one environment at a
   time, selected in the header; the selection is a query parameter today.
 - Data on the console is "as at last deploy", never live.
@@ -70,18 +77,20 @@ terminal, and trusting that what they see is exactly what the CLI last reported.
 - Dev env values shared across a project, for `ocel dev`.
 - Navigation for deployments, variables, resources, domains, monitoring, and spend.
   Every one of these pages is a notice naming the CLI command that does the job.
+- Connectors: an endpoint in the customer's account (`ocel connector add`) the console
+  calls for variable values and rollback, and, when its runner role is enabled, that
+  runs the project's jobs. Ocel Cloud's endpoint is implied while the console offers it.
 
 **Being built:** the deployment record the CLI pushes after a deploy, and the project
 overview that renders the latest one as a service map.
 
 **Planned, not shipped.** Show only when clearly labelled as planned:
 
-- Connectors: an API server in the customer's account the console calls to pull
-  variable values, logs, and spend. Same model as CLI-to-provider.
+- Logs and spend pulled through a connector.
 - Monitoring and spend backed by real data.
 
-**Undecided:** whether the console ever gains a mutating action beyond account and
-organization setup and relaying an Ocel Cloud job's answers or cancel.
+**Undecided:** whether the console gains mutating actions beyond those above (account and
+organization setup, runner and target bindings, job dispatch and relay, and rollback).
 
 **Status:** pre-release alpha. Nothing is released, so nothing has consumers, and the
 codebase makes clean breaks.
