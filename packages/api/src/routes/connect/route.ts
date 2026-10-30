@@ -2,20 +2,23 @@ import { createConnectRouter } from "@connectrpc/connect";
 import { createFetchHandler } from "@connectrpc/connect/protocol";
 import { createValidateInterceptor } from "@connectrpc/validate";
 import { consoleOrigin } from "@console/auth";
-import { ConnectorService } from "@console/connectors/gen/console/v1/connector_pb";
 import { ConsoleService } from "@console/connectors/gen/console/v1/console_pb";
 import { DeploymentService } from "@console/connectors/gen/console/v1/deployment_pb";
+import { EndpointService } from "@console/connectors/gen/console/v1/endpoint_pb";
+import { JobService } from "@console/connectors/gen/console/v1/job_pb";
 import { ProjectService } from "@console/connectors/gen/console/v1/project_pb";
 import { TargetService } from "@console/connectors/gen/console/v1/target_pb";
 import type { Job } from "@console/db/schema";
 import type { GitRuntime } from "@console/git";
+import { gitTokens, type JobDeps, type RunnerCalls, runnerCalls } from "@console/jobs";
 import { configuredIssuer, type Issuer } from "@console/targets";
 import { githubActionsKeys, type PipelineKeys } from "../../pipelines/admit";
 import { validator } from "../../validator";
 import { callerInterceptor } from "./caller";
-import { connectorService } from "./connector-service";
 import { consoleService } from "./console-service";
 import { deploymentService } from "./deployment-service";
+import { endpointService } from "./endpoint-service";
+import { jobService } from "./job-service";
 import { projectService } from "./project-service";
 import { targetService } from "./target-service";
 
@@ -26,20 +29,33 @@ export interface ConnectDeps {
   git: () => GitRuntime | undefined;
   pipelineKeys?: PipelineKeys;
   issuer?: () => Promise<Issuer> | undefined;
+  runners?: RunnerCalls;
 }
 
 export function connectHandler(deps: ConnectDeps): (request: Request) => Promise<Response> {
   const pipelineKeys = () =>
     deps.pipelineKeys ?? { keys: githubActionsKeys(), audience: consoleOrigin() };
+  const jobs = (): JobDeps => ({
+    runners: deps.runners ?? runnerCalls,
+    notify: deps.notify,
+    gitToken: gitTokens(deps.git),
+  });
   const handlers = createConnectRouter({
     interceptors: [
       callerInterceptor({
         open: [
           ConsoleService.method.describe,
-          ConsoleService.method.issueCloudToken,
-          ConnectorService.method.heartbeat,
+          ConsoleService.method.issueEndpointToken,
+          EndpointService.method.heartbeat,
         ],
         pipelines: [
+          DeploymentService.method.start,
+          DeploymentService.method.report,
+          DeploymentService.method.recordEnvironmentEvent,
+          TargetService.method.issueCredential,
+        ],
+        jobs: [
+          DeploymentService.method.start,
           DeploymentService.method.report,
           DeploymentService.method.recordEnvironmentEvent,
           TargetService.method.issueCredential,
@@ -51,6 +67,7 @@ export function connectHandler(deps: ConnectDeps): (request: Request) => Promise
     .service(
       DeploymentService,
       deploymentService({
+        jobs,
         notify: deps.notify,
         git: deps.git,
         pipelineKeys,
@@ -63,8 +80,9 @@ export function connectHandler(deps: ConnectDeps): (request: Request) => Promise
         pipelineKeys,
       }),
     )
+    .service(JobService, jobService(jobs))
     .service(ProjectService, projectService)
-    .service(ConnectorService, connectorService)
+    .service(EndpointService, endpointService)
     .service(ConsoleService, consoleService)
     .handlers.map((handler) => ({
       path: handler.requestPath,

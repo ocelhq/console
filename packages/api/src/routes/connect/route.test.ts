@@ -73,7 +73,7 @@ describe("DeploymentService over Connect", () => {
           trigger: { kind: "ci", actor: "victor", ci: { provider: "github" } },
           git: { sha: "0123456789abcdef", branch: "main", dirty: false },
         });
-        expect(row?.deployedAt.toISOString()).toBe("2026-01-01T00:00:00.000Z");
+        expect(row?.deployedAt?.toISOString()).toBe("2026-01-01T00:00:00.000Z");
         expect(row?.topology.apps[0]).toMatchObject({
           name: "web",
           framework: "next",

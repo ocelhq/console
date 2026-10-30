@@ -32,7 +32,7 @@ export default defineConfig({
     },
     server: {
       deps: {
-        inline: ["@console/db"],
+        inline: ["@console/auth", "@console/db"],
       },
     },
   },

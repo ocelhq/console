@@ -8,6 +8,7 @@ import {
   type Deployment,
   DeploymentKind,
   DeploymentOutcome,
+  type DeploymentStart,
   type EnvironmentEvent,
   EnvironmentEventKind,
   type Resource,
@@ -219,6 +220,7 @@ export function deploymentValues(projectId: string, id: string, deployment: Depl
     target: deployment.target,
     edgeKind: deployment.edge?.kind ?? null,
     outcome: named(deploymentOutcomes, deployment.outcome, "deployment outcome"),
+    outcomeBy: "ocel" as const,
     error: nullable(deployment.error),
     trigger,
     git: gitOf(deployment.source),
@@ -253,5 +255,27 @@ export function environmentEventValues(projectId: string, id: string, event: Env
     occurredAt: event.at ? timestampDate(event.at) : new Date(),
     git: gitOf(event.source),
     ci: ciOf(event.ci) ?? null,
+  };
+}
+
+export function startValues(projectId: string, id: string, started: DeploymentStart) {
+  return {
+    id,
+    projectId,
+    deploymentId: started.id,
+    kind: named(deploymentKinds, started.kind, "deployment kind"),
+    ...environmentOf(started.environment),
+    providerName: started.provider?.name ?? "",
+    providerRegion: nullable(started.provider?.region),
+    target: started.target,
+    edgeKind: started.edge?.kind ?? null,
+    trigger: {
+      kind: named(triggerKinds, started.trigger?.kind ?? 0, "trigger kind"),
+      actor: present(started.trigger?.actor),
+      ci: ciOf(started.ci),
+    } satisfies DeploymentTrigger,
+    git: gitOf(started.source),
+    cliVersion: nullable(started.cliVersion),
+    startedAt: started.startedAt ? timestampDate(started.startedAt) : new Date(),
   };
 }

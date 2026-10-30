@@ -173,6 +173,7 @@ describe("deleteProject", () => {
         providerName: "aws",
         target: "aws/123456789012/us-east-1/main",
         outcome: "succeeded",
+        outcomeBy: "ocel",
         trigger: { kind: "cli", actor: "victor" },
         deployedAt: new Date(),
         trace: [],

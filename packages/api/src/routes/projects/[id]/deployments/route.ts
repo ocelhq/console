@@ -1,5 +1,5 @@
 import { db } from "@console/db";
-import { type Deployment, deployment, TIERS, type Tier } from "@console/db/schema";
+import { type Deployment, deployment, deploymentAt, TIERS, type Tier } from "@console/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 import { findOwnedProject } from "../owned";
 
@@ -24,7 +24,7 @@ function summary(row: Deployment) {
     git: row.git,
     cliVersion: row.cliVersion,
     startedAt: row.startedAt?.getTime() ?? null,
-    deployedAt: row.deployedAt.getTime(),
+    deployedAt: row.deployedAt?.getTime() ?? null,
     apps: row.topology.apps.map((app) => ({
       name: app.name,
       outcome: app.outcome,
@@ -48,7 +48,7 @@ export async function listDeployments(request: Request, id: string): Promise<Res
     .select()
     .from(deployment)
     .where(where)
-    .orderBy(desc(deployment.deployedAt))
+    .orderBy(desc(deploymentAt), desc(deployment.id))
     .limit(50);
 
   return Response.json(rows.map(summary), { status: 200 });

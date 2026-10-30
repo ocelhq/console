@@ -14,7 +14,7 @@ import { db } from "@console/db";
 import { deployment, environmentEvent, type Job, job } from "@console/db/schema";
 import { setupTestDatabase } from "@console/db/testing";
 import { envKeyStore, type GitProvider, type GitRuntime, gitStore } from "@console/git";
-import { deployIn } from "@console/jobs";
+import { deployIn, type RunnerCalls } from "@console/jobs";
 import { eq } from "drizzle-orm";
 import { createLocalJWKSet } from "jose";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -39,6 +39,18 @@ vi.mock("@console/jobs", async (importOriginal) => {
     },
   };
 });
+
+const noRunner: RunnerCalls = {
+  start: async () => {
+    throw new Error("no runner in this test");
+  },
+  get: async () => {
+    throw new Error("no runner in this test");
+  },
+  cancel: async () => {
+    throw new Error("no runner in this test");
+  },
+};
 
 const HEAD = "c".repeat(40);
 const RUN_URL = "https://github.com/acme/web/actions/runs/9001/attempts/2";
@@ -136,7 +148,11 @@ beforeEach(async () => {
     installationId,
     repo: { id: "1234", fullName: "acme/web", defaultBranch: "main", ownerId: "42" },
   });
-  await deployIn(projectId, { mode: "ci", by: null }, async () => {});
+  await deployIn(
+    projectId,
+    { mode: "ci", by: null },
+    { runners: noRunner, notify: async () => {} },
+  );
   notified = [];
   jobInsert.fails = false;
 });
