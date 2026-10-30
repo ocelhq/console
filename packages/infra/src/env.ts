@@ -30,6 +30,12 @@ export const env = defineEnv({
     description:
       "open lets anyone sign up; invite lets only the first user and invited emails sign up.",
   },
+  CONSOLE_WAITLIST_URL: {
+    class: "plain",
+    schema: z.url().optional(),
+    description:
+      "Where the sign-in page sends a waitlist request when CONSOLE_SIGNUP is invite, instead of offering sign-up.",
+  },
   encryption: group(
     { CONSOLE_ENCRYPTION_KEY: { class: "secret" } },
     {

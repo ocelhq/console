@@ -180,6 +180,7 @@ Sign-in is configured with these variables:
 | `CONSOLE_EMAIL_AUTH`                         | `false`  | Email and password sign-in                                 |
 | `GITHUB_CLIENT_ID` + `GITHUB_CLIENT_SECRET`  | unset    | GitHub sign-in                                             |
 | `CONSOLE_SIGNUP`                             | `invite` | `invite`: only the first user and invited emails sign up; `open`: anyone |
+| `CONSOLE_WAITLIST_URL`                       | none     | With `invite`, the sign-in page posts a waitlist request here instead of offering sign-up |
 | `BETTER_AUTH_URL`                            | unset    | The public origin, when it is not the hostname ocel serves |
 
 The console refuses to start with no sign-in method enabled. While sign-up is invite-only, the
