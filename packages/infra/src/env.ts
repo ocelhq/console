@@ -78,6 +78,25 @@ export const env = defineEnv({
       description: "A retired P-256 key, PEM or JWK, whose public half the issuer still publishes.",
     },
   ),
+  posthog: group(
+    {
+      CONSOLE_POSTHOG_TOKEN: {
+        class: "plain",
+        description: "The PostHog project token (phc_…). It is public: browsers send it.",
+      },
+      CONSOLE_POSTHOG_HOST: {
+        class: "plain",
+        schema: z.url(),
+        description:
+          "PostHog's ingestion host: https://us.i.posthog.com, https://eu.i.posthog.com, or your own.",
+      },
+    },
+    {
+      optional: true,
+      description:
+        "Sends product analytics, session replays and errors to PostHog, through the console's own origin. Off unless set.",
+    },
+  ),
   ocelCloud: group(
     {
       CONSOLE_CLOUD_URL: {
