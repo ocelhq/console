@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, type ReactNode, useState } from "react";
 import { AuthError, AuthPanel } from "@/components/auth-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,11 +13,13 @@ export function SignInForm({
   email,
   callbackURL,
   waitlist,
+  aside,
 }: {
   github: boolean;
   email: boolean;
   callbackURL: string;
   waitlist?: string;
+  aside?: ReactNode;
 }) {
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [isLoading, setIsLoading] = useState(false);
@@ -69,6 +71,7 @@ export function SignInForm({
     <AuthPanel
       title={signingUp ? "Create your account" : "Sign in"}
       description={signingUp ? "Sign up with your email address." : "Continue to the console."}
+      aside={aside}
     >
       {github && (
         <Button
