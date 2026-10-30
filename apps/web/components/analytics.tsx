@@ -2,7 +2,6 @@
 
 import posthog from "posthog-js";
 import { useEffect } from "react";
-import { RELAY_PATH } from "@/lib/relay-path";
 
 // Views that show variable values, secrets or tokens. Replays draw their text as asterisks,
 // and clicks inside them send no event; inputs are masked everywhere.
@@ -20,17 +19,26 @@ function whenStarted(run: () => void) {
   }
 }
 
-export function Analytics({ token, uiHost }: { token: string; uiHost: string }) {
+export function Analytics({
+  token,
+  host,
+  uiHost,
+}: {
+  token: string;
+  host: string;
+  uiHost: string;
+}) {
   useEffect(() => {
     if (started) {
       return;
     }
     posthog.init(token, {
-      api_host: RELAY_PATH,
+      api_host: host,
       ui_host: uiHost,
       defaults: "2026-08-30",
       person_profiles: "identified_only",
       capture_exceptions: true,
+      capture_heatmaps: true,
       session_recording: { maskAllInputs: true, maskTextSelector: PRIVATE.join(", ") },
       before_send: (event) =>
         event?.event === "$autocapture" &&
@@ -44,7 +52,7 @@ export function Analytics({ token, uiHost }: { token: string; uiHost: string }) 
         }
       },
     });
-  }, [token, uiHost]);
+  }, [token, host, uiHost]);
 
   return null;
 }

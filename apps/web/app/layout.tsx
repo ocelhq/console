@@ -17,7 +17,9 @@ export const metadata: Metadata = {
 async function StartAnalytics() {
   await connection();
   const analytics = readAnalytics();
-  return analytics ? <Analytics token={analytics.token} uiHost={analytics.uiHost} /> : null;
+  return analytics ? (
+    <Analytics token={analytics.token} host={analytics.host} uiHost={analytics.uiHost} />
+  ) : null;
 }
 
 export default function RootLayout({
