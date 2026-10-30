@@ -215,15 +215,14 @@ describe("installations and repos", () => {
       installationId: first.id,
       repo: { id: "1234", fullName: "acme/web", defaultBranch: "main", ownerId: "42" },
       productionBranch: "trunk",
-      jobLabels: ["target:vps-box-1"],
     });
 
     expect(await store.projectsForRepo(first.id, "1234")).toEqual([
       {
         id: `p-${suffix}`,
+        slug: "p",
         organizationId: orgA,
         productionBranch: "trunk",
-        jobLabels: ["target:vps-box-1"],
         deploys: "runners",
       },
     ]);
@@ -241,7 +240,7 @@ describe("installations and repos", () => {
     });
 
     expect(await store.projectsForRepo(installation.id, "1234")).toMatchObject([
-      { id: `p-${suffix}`, productionBranch: "develop", jobLabels: [] },
+      { id: `p-${suffix}`, productionBranch: "develop" },
     ]);
   });
 

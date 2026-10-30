@@ -36,6 +36,22 @@ describe("repoToken", () => {
   });
 });
 
+describe("readFile", () => {
+  it("reads a file's text at a commit, and nothing for a file the commit lacks", async () => {
+    const { github, provider } = setup();
+    github.files.set("abc123:ocel.json", '{ "provider": "aws" }');
+
+    expect(await provider.readFile(installation, repo, { ref: "abc123", path: "ocel.json" })).toBe(
+      '{ "provider": "aws" }',
+    );
+    expect(
+      await provider.readFile(installation, repo, { ref: "abc123", path: "ocel.yaml" }),
+    ).toBeUndefined();
+    const [read] = github.callsTo("GET", /contents/);
+    expect(read?.path).toBe("/repos/acme/web/contents/ocel.json");
+  });
+});
+
 describe("listRepos", () => {
   it("returns every repository the installation reaches, across pages", async () => {
     const { github, provider } = setup();
@@ -229,6 +245,22 @@ describe("upsertDeployment", () => {
     });
 
     expect(github.deployments).toHaveLength(2);
+  });
+
+  it("marks a superseded commit's deployment inactive, and creates none for a commit that had none", async () => {
+    const { github, provider } = setup();
+    await provider.upsertDeployment(installation, repo, { environment, sha, state: "in_progress" });
+
+    await provider.upsertDeployment(installation, repo, { environment, sha, state: "inactive" });
+    await provider.upsertDeployment(installation, repo, {
+      environment,
+      sha: "c".repeat(40),
+      state: "inactive",
+    });
+
+    expect(github.deployments).toHaveLength(1);
+    const statuses = github.callsTo("POST", /deployments\/\d+\/statuses$/);
+    expect(statuses.map((call) => call.body.state)).toEqual(["in_progress", "inactive"]);
   });
 });
 

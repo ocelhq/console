@@ -6,8 +6,8 @@ import { envKeyStore, type GitProvider, gitStore, type PullRequestHead } from "@
 import { pg } from "@console/infra";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { announce } from "./changes";
 import {
-  notifyReported,
   planReportedJob,
   type ReportedDeployment,
   type ReportedEvent,
@@ -44,7 +44,7 @@ async function reportedFromCi(
 ) {
   const planned = await planReportedJob(reported, git);
   const made = await db.transaction((tx) => recordReportedJob(tx, planned));
-  await notifyReported(made, notifyChange);
+  await announce(made, notifyChange);
   return made;
 }
 
@@ -57,6 +57,7 @@ const preview = (over: Partial<ReportedDeployment> = {}): ReportedDeployment => 
   deploymentId: `trace-${crypto.randomUUID()}`,
   kind: "preview-up",
   tier: "preview",
+  environmentIdentity: "feat-x",
   outcome: "succeeded",
   error: null,
   git: { sha, branch: "feat/x", dirty: false },
@@ -69,6 +70,7 @@ const removal = (over: Partial<ReportedEvent> = {}): ReportedEvent => ({
   deploymentId: `event-${crypto.randomUUID()}`,
   kind: "preview-removed",
   tier: "preview",
+  environmentIdentity: "feat-x",
   git: { sha, branch: "feat/x", dirty: false },
   occurredAt: finishedAt,
   ...over,
@@ -150,7 +152,7 @@ describe("a preview CI reports", () => {
         runnerId: null,
         dedupeKey: `report:${reported.deploymentId}`,
         eventAt: startedAt,
-        claimedAt: startedAt,
+        tier: "preview",
         startedAt,
         finishedAt,
       },

@@ -1,7 +1,10 @@
 import { configuredGit, forgetExpiredPipelineTokens } from "@console/git";
 import { task } from "ocel/task";
+import { resync } from "../changes";
+import type { JobDeps } from "../deps";
 import { type GitEventPayload, handleGitEvent } from "../events";
-import { jobQueue } from "../queue";
+import { gitTokens } from "../git-token";
+import { runnerCalls } from "../runner";
 import {
   notifyJobChanged,
   queueGitEvent,
@@ -9,6 +12,7 @@ import {
   syncFailure,
   type Triggers,
 } from "../runtime";
+import { sweepJobs } from "../sweep";
 import { linkedRepo, syncJob } from "../sync";
 
 function git() {
@@ -21,7 +25,16 @@ export const gitEvent = task<GitEventPayload>("git-event", {
   ordered: true,
   retry: { maxAttempts: 5, minDelay: "5s", maxDelay: "5m" },
   run: async (payload) => {
-    await handleGitEvent(payload, { store: git().store, notify: jobChanged });
+    const runtime = git();
+    await handleGitEvent(payload, {
+      store: runtime.store,
+      readFile: async (appId, installation, repo, file) => {
+        const app = await runtime.store.loadApp(appId);
+        if (!app) throw new Error(`git app ${appId} is gone`);
+        return runtime.providerFor(app).readFile(installation, repo, file);
+      },
+      ...jobDeps(),
+    });
   },
 });
 
@@ -34,15 +47,14 @@ export const gitSync = task<SyncPayload>("git-sync", {
   },
 });
 
-export const leaseSweep = task("lease-sweep", {
+export const jobSweep = task("job-sweep", {
   cron: "* * * * *",
   retry: { maxAttempts: 1 },
   run: async () => {
-    const queue = runnerQueue();
     try {
-      await queue.sweep();
+      await sweepJobs(jobDeps());
     } finally {
-      await queue.resync();
+      await resync(jobChanged);
     }
   },
 });
@@ -64,4 +76,10 @@ export const jobChanged = notifyJobChanged(triggers, linkedRepo);
 
 export const webhookEvents = queueGitEvent(triggers);
 
-export const runnerQueue = () => jobQueue({ notify: jobChanged });
+export function jobDeps(): JobDeps {
+  return {
+    runners: runnerCalls,
+    notify: jobChanged,
+    gitToken: gitTokens(configuredGit),
+  };
+}

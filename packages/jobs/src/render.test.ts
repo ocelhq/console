@@ -16,22 +16,25 @@ function job(over: Partial<Job> = {}): Job {
     id: "j",
     projectId: "p",
     kind: "preview-up",
+    tier: "preview",
     status: "done",
     pr: 7,
+    lane: "pr-7",
     sha,
     branch: "feat/x",
-    labels: [],
     dedupeKey: "d",
     eventAt: new Date(),
     runnerId: null,
-    leaseUntil: null,
+    spec: null,
     cancelRequested: false,
-    claims: 0,
     deploymentId: "dep-1",
     error: null,
+    note: null,
     runUrl: null,
     createdAt: new Date(),
-    claimedAt: new Date(),
+    dispatchedAt: new Date(),
+    acknowledgedAt: new Date(),
+    unreachableSince: null,
     startedAt: new Date(),
     finishedAt: new Date(),
     revision: 1,
@@ -53,7 +56,12 @@ const deployed = {
 describe("the preview comment", () => {
   it("shows a ready preview's provider, commit, apps and run log", () => {
     const body = renderPreviewComment("acme/web", [
-      { project: "Web", job: job({ runUrl: RUN_URL }), deployment: deployed },
+      {
+        project: "Web",
+        job: job({ runUrl: RUN_URL }),
+        deployment: deployed,
+        link: { href: RUN_URL, label: "Run log" },
+      },
     ]);
 
     expect(body.startsWith(PREVIEW_MARKER)).toBe(true);
@@ -135,6 +143,7 @@ describe("what a report names", () => {
       {
         project: "Api | <img>",
         job: job({ runUrl: "javascript:alert(1)" }),
+        link: { href: "javascript:alert(1)", label: "Run log" },
         deployment: {
           ...deployed,
           apps: [{ name: "a|b\n| c", url: "https://ok.example/)](https://evil" }],

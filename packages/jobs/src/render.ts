@@ -17,6 +17,7 @@ export interface PreviewRow {
   project: string;
   job: Job;
   deployment?: PreviewDeployment;
+  link?: { href: string; label: string };
 }
 
 const LOGO_BASE = "https://raw.githubusercontent.com/ocelhq/ocel/main/www/public/providers";
@@ -107,9 +108,12 @@ function preview(repo: string, { job, deployment }: PreviewRow): string[] {
   switch (job.status) {
     case "queued":
       return [`⏳ Waiting for a runner to deploy ${commit(repo, job)}${onBranch(job)}.`];
-    case "claimed":
     case "running":
       return [`🔄 Deploying ${commit(repo, job)}${onBranch(job)}…`];
+    case "input-required":
+      return [
+        `⏸️ The deploy of ${commit(repo, job)}${onBranch(job)} waits for an answer on its deployment page.`,
+      ];
     case "done":
       return deployment
         ? deployed(repo, job, deployment)
@@ -128,7 +132,9 @@ function removal(job: Job): string[] {
   switch (job.status) {
     case "done":
       return [
-        job.claimedAt ? "💤 Removed: the preview is torn down." : "💤 Closed before a preview ran.",
+        job.dispatchedAt || job.runUrl
+          ? "💤 Removed: the preview is torn down."
+          : "💤 Closed before a preview ran.",
       ];
     case "failed":
       return ["❌ Removal failed.", ...(job.error ? ["", ...fenced(job.error)] : [])];
@@ -142,8 +148,8 @@ export function renderPreviewComment(repo: string, rows: PreviewRow[]): string {
   for (const row of rows) {
     lines.push("", `#### ${markdownText(row.project)}`, "");
     lines.push(...(row.job.kind === "preview-rm" ? removal(row.job) : preview(repo, row)));
-    const runLog = row.job.runUrl && markdownUrl(row.job.runUrl);
-    if (runLog) lines.push("", `[Run log](${runLog})`);
+    const href = row.link && markdownUrl(row.link.href);
+    if (row.link && href) lines.push("", `[${markdownText(row.link.label)}](${href})`);
   }
   return `${lines.join("\n")}\n`;
 }

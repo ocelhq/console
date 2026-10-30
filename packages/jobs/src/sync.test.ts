@@ -50,6 +50,7 @@ async function queued(
     .values({
       id: `job-${suffix}-${serial}`,
       kind: "preview-up",
+      tier: "preview",
       pr: 7,
       sha: sha("a"),
       dedupeKey: `d-${serial}`,
@@ -121,14 +122,20 @@ afterAll(async () => {
 describe("a production deploy", () => {
   it.each([
     ["queued", "pending"],
-    ["claimed", "pending"],
     ["running", "pending"],
+    ["input-required", "pending"],
     ["done", "success"],
     ["failed", "failure"],
   ] as const)(
     "is a %s commit status of %s on its commit, and nothing else",
     async (status, state) => {
-      const row = await queued({ projectId: web, kind: "deploy", pr: 0, status });
+      const row = await queued({
+        projectId: web,
+        kind: "deploy",
+        tier: "production",
+        pr: 0,
+        status,
+      });
 
       await syncJob(row.id, deps);
 
@@ -141,6 +148,70 @@ describe("a production deploy", () => {
       ]);
     },
   );
+});
+
+describe("a production deploy's status", () => {
+  it("says why it failed, and links where to fix it in the console", async () => {
+    const row = await queued({
+      projectId: web,
+      kind: "deploy",
+      tier: "production",
+      pr: 0,
+      status: "failed",
+      error: `bind a runner to production\n${"x".repeat(200)}`,
+    });
+
+    await syncJob(row.id, deps);
+
+    expect(calls[0]?.[3]).toMatchObject({
+      state: "failure",
+      description: "bind a runner to production",
+      targetUrl: `http://localhost:3000/projects/web/targets?org=${orgId}`,
+    });
+  });
+
+  it("keeps a long reason within GitHub's limit, and says a superseded commit was canceled", async () => {
+    const long = await queued({
+      projectId: web,
+      kind: "deploy",
+      tier: "production",
+      pr: 0,
+      status: "failed",
+      error: "y".repeat(300),
+    });
+    const superseded = await queued({
+      projectId: web,
+      kind: "deploy",
+      tier: "production",
+      pr: 0,
+      status: "canceled",
+      sha: sha("c"),
+    });
+
+    await syncJob(long.id, deps);
+    await syncJob(superseded.id, deps);
+
+    expect(arg<{ description: string }>(calls[0]).description).toHaveLength(140);
+    expect(calls[1]?.[3]).toMatchObject({ state: "error", description: "Canceled" });
+  });
+
+  it("links a job the console dispatched to its deployment's page", async () => {
+    const row = await queued({
+      projectId: web,
+      kind: "deploy",
+      tier: "production",
+      pr: 0,
+      status: "running",
+      runnerId: "ocel-cloud",
+      deploymentId: "d".repeat(32),
+    });
+
+    await syncJob(row.id, deps);
+
+    expect(arg<{ targetUrl: string }>(calls[0]).targetUrl).toBe(
+      `http://localhost:3000/projects/web/deployments/${"d".repeat(32)}?org=${orgId}`,
+    );
+  });
 });
 
 describe("a preview", () => {
@@ -175,6 +246,7 @@ describe("a preview", () => {
       providerName: "vps",
       target: "t",
       outcome: "succeeded",
+      outcomeBy: "ocel",
       trigger: { kind: "git" },
       deployedAt: new Date(),
       trace: [],
@@ -205,15 +277,32 @@ describe("a preview", () => {
     });
   });
 
-  it("reports a preview waiting for or held by a runner as a queued deployment", async () => {
-    for (const status of ["queued", "claimed"] as const) {
+  it("reports a preview waiting for a runner as a queued deployment, and one paused for an answer as in progress", async () => {
+    for (const [status, state] of [
+      ["queued", "queued"],
+      ["input-required", "in_progress"],
+    ] as const) {
       calls = [];
       const row = await queued({ projectId: web, status });
 
       await syncJob(row.id, deps);
 
-      expect(calls[2]?.[3]).toMatchObject({ environment: "preview/pr-7/web", state: "queued" });
+      expect(calls[2]?.[3]).toMatchObject({ environment: "preview/pr-7/web", state });
     }
+  });
+
+  it("posts nothing for a job the CLI dispatched from an upload", async () => {
+    const row = await queued({
+      projectId: web,
+      kind: "deploy",
+      tier: "production",
+      pr: 0,
+      spec: { source: { sourceId: "a".repeat(64) } },
+    });
+
+    await syncJob(row.id, deps);
+
+    expect(calls).toEqual([]);
   });
 
   it("gives each project of a monorepo its own environment", async () => {
@@ -223,7 +312,12 @@ describe("a preview", () => {
     await syncJob(row.id, deps);
 
     expect(calls.filter((call) => call[0] === "upsertDeployment").map((call) => call[3])).toEqual([
-      { environment: "preview/pr-7/web", state: "in_progress", sha: sha("a") },
+      {
+        environment: "preview/pr-7/web",
+        state: "in_progress",
+        sha: sha("a"),
+        logUrl: `http://localhost:3000/projects/web/targets?org=${orgId}`,
+      },
     ]);
   });
 
@@ -257,7 +351,7 @@ describe("a preview", () => {
     await syncJob(stale.id, deps);
 
     expect(arg<{ body: string }>(calls[1]).body).toContain(sha("2").slice(0, 7));
-    expect(calls[2]?.[3]).toMatchObject({ state: "in_progress", sha: sha("2") });
+    expect(calls[2]?.[3]).toMatchObject({ state: "success", sha: sha("1") });
   });
 
   it("removes the environment and marks the comment removed once the preview is removed", async () => {
@@ -266,7 +360,7 @@ describe("a preview", () => {
       kind: "preview-rm",
       sha: null,
       status: "done",
-      claimedAt: new Date(),
+      dispatchedAt: new Date(),
     });
 
     await syncJob(row.id, deps);
@@ -299,7 +393,7 @@ describe("a preview", () => {
       { sha: sha("1"), state: "error", context: "ocel/web/preview", description: "Canceled" },
     ]);
     expect(arg<{ body: string }>(calls[1]).body).toContain(sha("2").slice(0, 7));
-    expect(calls[2]?.[3]).toMatchObject({ state: "queued", sha: sha("2") });
+    expect(calls[2]?.[3]).toMatchObject({ state: "inactive", sha: sha("1") });
   });
 
   it("leaves a canceled preview's commit to the job that took it over at the same commit", async () => {
@@ -308,7 +402,22 @@ describe("a preview", () => {
 
     await syncJob(row.id, deps);
 
-    expect(calls.map((call) => call[0])).toEqual(["upsertComment", "upsertDeployment"]);
+    expect(calls.map((call) => call[0])).toEqual(["upsertComment"]);
+  });
+
+  it("links each preview in the comment to its page in the console", async () => {
+    const row = await queued({
+      projectId: web,
+      status: "running",
+      runnerId: "ocel-cloud",
+      deploymentId: "e".repeat(32),
+    });
+
+    await syncJob(row.id, deps);
+
+    expect(arg<{ body: string }>(calls[1]).body).toContain(
+      `[Open in the console](http://localhost:3000/projects/web/deployments/${"e".repeat(32)}?org=${orgId})`,
+    );
   });
 });
 

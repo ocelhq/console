@@ -14,7 +14,7 @@ import {
   removePipeline,
 } from "@console/git";
 import { deployIn } from "@console/jobs";
-import { jobChanged } from "@console/jobs/tasks";
+import { jobDeps } from "@console/jobs/tasks";
 import { and, eq } from "drizzle-orm";
 import { requireOrganization } from "@/lib/access";
 import { type Answer, attempt, done, failed } from "@/lib/answer";
@@ -127,7 +127,7 @@ export async function deployFrom(projectId: string, mode: "runners" | "ci"): Pro
   return attempt(async () => {
     const reached = await administered(projectId);
     if (!reached.ok) return reached;
-    await deployIn(reached.result.projectId, { mode, by: reached.result.userId }, jobChanged);
+    await deployIn(reached.result.projectId, { mode, by: reached.result.userId }, jobDeps());
     return done;
   });
 }

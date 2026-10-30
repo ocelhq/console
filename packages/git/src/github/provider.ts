@@ -210,6 +210,25 @@ export function githubProvider(github: GithubApp, options: GithubOptions = {}): 
       }
     },
 
+    async readFile(installation, repo, file) {
+      const octokit = await installationClient(installation);
+      try {
+        const { data } = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
+          ...ownerAndName(repo),
+          path: file.path,
+          ref: file.ref,
+          headers: { accept: "application/vnd.github.raw+json" },
+        });
+        const raw: unknown = data;
+        if (typeof raw === "string") return raw;
+        if (raw instanceof ArrayBuffer) return new TextDecoder().decode(raw);
+        throw new Error(`GitHub answered ${file.path} with no file's text`);
+      } catch (error) {
+        if (error instanceof RequestError && error.status === 404) return undefined;
+        throw error;
+      }
+    },
+
     async repoToken(installation, repo, access) {
       const { data } = await (await app()).octokit.request(
         "POST /app/installations/{installation_id}/access_tokens",
@@ -277,6 +296,7 @@ export function githubProvider(github: GithubApp, options: GithubOptions = {}): 
       const existing = (await deploymentsOf(octokit, target, deployment.environment, sha)).find(
         (candidate) => candidate.sha === sha,
       );
+      if (!existing && deployment.state === "inactive") return;
       const id = existing
         ? Number(existing.id)
         : await createDeployment(octokit, target, deployment.environment, sha);
