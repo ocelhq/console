@@ -56,3 +56,22 @@ export function issuanceView(row: IssuanceRow): IssuanceView {
     expiresAt: row.expiresAt.toISOString(),
   };
 }
+
+export function removalWarning(target: {
+  vendor: string;
+  account: string;
+  region: string;
+  tiers: { tier: string }[];
+  bound: string[];
+}): string {
+  const place = [target.vendor, target.account, target.region].filter(Boolean).join(" ");
+  const tiers =
+    target.tiers.length === 0
+      ? "It has no recorded tier."
+      : `The console forgets its ${target.tiers.map((tier) => tier.tier).join(" and ")} identity and stops issuing credentials for it.`;
+  const projects =
+    target.bound.length === 0
+      ? "No project deploys to it."
+      : `These stop deploying to it until they bind another target: ${target.bound.join(", ")}.`;
+  return `Removes ${place} from this console. ${tiers} ${projects} The account keeps trusting the issuer until an admin runs ocel bootstrap --remove there.`;
+}

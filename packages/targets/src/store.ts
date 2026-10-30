@@ -141,6 +141,7 @@ export async function tierOf(targetId: string, tier: Tier): Promise<TargetTier |
 
 export interface TargetWithTiers extends Target {
   tiers: TargetTier[];
+  bound: { slug: string; tier: Tier }[];
 }
 
 export async function targetsOf(organizationId: string): Promise<TargetWithTiers[]> {
@@ -156,9 +157,18 @@ export async function targetsOf(organizationId: string): Promise<TargetWithTiers
     .innerJoin(target, eq(target.id, targetTier.targetId))
     .where(eq(target.organizationId, organizationId))
     .orderBy(desc(targetTier.tier));
+  const bound = await db
+    .select({ targetId: targetBinding.targetId, slug: project.slug, tier: targetBinding.tier })
+    .from(targetBinding)
+    .innerJoin(project, eq(project.id, targetBinding.projectId))
+    .where(eq(project.organizationId, organizationId))
+    .orderBy(asc(project.slug), desc(targetBinding.tier));
   return targets.map((found) => ({
     ...found,
     tiers: tiers.map((row) => row.tier).filter((row) => row.targetId === found.id),
+    bound: bound
+      .filter((row) => row.targetId === found.id)
+      .map(({ slug, tier }) => ({ slug, tier })),
   }));
 }
 

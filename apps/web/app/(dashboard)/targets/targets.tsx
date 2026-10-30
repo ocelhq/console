@@ -4,6 +4,14 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Table,
   TableBody,
   TableCell,
@@ -11,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { removalWarning } from "@/lib/targets";
 import { labelType } from "@/lib/type";
 import { Stamp } from "../stamp";
 import { removeOrganizationTarget, testConnection } from "./actions";
@@ -29,6 +38,7 @@ export type TargetView = {
   account: string;
   region: string;
   tiers: TierView[];
+  bound: string[];
 };
 
 type Outcome = { ok: boolean; text: string };
@@ -46,6 +56,7 @@ function TargetCard({
   const [pending, setPending] = useState<string | null>(null);
   const [outcomes, setOutcomes] = useState<Record<string, Outcome>>({});
   const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   async function test(tier: string) {
     setPending(tier);
@@ -63,6 +74,7 @@ function TargetCard({
     setError(null);
     const answer = await removeOrganizationTarget(target.id);
     setPending(null);
+    setConfirming(false);
     if (!answer.ok) {
       setError(answer.message);
       return;
@@ -81,15 +93,38 @@ function TargetCard({
           <p className={labelType}>{target.region}</p>
         </div>
         {administers && (
-          <Button
-            type="button"
-            size="sm"
-            variant="destructive"
-            disabled={pending !== null}
-            onClick={remove}
-          >
-            {pending === "remove" ? "Removing…" : "Remove target"}
-          </Button>
+          <Popover open={confirming} onOpenChange={setConfirming}>
+            <PopoverTrigger
+              render={<Button size="sm" variant="destructive" disabled={pending !== null} />}
+            >
+              {pending === "remove" ? "Removing…" : "Remove target"}
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-96 max-w-[calc(100vw-2rem)] gap-3 p-4">
+              <PopoverHeader>
+                <PopoverTitle>Remove this target?</PopoverTitle>
+                <PopoverDescription>{removalWarning(target)}</PopoverDescription>
+              </PopoverHeader>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={pending !== null}
+                  onClick={remove}
+                >
+                  {pending === "remove" ? "Removing…" : "Remove target"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setConfirming(false)}
+                >
+                  Keep it
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
         )}
       </div>
       {target.tiers.length === 0 ? (
