@@ -5,6 +5,7 @@ import {
   audienceOf,
   identityProblem,
   isVendor,
+  regionProblem,
   sessionNameOf,
   subjectPrefixOf,
   unsupportedVendor,
@@ -13,12 +14,14 @@ import {
 const ISSUER = "https://console.example.com/oidc";
 const aws = { vendor: "aws" as const, account: "123456789012" };
 const gcp = { vendor: "gcp" as const, account: "shop-prod-4821" };
+const vps = { vendor: "vps" as const, account: "box.example.com" };
 
 describe("a target's vendor", () => {
-  it("is aws or gcp", () => {
+  it("is aws, gcp or vps", () => {
     expect(isVendor("aws")).toBe(true);
+    expect(isVendor("vps")).toBe(true);
     expect(isVendor("azure")).toBe(false);
-    expect(unsupportedVendor("azure")).toMatch(/aws or gcp, not azure/);
+    expect(unsupportedVendor("azure")).toMatch(/aws, gcp or vps, not azure/);
   });
 });
 
@@ -28,10 +31,60 @@ describe("a target's account", () => {
     ["aws", "12345678901", /12 digits/],
     ["gcp", "shop-prod-4821", undefined],
     ["gcp", "123456", /project id/],
+    ["vps", "box.example.com", undefined],
+    ["vps", "app-1.eu.example.com", undefined],
+    ["vps", "192.0.2.10", /hostname, not an IP address/],
+    ["vps", "2001:db8::1", /hostname, not an IP address/],
+    ["vps", "box", /hostname/],
+    ["vps", "-box.example.com", /hostname/],
   ])("of %s %s", (vendor, account, problem) => {
     const found = accountProblem(vendor, account);
     if (problem === undefined) expect(found).toBeUndefined();
     else expect(found).toMatch(problem);
+  });
+});
+
+describe("a target's region", () => {
+  it.each<[Vendor, string, RegExp | undefined]>([
+    ["aws", "us-east-1", undefined],
+    ["aws", "", /needs a region/],
+    ["gcp", "europe-west1", undefined],
+    ["gcp", "", /needs a region/],
+    ["vps", "", undefined],
+    ["vps", "us-east-1", /has no region/],
+  ])("of %s %s", (vendor, region, problem) => {
+    const found = regionProblem(vendor, region);
+    if (problem === undefined) expect(found).toBeUndefined();
+    else expect(found).toMatch(problem);
+  });
+});
+
+describe("a VPS tier's identity", () => {
+  it("is the box endpoint's https URL on the account's host, with no principal", () => {
+    expect(
+      identityProblem(vps, { identityProvider: "https://box.example.com", principal: "" }, ISSUER),
+    ).toBeUndefined();
+    expect(
+      identityProblem(
+        vps,
+        { identityProvider: "https://box.example.com/.ocel/endpoint", principal: "" },
+        ISSUER,
+      ),
+    ).toBeUndefined();
+  });
+
+  it.each([
+    [
+      "another host",
+      "https://other.example.com",
+      "",
+      /host other.example.com, not box.example.com/,
+    ],
+    ["plain http", "http://box.example.com", "", /https/],
+    ["no URL", "box.example.com", "", /https/],
+    ["a recorded principal", "https://box.example.com", "ocel-deploy", /principal/],
+  ])("is refused for %s", (_, identityProvider, principal, problem) => {
+    expect(identityProblem(vps, { identityProvider, principal }, ISSUER)).toMatch(problem);
   });
 });
 

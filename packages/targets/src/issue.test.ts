@@ -56,7 +56,12 @@ afterAll(async () => {
 });
 
 async function target(region: string) {
-  const prepared = await prepareTarget(orgId, { vendor: "aws", account: "123456789012", region });
+  const prepared = await prepareTarget(orgId, {
+    vendor: "aws",
+    account: "123456789012",
+    region,
+    namespace: "ocel",
+  });
   await recordTier(db, {
     targetId: prepared.id,
     tier: "production",

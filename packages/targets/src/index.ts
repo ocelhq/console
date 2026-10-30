@@ -7,6 +7,7 @@ export {
 } from "./issue";
 export { createIssuer, type Issuer, issuerUrl } from "./issuer";
 export { keySigner } from "./key";
+export { DEFAULT_NAMESPACE } from "./namespace";
 export { ISSUER_UNCONFIGURED, readIssuerSettings } from "./settings";
 export {
   bindingsOf,
@@ -29,5 +30,6 @@ export {
   audienceOf,
   identityProblem,
   isVendor,
+  regionProblem,
   unsupportedVendor,
 } from "./vendors";

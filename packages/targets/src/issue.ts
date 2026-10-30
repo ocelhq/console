@@ -23,7 +23,7 @@ export type Issue = {
   | {
       purpose: "deploy";
       projectId: string;
-      principal: Extract<IssuancePrincipal, { kind: "pipeline" }>;
+      principal: Extract<IssuancePrincipal, { kind: "pipeline" | "job" }>;
     }
   | { purpose: "test"; principal: Extract<IssuancePrincipal, { kind: "session" }> }
 );

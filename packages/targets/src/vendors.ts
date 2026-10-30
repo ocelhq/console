@@ -13,7 +13,29 @@ const AWS_ACCOUNT = /^\d{12}$/;
 const GCP_PROJECT = /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/;
 
 export function unsupportedVendor(vendor: string): string {
-  return `the console issues credentials for ${VENDORS.join(" or ")}, not ${vendor}`;
+  const named = `${VENDORS.slice(0, -1).join(", ")} or ${VENDORS.at(-1)}`;
+  return `the console issues credentials for ${named}, not ${vendor}`;
+}
+
+const HOSTNAME = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+const IP_ADDRESS = /^[0-9.]+$|:/;
+
+function hostnameProblem(account: string): string | undefined {
+  if (IP_ADDRESS.test(account)) {
+    return `a VPS account is the box's hostname, not an IP address: ${account} cannot carry the publicly trusted certificate its endpoint serves`;
+  }
+  return HOSTNAME.test(account)
+    ? undefined
+    : `a VPS account is the box's fully qualified hostname, such as box.example.com, not ${account}`;
+}
+
+export function regionProblem(vendor: Vendor, region: string): string | undefined {
+  if (vendor === "vps") {
+    return region === "" ? undefined : `a VPS target has no region, so ${region} names nothing`;
+  }
+  return region === ""
+    ? `${vendor === "aws" ? "an AWS" : "a GCP"} target needs a region`
+    : undefined;
 }
 
 export function accountProblem(vendor: Vendor, account: string): string | undefined {
@@ -24,6 +46,8 @@ export function accountProblem(vendor: Vendor, account: string): string | undefi
       return GCP_PROJECT.test(account)
         ? undefined
         : `a GCP account is a project id, such as shop-prod-4821, not ${account}`;
+    case "vps":
+      return hostnameProblem(account);
   }
 }
 
@@ -82,6 +106,28 @@ function gcpProblem(
   return undefined;
 }
 
+function vpsProblem(
+  host: string,
+  { identityProvider, principal }: TierIdentity,
+): string | undefined {
+  let url: URL;
+  try {
+    url = new URL(identityProvider);
+  } catch {
+    return `identity_provider ${identityProvider} is no https URL of the box's endpoint`;
+  }
+  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) {
+    return `identity_provider ${identityProvider} is no https URL of the box's endpoint`;
+  }
+  if (url.hostname !== host) {
+    return `identity_provider ${identityProvider} is on host ${url.hostname}, not ${host}`;
+  }
+  if (principal !== "") {
+    return `a VPS tier records no principal: the box's own config names the user it signs certificates for, not ${principal}`;
+  }
+  return undefined;
+}
+
 export function identityProblem(
   target: { vendor: Vendor; account: string },
   identity: TierIdentity,
@@ -92,6 +138,8 @@ export function identityProblem(
       return awsProblem(target.account, identity, issuer);
     case "gcp":
       return gcpProblem(target.account, identity);
+    case "vps":
+      return vpsProblem(target.account, identity);
   }
 }
 

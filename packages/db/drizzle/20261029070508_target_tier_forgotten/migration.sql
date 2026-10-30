@@ -1,0 +1,1 @@
+ALTER TABLE "target" ADD COLUMN "tier_forgotten_at" timestamp;

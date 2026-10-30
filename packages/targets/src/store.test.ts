@@ -4,6 +4,7 @@ import {
   credentialIssuance,
   organization,
   project,
+  target,
   targetBinding,
   targetTier,
 } from "@console/db/schema";
@@ -43,8 +44,8 @@ const issuer = createIssuer("https://console.example.com", {
   previous: [],
 });
 
-function place(region = "eu-west-1") {
-  return { vendor: "aws" as const, account: "123456789012", region };
+function place(region = "eu-west-1", namespace = "ocel") {
+  return { vendor: "aws" as const, account: "123456789012", region, namespace };
 }
 
 beforeAll(async () => {
@@ -145,6 +146,57 @@ describe("forgetting a tier", () => {
       tier: null,
     });
     await unbindProject(projectId, "production");
+  });
+
+  it("remembers that a tier was forgotten, which a target that never recorded one has not", async () => {
+    const never = await prepareTarget(orgId, place("eu-north-1"));
+    const forgotten = await prepareTarget(orgId, place("eu-south-1"));
+    await recordTier(db, {
+      targetId: forgotten.id,
+      tier: "preview",
+      identity,
+      cliVersion: "0.0.3",
+    });
+
+    await forgetTier(forgotten.id, "preview");
+    await forgetTier(never.id, "preview");
+
+    const [listedNever, listedForgotten] = (await targetsOf(orgId)).filter((found) =>
+      [never.id, forgotten.id].includes(found.id),
+    );
+    expect(listedNever?.tierForgottenAt).toBeNull();
+    expect(listedForgotten?.tierForgottenAt).toBeInstanceOf(Date);
+  });
+});
+
+describe("a target's namespace", () => {
+  it("makes two namespaces in one account and region two targets", async () => {
+    const ocel = await prepareTarget(orgId, place("us-west-1", "ocel"));
+    const staging = await prepareTarget(orgId, place("us-west-1", "staging"));
+    const again = await prepareTarget(orgId, place("us-west-1", "staging"));
+
+    expect(staging.id).not.toBe(ocel.id);
+    expect(again.id).toBe(staging.id);
+    expect([ocel.namespace, staging.namespace]).toEqual(["ocel", "staging"]);
+  });
+
+  it("gives a target recorded before namespaces to the default namespace's next bootstrap, and no other", async () => {
+    const [legacy] = await db
+      .insert(target)
+      .values({
+        organizationId: orgId,
+        vendor: "aws",
+        account: "123456789012",
+        region: "us-west-2",
+      })
+      .returning();
+
+    const other = await prepareTarget(orgId, place("us-west-2", "staging"));
+    const claimed = await prepareTarget(orgId, place("us-west-2", "ocel"));
+
+    expect(legacy?.namespace).toBe("");
+    expect(other.id).not.toBe(legacy?.id);
+    expect(claimed).toMatchObject({ id: legacy?.id, namespace: "ocel" });
   });
 });
 
