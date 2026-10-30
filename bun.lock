@@ -40,6 +40,7 @@
         "@console/auth": "workspace:*",
         "@console/connectors": "workspace:*",
         "@console/db": "workspace:*",
+        "@console/endpoints": "workspace:*",
         "@console/git": "workspace:*",
         "@console/infra": "workspace:*",
         "@console/jobs": "workspace:*",
@@ -92,6 +93,7 @@
         "@console/auth": "workspace:*",
         "@console/connectors": "workspace:*",
         "@console/db": "workspace:*",
+        "@console/endpoints": "workspace:*",
         "@console/git": "workspace:*",
         "@console/infra": "workspace:*",
         "@console/jobs": "workspace:*",
@@ -117,6 +119,7 @@
       "version": "0.0.1",
       "dependencies": {
         "@better-auth/drizzle-adapter": "catalog:",
+        "@console/connectors": "workspace:*",
         "@console/db": "workspace:*",
         "@console/infra": "workspace:*",
         "better-auth": "catalog:",
@@ -159,6 +162,25 @@
         "vitest": "^4.1.9",
       },
     },
+    "packages/endpoints": {
+      "name": "@console/endpoints",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bufbuild/protobuf": "^2.12.1",
+        "@connectrpc/connect": "^2.1.0",
+        "@console/auth": "workspace:*",
+        "@console/connectors": "workspace:*",
+        "@console/db": "workspace:*",
+        "@console/infra": "workspace:*",
+        "drizzle-orm": "catalog:",
+      },
+      "devDependencies": {
+        "@types/node": "^20",
+        "jose": "^6.2.12",
+        "typescript": "catalog:",
+        "vitest": "^4.1.9",
+      },
+    },
     "packages/git": {
       "name": "@console/git",
       "version": "0.0.0",
@@ -191,14 +213,22 @@
       "name": "@console/jobs",
       "version": "0.0.0",
       "dependencies": {
+        "@bufbuild/protobuf": "^2.12.1",
+        "@connectrpc/connect": "^2.1.0",
+        "@console/auth": "workspace:*",
+        "@console/connectors": "workspace:*",
         "@console/db": "workspace:*",
+        "@console/endpoints": "workspace:*",
         "@console/git": "workspace:*",
+        "@console/infra": "workspace:*",
         "drizzle-orm": "catalog:",
+        "jsonc-parser": "^3.3.1",
         "ocel": "catalog:",
+        "yaml": "^2.9.1",
       },
       "devDependencies": {
-        "@console/infra": "workspace:*",
         "@types/node": "^20",
+        "jose": "^6.2.12",
         "typescript": "catalog:",
         "vitest": "^4.1.9",
       },
@@ -459,6 +489,8 @@
     "@console/connectors": ["@console/connectors@workspace:packages/connectors"],
 
     "@console/db": ["@console/db@workspace:packages/db"],
+
+    "@console/endpoints": ["@console/endpoints@workspace:packages/endpoints"],
 
     "@console/git": ["@console/git@workspace:packages/git"],
 

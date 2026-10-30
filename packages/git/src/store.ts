@@ -18,9 +18,9 @@ export type AppSecret = "privateKey" | "webhookSecret" | "clientSecret";
 
 export interface ProjectRepo {
   id: string;
+  slug: string;
   organizationId: string;
   productionBranch: string;
-  jobLabels: string[];
   deploys: DeployMode;
 }
 
@@ -242,7 +242,6 @@ export function gitStore(keys: KeyStore) {
       installationId: string;
       repo: Repo;
       productionBranch?: string;
-      jobLabels?: string[];
     }): Promise<void> {
       await db.transaction(async (tx) => {
         const [installation] = await tx
@@ -279,7 +278,6 @@ export function gitStore(keys: KeyStore) {
           repoOwnerId: input.repo.ownerId,
           fullName: input.repo.fullName,
           productionBranch: input.productionBranch ?? input.repo.defaultBranch,
-          jobLabels: input.jobLabels ?? [],
           ...(moved ? { deploys: "runners" as const } : {}),
         };
         await tx
@@ -329,9 +327,9 @@ export function gitStore(keys: KeyStore) {
       return db
         .select({
           id: project.id,
+          slug: project.slug,
           organizationId: project.organizationId,
           productionBranch: projectRepo.productionBranch,
-          jobLabels: projectRepo.jobLabels,
           deploys: projectRepo.deploys,
         })
         .from(projectRepo)
