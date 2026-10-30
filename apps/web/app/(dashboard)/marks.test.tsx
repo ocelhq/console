@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
+import { siGooglecloud } from "simple-icons";
 import { describe, expect, it } from "vitest";
 import { EdgeMark, ProviderMark } from "./marks";
 
@@ -13,6 +14,10 @@ describe("ProviderMark", () => {
     expect(
       renderToStaticMarkup(<ProviderMark provider="ocel" resourceType="postgres" />),
     ).toContain(cutRing);
+  });
+
+  it("draws the Google Cloud mark for GCP", () => {
+    expect(renderToStaticMarkup(<ProviderMark provider="gcp" />)).toContain(siGooglecloud.path);
   });
 
   it("draws no Ocel mark for another provider", () => {

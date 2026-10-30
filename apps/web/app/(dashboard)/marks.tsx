@@ -9,6 +9,7 @@ import {
   siDeno,
   siDigitalocean,
   siGo,
+  siGooglecloud,
   siHetzner,
   siNextdotjs,
   siNodedotjs,
@@ -37,6 +38,7 @@ const runtimeMarks: Record<string, SimpleIcon> = {
 const providerMarks: Record<string, SimpleIcon> = {
   cloudflare: siCloudflare,
   digitalocean: siDigitalocean,
+  gcp: siGooglecloud,
   hetzner: siHetzner,
 };
 
