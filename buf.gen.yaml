@@ -2,7 +2,7 @@ version: v2
 clean: true
 inputs:
   - git_repo: https://github.com/ocelhq/ocel.git
-    ref: b00a812cff6f97f0ad43415d234f27d0e8986a1d
+    ref: d05bbeccf3fec8707f6643b6987152cc28125042
     subdir: proto
     paths:
       - provider/contract

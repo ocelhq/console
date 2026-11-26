@@ -10,6 +10,7 @@
     "./testing": "./src/testing.ts"
   },
   "scripts": {
+    "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",

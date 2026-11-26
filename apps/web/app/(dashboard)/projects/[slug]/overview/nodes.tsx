@@ -24,7 +24,7 @@ export function count(n: number, noun: string) {
   return `${n} ${noun}${n === 1 ? "" : "s"}`;
 }
 
-export const APP_SIZE = { width: 264, height: 112 };
+export const APP_SIZE = { width: 264, height: 140 };
 export const RESOURCE_SIZE = { width: 232, height: 92 };
 export const GHOST_SIZE = { width: 200, height: 72 };
 
@@ -80,7 +80,7 @@ export function AppNode({ id, data, selected }: NodeProps<Node<AppNodeData, "app
   return (
     <>
       <Handle type="target" position={Position.Left} className={handleSide} isConnectable={false} />
-      <div className={tileClass(selected === true, ghost, "bg-background")} style={APP_SIZE}>
+      <div className={tileClass(selected === true, ghost, "bg-background gap-2")} style={APP_SIZE}>
         <button
           type="button"
           aria-label={`App ${app.name}, ${app.outcome}`}
