@@ -1,7 +1,6 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { useState } from "react";
 import { AuthError, AuthPanel } from "@/components/auth-panel";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
@@ -11,19 +10,17 @@ function formatForDisplay(code: string) {
   return code;
 }
 
-function DeviceApprovalForm() {
-  const searchParams = useSearchParams();
-  const userCode = searchParams.get("user_code") ?? "";
+export function ApproveDevice({ userCode, signedInAs }: { userCode: string; signedInAs: string }) {
   const [status, setStatus] = useState<
-    "idle" | "approving" | "denying" | "approved" | "denied" | "error"
+    "idle" | "approving" | "denying" | "switching" | "approved" | "denied" | "error"
   >("idle");
   const [error, setError] = useState<string | null>(null);
 
   if (!userCode) {
     return (
-      <StatusCard
+      <AuthPanel
         title="Missing code"
-        message="No device code was provided. Go back to your terminal and re-run `ocel login`."
+        description="No device code was provided. Go back to your terminal and re-run `ocel login`."
       />
     );
   }
@@ -54,25 +51,33 @@ function DeviceApprovalForm() {
     setStatus("denied");
   }
 
+  async function handleSwitchAccount() {
+    setStatus("switching");
+    setError(null);
+    await authClient.signOut();
+    const back = `/device/approve?user_code=${encodeURIComponent(userCode)}`;
+    window.location.assign(`/sign-in?redirect=${encodeURIComponent(back)}`);
+  }
+
   if (status === "approved") {
     return (
-      <StatusCard
+      <AuthPanel
         title="Device approved"
-        message="You're all set. You can close this window and return to your terminal."
+        description="You're all set. You can close this window and return to your terminal."
       />
     );
   }
 
   if (status === "denied") {
     return (
-      <StatusCard
+      <AuthPanel
         title="Device denied"
-        message="You can close this window and return to your terminal."
+        description="You can close this window and return to your terminal."
       />
     );
   }
 
-  const isBusy = status === "approving" || status === "denying";
+  const isBusy = status === "approving" || status === "denying" || status === "switching";
 
   return (
     <AuthPanel
@@ -84,9 +89,23 @@ function DeviceApprovalForm() {
       </div>
 
       <p className="text-sm text-muted-foreground">
-        A CLI device is requesting access to your Ocel account. If you didn&apos;t initiate this,
-        deny it.
+        Check this code matches the one in your terminal. If you didn&apos;t run{" "}
+        <code className="font-mono text-foreground">ocel login</code>, deny it.
       </p>
+
+      <div className="flex items-center justify-between gap-3 border-t border-border pt-4 text-sm">
+        <span className="min-w-0 truncate text-muted-foreground">
+          Signed in as <span className="font-medium text-foreground">{signedInAs}</span>
+        </span>
+        <button
+          type="button"
+          onClick={handleSwitchAccount}
+          disabled={isBusy}
+          className="shrink-0 text-muted-foreground underline underline-offset-4 hover:text-foreground disabled:opacity-50"
+        >
+          {status === "switching" ? "Signing out…" : "Switch account"}
+        </button>
+      </div>
 
       <div className="grid grid-cols-2 gap-2">
         <Button
@@ -105,17 +124,5 @@ function DeviceApprovalForm() {
 
       {error && <AuthError>{error}</AuthError>}
     </AuthPanel>
-  );
-}
-
-function StatusCard({ title, message }: { title: string; message: string }) {
-  return <AuthPanel title={title} description={message} />;
-}
-
-export default function DeviceApprovalPage() {
-  return (
-    <Suspense fallback={null}>
-      <DeviceApprovalForm />
-    </Suspense>
   );
 }
