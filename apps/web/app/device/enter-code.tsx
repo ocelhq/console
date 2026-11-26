@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { AuthError, AuthPanel } from "@/components/auth-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,10 +11,8 @@ function normalizeCode(raw: string) {
   return raw.trim().replace(/-/g, "").toUpperCase();
 }
 
-function DeviceVerificationForm() {
+export function EnterCode({ initialCode }: { initialCode: string }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const initialCode = searchParams.get("user_code") ?? "";
   const [userCode, setUserCode] = useState(initialCode);
   const [error, setError] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
@@ -90,13 +88,5 @@ function DeviceVerificationForm() {
 
       {error && <AuthError>{error}</AuthError>}
     </AuthPanel>
-  );
-}
-
-export default function DeviceVerificationPage() {
-  return (
-    <Suspense fallback={null}>
-      <DeviceVerificationForm />
-    </Suspense>
   );
 }
